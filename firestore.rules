@@ -1,0 +1,61 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    // Collection: users
+    // Fields: uid, nickname, balance, rank, xp, level, avatar, cardStyle, socialLinks, banned, password, totalDeposits, totalWithdrawals, wagerRequirement
+    //
+    // Collection: promoCodes
+    // Fields: code, amount, maxActivations, activations, wager, createdAt
+    //
+    // Collection: gameSessions
+    // Fields: userId, gameType, bet, multiplier, payout, timestamp
+    //
+    // Collection: achievements
+    // Fields: userId, type, category, progress, completed, rewarded
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.rank == 'admin' ||
+         request.auth.token.email == "nekogem77@gmail.com");
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if (isOwner(userId) && request.resource.data.rank == resource.data.rank) || isAdmin();
+    }
+
+    // Promo codes
+    match /promoCodes/{codeId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Game sessions
+    match /gameSessions/{sessionId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    // Achievements
+    match /achievements/{achievementId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow write: if isAuthenticated() && (request.resource.data.userId == request.auth.uid || isAdmin());
+    }
+  }
+}

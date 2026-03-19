@@ -1,0 +1,87 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile and statistics",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "nickname": { "type": "string" },
+        "balance": { "type": "number" },
+        "rank": { "type": "string" },
+        "xp": { "type": "number" },
+        "level": { "type": "number" },
+        "avatar": { "type": "string" },
+        "cardStyle": { "type": "object" },
+        "stats": { "type": "object" },
+        "socialLinks": { "type": "object" },
+        "banned": { "type": "boolean" },
+        "password": { "type": "string" },
+        "totalDeposits": { "type": "number" },
+        "totalWithdrawals": { "type": "number" },
+        "wagerRequirement": { "type": "number" }
+      },
+      "required": ["uid", "nickname", "balance"]
+    },
+    "PromoCode": {
+      "title": "PromoCode",
+      "description": "Promotional codes for users",
+      "type": "object",
+      "properties": {
+        "code": { "type": "string" },
+        "amount": { "type": "number" },
+        "maxActivations": { "type": "number" },
+        "activations": { "type": "number" },
+        "wager": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["code", "amount", "maxActivations"]
+    },
+    "GameSession": {
+      "title": "GameSession",
+      "description": "Record of a game played",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "gameType": { "type": "string" },
+        "bet": { "type": "number" },
+        "multiplier": { "type": "number" },
+        "payout": { "type": "number" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "gameType", "bet", "payout"]
+    },
+    "Achievement": {
+      "title": "Achievement",
+      "description": "User achievements",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "type": { "type": "string" },
+        "category": { "type": "string" },
+        "progress": { "type": "number" },
+        "completed": { "type": "boolean" },
+        "rewarded": { "type": "boolean" }
+      },
+      "required": ["userId", "type", "category"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/promoCodes/{codeId}": {
+      "schema": "PromoCode",
+      "description": "Promo codes"
+    },
+    "/gameSessions/{sessionId}": {
+      "schema": "GameSession",
+      "description": "Game history"
+    },
+    "/achievements/{achievementId}": {
+      "schema": "Achievement",
+      "description": "User achievements"
+    }
+  }
+}

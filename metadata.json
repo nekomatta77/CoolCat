@@ -1,0 +1,5 @@
+{
+  "name": "CoolCat Casino",
+  "description": "A cat-themed casino project with Dice, Mines, Keno, and Jackpot games, bonus systems, levels, and admin panel.",
+  "requestFramePermissions": []
+}
