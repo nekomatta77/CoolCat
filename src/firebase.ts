@@ -11,6 +11,10 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
+// Отладочная информация: проверяем, видит ли проект ключи (покажет true или false)
+console.log("🔑 API Key существует?:", !!firebaseConfig.apiKey);
+console.log("📁 Project ID существует?:", !!firebaseConfig.projectId);
+
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const auth = getAuth(app);
