@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { 
-  signInWithPopup, 
+  signInWithRedirect, 
   GoogleAuthProvider, 
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword,
@@ -40,26 +40,23 @@ export default function Auth({ onSuccess }: AuthProps) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [nickname, setNickname] = useState('');
 
-  // Функция авторизации через Google
+  // Функция авторизации через Google (теперь через редирект)
   const handleGoogleLogin = async () => {
     setLoading(true);
     setError(null);
     try {
       const provider = new GoogleAuthProvider();
-      // Вызываем попап окно Google для входа
-      await signInWithPopup(auth, provider);
-      onSuccess(); // Если успешно - вызываем коллбэк
+      // Вызываем редирект на страницу Google для входа
+      await signInWithRedirect(auth, provider);
+      // При редиректе страница перезагрузится сама, onSuccess вызывать не нужно
     } catch (err: any) {
       console.error('Google login error:', err);
       let message = err.message;
       
-      // Добавлена обработка твоей ошибки с доменом
       if (err.code === 'auth/unauthorized-domain') {
         message = 'Ошибка: Домен не авторизован. Добавьте ваш домен в Authorized domains в Firebase.';
       } else if (err.code === 'auth/operation-not-allowed') {
         message = 'Вход через Google не включен в настройках Firebase.';
-      } else if (err.code === 'auth/popup-closed-by-user') {
-        message = 'Вы закрыли окно авторизации до её завершения.';
       }
       
       setError(message);
@@ -107,7 +104,6 @@ export default function Auth({ onSuccess }: AuthProps) {
       if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
         message = 'Неверный email или пароль';
       }
-      // Добавлена обработка ошибки отключенного метода входа по почте
       if (err.code === 'auth/operation-not-allowed') {
         message = 'Авторизация по почте отключена. Включите Email/Password в Firebase Console.';
       }
