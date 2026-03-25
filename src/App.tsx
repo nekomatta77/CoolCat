@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc, setDoc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import { UserProfile } from './types';
@@ -23,34 +23,39 @@ import Admin from './pages/Admin';
 export default function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [loginError, setLoginError] = useState<string | null>(null);
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [dbError, setDbError] = useState<string | null>(null);
 
   useEffect(() => {
     let unsubscribeUser: (() => void) | null = null;
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
-      // Clean up previous user listener if it exists
+      // Очищаем предыдущего слушателя, если он был
       if (unsubscribeUser) {
         unsubscribeUser();
         unsubscribeUser = null;
       }
 
       if (firebaseUser) {
+        // ВАЖНО: Включаем экран загрузки, пока обращаемся к Firestore
+        setLoading(true);
+        setDbError(null);
+        
         const userRef = doc(db, 'users', firebaseUser.uid);
         try {
+          // Обновляем данные пользователя, чтобы точно получить введенный при регистрации никнейм
+          await firebaseUser.reload();
+          const currentUser = auth.currentUser || firebaseUser;
+
           const userSnap = await getDoc(userRef);
 
           if (userSnap.exists()) {
             const userData = userSnap.data() as UserProfile;
-            // Sync nickname if it was updated in Auth but not in Firestore
-            if (firebaseUser.displayName && userData.nickname.startsWith('Cat') && userData.nickname !== firebaseUser.displayName) {
-              await updateDoc(userRef, { nickname: firebaseUser.displayName });
+            if (currentUser.displayName && userData.nickname.startsWith('Cat') && userData.nickname !== currentUser.displayName) {
+              await updateDoc(userRef, { nickname: currentUser.displayName });
             }
             setUser(userData);
             setLoading(false);
 
-            // Listen for real-time updates
             unsubscribeUser = onSnapshot(userRef, (doc) => {
               if (doc.exists()) {
                 setUser(doc.data() as UserProfile);
@@ -59,15 +64,15 @@ export default function App() {
               console.error("User snapshot error:", error);
             });
           } else {
-            // Create new user profile
+            // Создаем профиль в Firestore для нового пользователя
             const newUser: UserProfile = {
-              uid: firebaseUser.uid,
-              nickname: firebaseUser.displayName || `Cat${Math.floor(Math.random() * 10000)}`,
-              balance: 1000, // Starting balance
+              uid: currentUser.uid,
+              nickname: currentUser.displayName || `Cat${Math.floor(Math.random() * 10000)}`,
+              balance: 1000,
               rank: 'user',
               xp: 0,
               level: 1,
-              avatar: firebaseUser.photoURL || 'https://api.dicebear.com/7.x/bottts/svg?seed=CoolCat',
+              avatar: currentUser.photoURL || 'https://api.dicebear.com/7.x/bottts/svg?seed=CoolCat',
               cardStyle: {
                 background: '#ffffff',
                 border: '#6366f1',
@@ -85,7 +90,9 @@ export default function App() {
             setLoading(false);
           }
         } catch (error) {
-          console.error("Error fetching user profile:", error);
+          console.error("Error fetching/creating user profile:", error);
+          // Выводим понятную ошибку прямо на экран!
+          setDbError("Ошибка подключения к базе данных (Firestore). Убедитесь, что вы создали базу данных Firestore Database в Firebase Console.");
           setLoading(false);
         }
       } else {
@@ -100,26 +107,6 @@ export default function App() {
     };
   }, []);
 
-  const handleLogin = async () => {
-    const provider = new GoogleAuthProvider();
-    setLoginError(null);
-    setIsLoggingIn(true);
-    try {
-      await signInWithPopup(auth, provider);
-    } catch (error: any) {
-      if (error.code === 'auth/popup-closed-by-user') {
-        setLoginError('Окно авторизации было закрыто. Попробуйте еще раз.');
-      } else if (error.code === 'auth/popup-blocked') {
-        setLoginError('Всплывающее окно заблокировано браузером. Разрешите всплывающие окна для входа.');
-      } else {
-        setLoginError('Произошла ошибка при входе. Попробуйте позже.');
-        console.error('Login error:', error);
-      }
-    } finally {
-      setIsLoggingIn(false);
-    }
-  };
-
   const handleLogout = async () => {
     try {
       await signOut(auth);
@@ -127,6 +114,24 @@ export default function App() {
       console.error('Logout error:', error);
     }
   };
+
+  // Экран ошибки, если БД недоступна
+  if (dbError) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-red-50 p-4 text-center">
+        <div className="bg-white p-8 rounded-3xl shadow-xl max-w-md w-full">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">Ошибка Базы Данных</h1>
+          <p className="text-slate-700 mb-6">{dbError}</p>
+          <button
+            onClick={() => { setDbError(null); handleLogout(); }}
+            className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition-colors"
+          >
+            Выйти и попробовать снова
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
