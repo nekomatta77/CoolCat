@@ -14,6 +14,7 @@ import {
   User, 
   Chrome, 
   Send, 
+  Share2, 
   ArrowRight, 
   Cat, 
   CheckCircle2, 
@@ -33,27 +34,41 @@ export default function Auth({ onSuccess }: AuthProps) {
   const [error, setError] = useState<string | null>(null);
   const [isTermsOpen, setIsTermsOpen] = useState(false);
 
-  // Form states
+  // Состояния для полей формы
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [nickname, setNickname] = useState('');
 
+  // Функция авторизации через Google
   const handleGoogleLogin = async () => {
     setLoading(true);
     setError(null);
     try {
       const provider = new GoogleAuthProvider();
+      // Вызываем попап окно Google для входа
       await signInWithPopup(auth, provider);
-      onSuccess();
+      onSuccess(); // Если успешно - вызываем коллбэк
     } catch (err: any) {
       console.error('Google login error:', err);
-      setError(err.message);
+      let message = err.message;
+      
+      // Добавлена обработка твоей ошибки с доменом
+      if (err.code === 'auth/unauthorized-domain') {
+        message = 'Ошибка: Домен не авторизован. Добавьте ваш домен в Authorized domains в Firebase.';
+      } else if (err.code === 'auth/operation-not-allowed') {
+        message = 'Вход через Google не включен в настройках Firebase.';
+      } else if (err.code === 'auth/popup-closed-by-user') {
+        message = 'Вы закрыли окно авторизации до её завершения.';
+      }
+      
+      setError(message);
     } finally {
       setLoading(false);
     }
   };
 
+  // Функция авторизации и регистрации через Email
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -61,15 +76,21 @@ export default function Auth({ onSuccess }: AuthProps) {
 
     try {
       if (isLogin) {
+        // Логика входа
         await signInWithEmailAndPassword(auth, email, password);
       } else {
+        // Логика регистрации
         if (password !== confirmPassword) {
           throw new Error('Пароли не совпадают');
         }
         if (!nickname) {
           throw new Error('Пожалуйста, введите никнейм');
         }
+        
+        // Создаем пользователя
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        
+        // Сразу обновляем его профиль, чтобы сохранить никнейм
         await updateProfile(userCredential.user, {
           displayName: nickname
         });
@@ -78,16 +99,26 @@ export default function Auth({ onSuccess }: AuthProps) {
     } catch (err: any) {
       console.error('Email auth error:', err);
       let message = err.message;
+      
+      // Переводим ошибки Firebase на понятный русский язык
       if (err.code === 'auth/email-already-in-use') message = 'Этот email уже используется';
       if (err.code === 'auth/weak-password') message = 'Пароль слишком слабый (минимум 6 символов)';
-      if (err.code === 'auth/invalid-email') message = 'Некорректный email';
-      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') message = 'Неверный email или пароль';
+      if (err.code === 'auth/invalid-email') message = 'Некорректный формат email';
+      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+        message = 'Неверный email или пароль';
+      }
+      // Добавлена обработка ошибки отключенного метода входа по почте
+      if (err.code === 'auth/operation-not-allowed') {
+        message = 'Авторизация по почте отключена. Включите Email/Password в Firebase Console.';
+      }
+      
       setError(message);
     } finally {
       setLoading(false);
     }
   };
 
+  // Заглушка для пока неработающих соцсетей
   const handleSocialPlaceholder = (provider: string) => {
     setError(`Авторизация через ${provider} будет доступна в ближайшее время!`);
   };
@@ -114,7 +145,7 @@ export default function Auth({ onSuccess }: AuthProps) {
 
           <div className="flex bg-slate-100 p-1.5 rounded-2xl mb-8">
             <button 
-              onClick={() => setIsLogin(true)}
+              onClick={() => { setIsLogin(true); setError(null); }}
               className={cn(
                 "flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
                 isLogin ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
@@ -123,7 +154,7 @@ export default function Auth({ onSuccess }: AuthProps) {
               Вход
             </button>
             <button 
-              onClick={() => setIsLogin(false)}
+              onClick={() => { setIsLogin(false); setError(null); }}
               className={cn(
                 "flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
                 !isLogin ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
@@ -139,10 +170,10 @@ export default function Auth({ onSuccess }: AuthProps) {
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
-                className="mb-6 p-4 bg-red-50 border border-red-100 text-red-600 text-sm font-bold rounded-2xl flex items-center gap-3"
+                className="mb-6 p-4 bg-red-50 border border-red-100 text-red-600 text-sm font-bold rounded-2xl flex items-start gap-3 overflow-hidden"
               >
-                <AlertCircle className="w-5 h-5 flex-shrink-0" />
-                <span>{error}</span>
+                <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                <span className="leading-snug">{error}</span>
               </motion.div>
             )}
           </AnimatePresence>
@@ -249,13 +280,7 @@ export default function Auth({ onSuccess }: AuthProps) {
               className="flex items-center justify-center h-14 bg-white border-2 border-slate-50 rounded-2xl hover:border-indigo-100 hover:bg-indigo-50/30 transition-all group"
               title="VK"
             >
-              <svg 
-                className="w-6 h-6 text-slate-400 group-hover:text-[#0077FF] transition-colors fill-current" 
-                viewBox="0 0 24 24" 
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path d="M15.077 7.234c.154-.486 0-.84-.66-.84h-1.928c-.55 0-.792.29-.924.616 0 0-1.012 2.45-2.442 4.056-.462.462-.682.607-.957.607-.132 0-.33-.145-.33-.616V7.234c0-.55-.165-.84-.638-.84H5.08c-.352 0-.572.261-.572.507 0 .54.803.66 8.85 2.871v4.323c0 .55.154.84.44.84.55 0 1.254-.53 2.057-1.42 1.342-1.463 2.277-3.839 2.277-3.839.154-.319.308-.473.869-.473zM21 7.234h-1.914c-.616 0-.891.319-1.056.67 0 0-1.023 2.508-2.464 4.103-.792.87-1.155 1.133-1.573 1.133-.209 0-.418-.116-.583-.348-.22-.308-.22-.841-.22-1.43V7.234c0-.55-.165-.84-.638-.84h-2.112c-.352 0-.572.261-.572.507 0 .54.803.66.885 2.871v2.794c0 1.056-.187 1.243-.539 1.243-.946 0-3.245-2.552-4.609-5.467C5.357 7.422 5.148 7.234 4.5 7.234H2.57C1.888 7.234 1.745 7.553 1.745 7.857c0 .536 1.034 4.818 4.84 10.164C8.976 20.373 10.747 21 12.353 21c1.232 0 1.408-.275 1.408-.759V18.5c0-.627.132-.748.572-.748.33 0 .891.165 2.222 1.452 1.507 1.474 1.76 2.145 2.53 2.145h1.914c.682 0 1.023-.341.836-1.012-.22-.759-1.045-1.76-2.123-2.981-.594-.682-1.485-1.408-1.749-1.76-.352-.462-.253-.671 0-1.078.011-.011 3.091-4.356 3.421-5.654.143-.462 0-.84-.66-.84z"/>
-              </svg>
+              <Share2 className="w-6 h-6 text-slate-400 group-hover:text-indigo-600 transition-colors" />
             </button>
             <button 
               onClick={() => handleSocialPlaceholder('Telegram')}
