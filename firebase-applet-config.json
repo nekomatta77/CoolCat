@@ -1,10 +1,11 @@
 {
-  "projectId": "gen-lang-client-0761300460",
-  "appId": "1:533521642836:web:ff244301d0e64b1a8cc4c1",
-  "apiKey": "AIzaSyDMA2sCeMPTtZP6ipEasc76YydWQMQb2tc",
-  "authDomain": "gen-lang-client-0761300460.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-3a8acbe4-8db6-48af-a8ae-ea6163682f77",
-  "storageBucket": "gen-lang-client-0761300460.firebasestorage.app",
-  "messagingSenderId": "533521642836",
-  "measurementId": ""
+  "apiKey": "AIzaSyCRijkqRsJMmkKg9h_H4Z1LVrisTwAYlwQ",
+  "authDomain": "coolc4t.firebaseapp.com",
+  "databaseURL": "https://coolc4t-default-rtdb.firebaseio.com",
+  "projectId": "coolc4t",
+  "storageBucket": "coolc4t.firebasestorage.app",
+  "messagingSenderId": "59448623129",
+  "appId": "1:59448623129:web:e211b70c8a2fe7cbddaa88",
+  "measurementId": "G-W12L77077S",
+  "firestoreDatabaseId": "(default)"
 }
