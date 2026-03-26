@@ -36,7 +36,7 @@ export default function App() {
       }
 
       if (firebaseUser) {
-        // ВАЖНО: Включаем экран загрузки, пока обращаемся к Firestore
+        // Включаем экран загрузки, пока обращаемся к Firestore
         setLoading(true);
         setDbError(null);
         
@@ -50,12 +50,14 @@ export default function App() {
 
           if (userSnap.exists()) {
             const userData = userSnap.data() as UserProfile;
+            // Синхронизация никнейма, если он обновился
             if (currentUser.displayName && userData.nickname.startsWith('Cat') && userData.nickname !== currentUser.displayName) {
               await updateDoc(userRef, { nickname: currentUser.displayName });
             }
             setUser(userData);
             setLoading(false);
 
+            // Слушаем изменения пользователя в реальном времени
             unsubscribeUser = onSnapshot(userRef, (doc) => {
               if (doc.exists()) {
                 setUser(doc.data() as UserProfile);
@@ -67,8 +69,9 @@ export default function App() {
             // Создаем профиль в Firestore для нового пользователя
             const newUser: UserProfile = {
               uid: currentUser.uid,
+              email: currentUser.email || undefined, // <-- Добавили сохранение email
               nickname: currentUser.displayName || `Cat${Math.floor(Math.random() * 10000)}`,
-              balance: 1000,
+              balance: 1000, // Стартовый баланс
               rank: 'user',
               xp: 0,
               level: 1,
@@ -91,7 +94,6 @@ export default function App() {
           }
         } catch (error) {
           console.error("Error fetching/creating user profile:", error);
-          // Выводим понятную ошибку прямо на экран!
           setDbError("Ошибка подключения к базе данных (Firestore). Убедитесь, что вы создали базу данных Firestore Database в Firebase Console.");
           setLoading(false);
         }

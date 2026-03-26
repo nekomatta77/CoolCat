@@ -6,7 +6,8 @@ import {
   signInWithEmailAndPassword,
   updateProfile
 } from 'firebase/auth';
-import { auth } from '../firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { auth, db } from '../firebase';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Mail, 
@@ -17,7 +18,6 @@ import {
   Share2, 
   ArrowRight, 
   Cat, 
-  CheckCircle2, 
   AlertCircle,
   Loader2
 } from 'lucide-react';
@@ -35,37 +35,33 @@ export default function Auth({ onSuccess }: AuthProps) {
   const [isTermsOpen, setIsTermsOpen] = useState(false);
 
   // Состояния для полей формы
-  const [email, setEmail] = useState('');
+  const [loginId, setLoginId] = useState(''); // Здесь хранится либо Email, либо Никнейм
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [nickname, setNickname] = useState('');
 
-  // Функция авторизации через Google (теперь через редирект)
+  // Авторизация через Google
   const handleGoogleLogin = async () => {
     setLoading(true);
     setError(null);
     try {
       const provider = new GoogleAuthProvider();
-      // Вызываем редирект на страницу Google для входа
       await signInWithRedirect(auth, provider);
-      // При редиректе страница перезагрузится сама, onSuccess вызывать не нужно
     } catch (err: any) {
       console.error('Google login error:', err);
       let message = err.message;
-      
       if (err.code === 'auth/unauthorized-domain') {
         message = 'Ошибка: Домен не авторизован. Добавьте ваш домен в Authorized domains в Firebase.';
       } else if (err.code === 'auth/operation-not-allowed') {
         message = 'Вход через Google не включен в настройках Firebase.';
       }
-      
       setError(message);
     } finally {
       setLoading(false);
     }
   };
 
-  // Функция авторизации и регистрации через Email
+  // Авторизация и регистрация через Email/Никнейм
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -73,23 +69,50 @@ export default function Auth({ onSuccess }: AuthProps) {
 
     try {
       if (isLogin) {
+        let finalEmail = loginId.trim();
+
+        // Проверяем, ввел ли пользователь никнейм (нет символа @)
+        if (!finalEmail.includes('@')) {
+          const usersRef = collection(db, 'users');
+          const q = query(usersRef, where('nickname', '==', finalEmail));
+          const querySnapshot = await getDocs(q);
+          
+          if (querySnapshot.empty) {
+            throw new Error('Пользователь с таким никнеймом не найден');
+          }
+          
+          const userData = querySnapshot.docs[0].data();
+          if (!userData.email) {
+            throw new Error('К этому никнейму не привязан Email. Войдите по Email.');
+          }
+          finalEmail = userData.email;
+        }
+
         // Логика входа
-        await signInWithEmailAndPassword(auth, email, password);
+        await signInWithEmailAndPassword(auth, finalEmail, password);
       } else {
         // Логика регистрации
         if (password !== confirmPassword) {
           throw new Error('Пароли не совпадают');
         }
-        if (!nickname) {
+        if (!nickname.trim()) {
           throw new Error('Пожалуйста, введите никнейм');
         }
         
+        // Проверяем, не занят ли никнейм другим игроком
+        const usersRef = collection(db, 'users');
+        const q = query(usersRef, where('nickname', '==', nickname.trim()));
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+          throw new Error('Этот никнейм уже занят другим игроком');
+        }
+
         // Создаем пользователя
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const userCredential = await createUserWithEmailAndPassword(auth, loginId.trim(), password);
         
-        // Сразу обновляем его профиль, чтобы сохранить никнейм
+        // Сразу обновляем его профиль в Auth
         await updateProfile(userCredential.user, {
-          displayName: nickname
+          displayName: nickname.trim()
         });
       }
       onSuccess();
@@ -97,15 +120,24 @@ export default function Auth({ onSuccess }: AuthProps) {
       console.error('Email auth error:', err);
       let message = err.message;
       
-      // Переводим ошибки Firebase на понятный русский язык
-      if (err.code === 'auth/email-already-in-use') message = 'Этот email уже используется';
-      if (err.code === 'auth/weak-password') message = 'Пароль слишком слабый (минимум 6 символов)';
-      if (err.code === 'auth/invalid-email') message = 'Некорректный формат email';
-      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
-        message = 'Неверный email или пароль';
-      }
-      if (err.code === 'auth/operation-not-allowed') {
-        message = 'Авторизация по почте отключена. Включите Email/Password в Firebase Console.';
+      // Ловим наши кастомные ошибки
+      if (
+        message === 'Пользователь с таким никнеймом не найден' || 
+        message === 'Этот никнейм уже занят другим игроком' ||
+        message === 'К этому никнейму не привязан Email. Войдите по Email.'
+      ) {
+         // Оставляем текст как есть
+      } else {
+        // Переводим стандартные ошибки Firebase
+        if (err.code === 'auth/email-already-in-use') message = 'Этот email уже используется';
+        if (err.code === 'auth/weak-password') message = 'Пароль слишком слабый (минимум 6 символов)';
+        if (err.code === 'auth/invalid-email') message = 'Некорректный формат email';
+        if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+          message = 'Неверный email или пароль';
+        }
+        if (err.code === 'auth/operation-not-allowed') {
+          message = 'Авторизация по почте отключена в Firebase Console.';
+        }
       }
       
       setError(message);
@@ -114,14 +146,12 @@ export default function Auth({ onSuccess }: AuthProps) {
     }
   };
 
-  // Заглушка для пока неработающих соцсетей
   const handleSocialPlaceholder = (provider: string) => {
     setError(`Авторизация через ${provider} будет доступна в ближайшее время!`);
   };
 
   return (
     <div className="min-h-screen bg-indigo-50 flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Background Decorations */}
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-200 rounded-full blur-[120px] opacity-50" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-brand-200 rounded-full blur-[120px] opacity-50" />
 
@@ -185,7 +215,7 @@ export default function Auth({ onSuccess }: AuthProps) {
                     required
                     value={nickname}
                     onChange={(e) => setNickname(e.target.value)}
-                    placeholder="Ваш никнейм"
+                    placeholder="Ваш крутой никнейм"
                     className="w-full bg-white border-2 border-slate-50 rounded-2xl pl-12 pr-6 py-4 font-bold text-slate-900 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-300"
                   />
                 </div>
@@ -193,15 +223,21 @@ export default function Auth({ onSuccess }: AuthProps) {
             )}
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Email</label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">
+                {isLogin ? 'Email или Никнейм' : 'Email'}
+              </label>
               <div className="relative group">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300 group-focus-within:text-indigo-500 transition-colors" />
+                {isLogin ? (
+                  <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300 group-focus-within:text-indigo-500 transition-colors" />
+                ) : (
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300 group-focus-within:text-indigo-500 transition-colors" />
+                )}
                 <input 
-                  type="email"
+                  type={isLogin ? "text" : "email"}
                   required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="example@mail.com"
+                  value={loginId}
+                  onChange={(e) => setLoginId(e.target.value)}
+                  placeholder={isLogin ? "example@mail.com или CoolCat" : "example@mail.com"}
                   className="w-full bg-white border-2 border-slate-50 rounded-2xl pl-12 pr-6 py-4 font-bold text-slate-900 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-300"
                 />
               </div>

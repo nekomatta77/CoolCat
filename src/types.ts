@@ -1,5 +1,6 @@
 export interface UserProfile {
   uid: string;
+  email?: string; // <-- Добавлено поле для хранения почты
   nickname: string;
   balance: number;
   rank: 'user' | 'vip' | 'admin';
