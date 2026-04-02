@@ -1,6 +1,6 @@
-import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { initializeApp, getApps, getApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -8,13 +8,14 @@ const firebaseConfig = {
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-// Отладочная информация: проверяем, видит ли проект ключи (покажет true или false)
-console.log("🔑 API Key существует?:", !!firebaseConfig.apiKey);
-console.log("📁 Project ID существует?:", !!firebaseConfig.projectId);
+if (!firebaseConfig.apiKey) {
+  console.error("ОШИБКА: Firebase API Key не найден! Убедитесь, что вы создали файл .env в корне проекта.");
+}
 
-const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app);
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+
 export const auth = getAuth(app);
+export const db = getFirestore(app);

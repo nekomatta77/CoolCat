@@ -64,3 +64,36 @@
 ::-webkit-scrollbar-thumb {
   @apply bg-slate-200 rounded-full hover:bg-slate-300 transition-colors;
 }
+/* Анимация рисования кота для прелоадера */
+@layer utilities {
+  .animate-draw-cat path,
+  .animate-draw-cat circle {
+    stroke-dasharray: 4000;
+    stroke-dashoffset: 4000;
+    /* Анимация проигрывается туда-обратно */
+    animation: drawCatPath 2.5s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes drawCatPath {
+  0% {
+    stroke-dashoffset: 4000;
+    fill: transparent;
+    stroke-width: 6px;
+  }
+  40% {
+    stroke-dashoffset: 0;
+    fill: transparent;
+    stroke-width: 6px;
+  }
+  60% {
+    stroke-dashoffset: 0;
+    fill: currentColor;
+    stroke-width: 0;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    fill: currentColor;
+    stroke-width: 0;
+  }
+}
