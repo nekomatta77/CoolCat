@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { UserProfile } from '../types';
-import { Dice5, Grid3X3, Layers, Trophy, Sparkles, Star, Zap, ChevronRight, Play } from 'lucide-react';
+import { Trophy, Sparkles, Star, Zap, ChevronRight, Play } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
 
@@ -9,11 +9,48 @@ interface HomeProps {
 }
 
 export default function Home({ user }: HomeProps) {
+  // Обновленный массив игр с путями *_original.webp
   const games = [
-    { id: 'dice', name: 'Dice', icon: Dice5, color: 'bg-brand-600', path: '/dice', desc: 'Угадай число и выиграй!' },
-    { id: 'mines', name: 'Mines', icon: Grid3X3, color: 'bg-brand-500', path: '/mines', desc: 'Найди сокровища котика!' },
-    { id: 'keno', name: 'Keno', icon: Layers, color: 'bg-brand-400', path: '/keno', desc: 'Выбери счастливые числа!' },
-    { id: 'jackpot', name: 'Jackpot', icon: Trophy, color: 'bg-brand-700', path: '/jackpot', desc: 'Сорви большой куш!' },
+    { 
+      id: 'dice', 
+      name: 'Dice', 
+      subtitle: 'Игривые лапки',
+      image: '/assets/dice_cat_original.webp', 
+      color: 'from-brand-500 to-brand-700', 
+      shadow: 'shadow-brand-500/40',
+      path: '/dice', 
+      desc: 'Угадай число, словно ловишь клубок!' 
+    },
+    { 
+      id: 'mines', 
+      name: 'Mines', 
+      subtitle: 'Осторожный охотник',
+      image: '/assets/mines_cat_original.webp', 
+      color: 'from-emerald-400 to-emerald-600', 
+      shadow: 'shadow-emerald-500/40',
+      path: '/mines', 
+      desc: 'Найди вкусняшки, но избегай ловушек!' 
+    },
+    { 
+      id: 'keno', 
+      name: 'Keno', 
+      subtitle: 'Кот-Оракул',
+      image: '/assets/keno_cat_original.webp', 
+      color: 'from-purple-400 to-purple-600', 
+      shadow: 'shadow-purple-500/40',
+      path: '/keno', 
+      desc: 'Какие числа предскажут тебе звезды?' 
+    },
+    { 
+      id: 'jackpot', 
+      name: 'Jackpot', 
+      subtitle: 'Cat Boss',
+      image: '/assets/jackpot_cat_original.webp', 
+      color: 'from-amber-400 to-amber-600', 
+      shadow: 'shadow-amber-500/40',
+      path: '/jackpot', 
+      desc: 'Забери главный куш и стань боссом!' 
+    },
   ];
 
   return (
@@ -69,6 +106,7 @@ export default function Home({ user }: HomeProps) {
         </motion.div>
       </header>
 
+      {/* СЕТКА ИГР */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-6">
         {games.map((game, i) => (
           <motion.div
@@ -80,31 +118,50 @@ export default function Home({ user }: HomeProps) {
           >
             <Link
               to={game.path}
-              className="group relative bg-white p-4 lg:p-8 rounded-[2rem] lg:rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/50 hover:shadow-brand-200/50 hover:-translate-y-1 lg:hover:-translate-y-2 transition-all flex flex-col items-center text-center overflow-hidden h-full"
+              className="group relative bg-white p-4 lg:p-8 rounded-[2rem] lg:rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/50 hover:shadow-2xl transition-all flex flex-col items-center text-center overflow-hidden h-full"
             >
+              {/* Контейнер для картинки с индивидуальным градиентом */}
               <div className={cn(
-                "w-14 h-14 lg:w-24 lg:h-24 rounded-2xl lg:rounded-[2rem] flex items-center justify-center mb-4 lg:mb-8 shadow-xl lg:shadow-2xl transition-all duration-500 group-hover:scale-110 group-hover:rotate-6",
+                "w-20 h-20 lg:w-36 lg:h-36 rounded-[1.5rem] lg:rounded-[2.5rem] flex items-center justify-center mb-4 lg:mb-8 shadow-xl transition-all duration-500 group-hover:scale-110 group-hover:-translate-y-2 bg-gradient-to-br relative",
                 game.color,
-                game.id === 'dice' ? "shadow-brand-200" : 
-                game.id === 'mines' ? "shadow-brand-100" :
-                game.id === 'keno' ? "shadow-brand-50" : "shadow-brand-300"
+                game.shadow
               )}>
-                <game.icon className="w-7 h-7 lg:w-12 lg:h-12 text-white" />
+                {/* Внутреннее свечение (магия кота) */}
+                <div className="absolute inset-0 bg-white/20 rounded-full blur-xl scale-50 group-hover:scale-100 transition-transform duration-500" />
+                {/* Сама WEBP картинка */}
+                <img 
+                  src={game.image} 
+                  alt={game.name} 
+                  className="w-4/5 h-4/5 object-contain relative z-10 drop-shadow-2xl group-hover:rotate-6 transition-transform duration-500" 
+                  onError={(e) => {
+                    // Fallback на случай, если картинка не найдена
+                    (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/bottts/svg?seed=${game.id}`;
+                  }}
+                />
               </div>
-              <h3 className="text-base lg:text-2xl font-black text-slate-900 mb-1 lg:mb-3 tracking-tight">{game.name}</h3>
-              <p className="text-[10px] lg:text-sm text-slate-400 font-medium leading-tight lg:leading-relaxed mb-4 lg:mb-8 px-1 lg:px-0">{game.desc}</p>
+
+              {/* Лорный подзаголовок */}
+              <span className="text-[9px] lg:text-[11px] font-black uppercase tracking-widest text-brand-500 mb-1 lg:mb-2 block">
+                {game.subtitle}
+              </span>
+
+              {/* Название и описание */}
+              <h3 className="text-xl lg:text-3xl font-black text-slate-900 mb-2 lg:mb-3 tracking-tight leading-none">{game.name}</h3>
+              <p className="text-[10px] lg:text-sm text-slate-400 font-medium leading-tight lg:leading-relaxed mb-4 lg:mb-8 px-1 lg:px-0 flex-1">{game.desc}</p>
               
+              {/* Кнопка играть */}
               <div className="mt-auto w-full py-3 lg:py-5 bg-slate-50 rounded-xl lg:rounded-2xl text-slate-600 font-black text-[10px] lg:text-xs uppercase tracking-[0.2em] group-hover:bg-brand-600 group-hover:text-white transition-all flex items-center justify-center gap-1 lg:gap-2">
                 Играть <Play className="w-3 h-3 lg:w-4 lg:h-4 fill-current" />
               </div>
 
-              <div className="absolute -right-4 -top-4 w-20 h-20 lg:-right-8 lg:-top-8 lg:w-32 lg:h-32 bg-brand-50 rounded-full blur-2xl lg:blur-3xl group-hover:bg-brand-200 transition-all opacity-50" />
+              {/* Декоративный фоновый блик карточки */}
+              <div className="absolute -right-4 -top-4 w-20 h-20 lg:-right-8 lg:-top-8 lg:w-32 lg:h-32 bg-slate-50 rounded-full blur-2xl lg:blur-3xl group-hover:bg-brand-50 transition-all opacity-50 -z-10" />
             </Link>
           </motion.div>
         ))}
       </div>
 
-      <section className="relative bg-slate-900 rounded-[2.5rem] lg:rounded-[4rem] p-6 lg:p-20 overflow-hidden">
+      <section className="relative bg-slate-900 rounded-[2.5rem] lg:rounded-[4rem] p-6 lg:p-20 overflow-hidden mt-8 lg:mt-12">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-brand-500/20 via-transparent to-transparent" />
         <div className="absolute -bottom-12 -left-12 lg:-bottom-24 lg:-left-24 w-64 h-64 lg:w-96 lg:h-96 bg-brand-600/20 rounded-full blur-[80px] lg:blur-[120px]" />
         
