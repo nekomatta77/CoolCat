@@ -1,51 +1,83 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { UserProfile } from '../types';
-import { Trophy, Sparkles, Star, Zap, ChevronRight, Play } from 'lucide-react';
+import { Sparkles, Star, Zap, ChevronRight, Play } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
+
+// ============================================================================
+// 🛠 НАСТРОЙКИ ПОЗИЦИОНИРОВАНИЯ И РАЗМЕРОВ (ГЛАВНАЯ СТРАНИЦА)
+// ============================================================================
+const TROPHY_CONFIG = {
+  pc: { x: 0, y: 0, scale: 1.6 },
+  mobile: { x: 0, y: 0, scale: 1.8 },
+};
+
+// Хук для определения устройства
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 1024);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+  return isMobile;
+}
 
 interface HomeProps {
   user: UserProfile;
 }
 
 export default function Home({ user }: HomeProps) {
-  // Обновленный массив игр без фонов, но с удобной настройкой размера (imageScale)
+  const isMobile = useIsMobile();
+  const trophyCfg = isMobile ? TROPHY_CONFIG.mobile : TROPHY_CONFIG.pc;
+
+  // Массив игр с индивидуальными настройками для каждой картинки
   const games = [
     { 
       id: 'dice', 
       name: 'Dice', 
-      subtitle: 'Игривые лапки',
       image: '/assets/dice_cat_original.webp', 
-      imageScale: 1.2, // Удобно менять размер здесь (1 = 100%, 1.2 = 120% и т.д.)
       path: '/dice', 
-      desc: 'Угадай число, словно ловишь клубок!' 
+      desc: 'Угадай число, словно ловишь клубок!',
+      config: { 
+        pc: { x: 0, y: 0, scale: 2 },
+        mobile: { x: 0, y: 0, scale: 2.4 }
+      }
     },
     { 
       id: 'mines', 
       name: 'Mines', 
-      subtitle: 'Осторожный охотник',
       image: '/assets/mines_cat_original.webp', 
-      imageScale: 1.1,
       path: '/mines', 
-      desc: 'Найди вкусняшки, но избегай ловушек!' 
+      desc: 'Найди вкусняшки, но избегай ловушек!',
+      config: { 
+        pc: { x: 0, y: 0, scale: 2 },
+        mobile: { x: 0, y: -5, scale: 2.4 }
+      }
     },
     { 
       id: 'keno', 
       name: 'Keno', 
-      subtitle: 'Кот-Оракул',
       image: '/assets/keno_cat_original.webp', 
-      imageScale: 1.15,
       path: '/keno', 
-      desc: 'Какие числа предскажут тебе звезды?' 
+      desc: 'Какие числа предскажут тебе звезды?',
+      config: { 
+        pc: { x: 0, y: 0, scale: 2.2 },
+        mobile: { x: 0, y: 0, scale: 2.4 }
+      }
     },
     { 
       id: 'jackpot', 
       name: 'Jackpot', 
-      subtitle: 'Cat Boss',
       image: '/assets/jackpot_cat_original.webp', 
-      imageScale: 1.25,
       path: '/jackpot', 
-      desc: 'Забери главный куш и стань боссом!' 
+      desc: 'Забери главный куш и стань боссом!',
+      config: { 
+        pc: { x: 0, y: -15, scale: 1.3 },
+        mobile: { x: 0, y: -10, scale: 1.35 }
+      }
     },
   ];
 
@@ -104,56 +136,58 @@ export default function Home({ user }: HomeProps) {
 
       {/* СЕТКА ИГР */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-6">
-        {games.map((game, i) => (
-          <motion.div
-            key={game.id}
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: i * 0.1 }}
-          >
-            <Link
-              to={game.path}
-              className="group relative bg-white p-4 lg:p-8 rounded-[2rem] lg:rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/50 hover:shadow-2xl transition-all flex flex-col items-center text-center overflow-hidden h-full"
+        {games.map((game, i) => {
+          // Получаем нужные настройки в зависимости от устройства
+          const gameCfg = isMobile ? game.config.mobile : game.config.pc;
+          
+          return (
+            <motion.div
+              key={game.id}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.1 }}
             >
-              {/* Прозрачный контейнер для картинки */}
-              <div className="w-20 h-20 lg:w-36 lg:h-36 mb-4 lg:mb-8 flex items-center justify-center relative transition-transform duration-500 group-hover:-translate-y-2">
-                
-                {/* Обертка для применения масштаба (imageScale) без конфликта с Tailwind трансформациями */}
-                <div 
-                  className="relative z-10 flex items-center justify-center transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6"
-                  style={{ width: `${game.imageScale * 100}%`, height: `${game.imageScale * 100}%` }}
-                >
-                  <img 
-                    src={game.image} 
-                    alt={game.name} 
-                    className="w-full h-full object-contain drop-shadow-2xl" 
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/bottts/svg?seed=${game.id}`;
+              <Link
+                to={game.path}
+                className="group relative bg-white p-4 lg:p-8 rounded-[2rem] lg:rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/50 hover:shadow-2xl transition-all flex flex-col items-center text-center overflow-hidden h-full"
+              >
+                {/* Прозрачный контейнер вместо цветного фона */}
+                <div className="w-24 h-24 lg:w-40 lg:h-40 mb-4 lg:mb-8 flex items-center justify-center relative">
+                  
+                  {/* Мягкое свечение сзади кота */}
+                  <div className="absolute inset-0 bg-slate-100 rounded-full blur-2xl scale-50 group-hover:scale-100 transition-transform duration-500 opacity-60" />
+                  
+                  {/* Обертка для применения настроек (X, Y, Scale) */}
+                  <div 
+                    className="relative z-10 w-full h-full flex items-center justify-center transition-transform duration-300"
+                    style={{
+                      transform: `translate(${gameCfg.x}px, ${gameCfg.y}px) scale(${gameCfg.scale})`
                     }}
-                  />
+                  >
+                    <img 
+                      src={game.image} 
+                      alt={game.name} 
+                      className="w-full h-full object-contain drop-shadow-2xl group-hover:rotate-6 transition-transform duration-500" 
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/bottts/svg?seed=${game.id}`;
+                      }}
+                    />
+                  </div>
                 </div>
-              </div>
 
-              {/* Лорный подзаголовок */}
-              <span className="text-[9px] lg:text-[11px] font-black uppercase tracking-widest text-brand-500 mb-1 lg:mb-2 block">
-                {game.subtitle}
-              </span>
+                <h3 className="text-xl lg:text-3xl font-black text-slate-900 mb-2 lg:mb-3 tracking-tight leading-none mt-2">{game.name}</h3>
+                <p className="text-[10px] lg:text-sm text-slate-400 font-medium leading-tight lg:leading-relaxed mb-4 lg:mb-8 px-1 lg:px-0 flex-1">{game.desc}</p>
+                
+                <div className="mt-auto w-full py-3 lg:py-5 bg-slate-50 rounded-xl lg:rounded-2xl text-slate-600 font-black text-[10px] lg:text-xs uppercase tracking-[0.2em] group-hover:bg-brand-600 group-hover:text-white transition-all flex items-center justify-center gap-1 lg:gap-2">
+                  Играть <Play className="w-3 h-3 lg:w-4 lg:h-4 fill-current" />
+                </div>
 
-              {/* Название и описание */}
-              <h3 className="text-xl lg:text-3xl font-black text-slate-900 mb-2 lg:mb-3 tracking-tight leading-none">{game.name}</h3>
-              <p className="text-[10px] lg:text-sm text-slate-400 font-medium leading-tight lg:leading-relaxed mb-4 lg:mb-8 px-1 lg:px-0 flex-1">{game.desc}</p>
-              
-              {/* Кнопка играть */}
-              <div className="mt-auto w-full py-3 lg:py-5 bg-slate-50 rounded-xl lg:rounded-2xl text-slate-600 font-black text-[10px] lg:text-xs uppercase tracking-[0.2em] group-hover:bg-brand-600 group-hover:text-white transition-all flex items-center justify-center gap-1 lg:gap-2">
-                Играть <Play className="w-3 h-3 lg:w-4 lg:h-4 fill-current" />
-              </div>
-
-              {/* Декоративный фоновый блик карточки */}
-              <div className="absolute -right-4 -top-4 w-20 h-20 lg:-right-8 lg:-top-8 lg:w-32 lg:h-32 bg-slate-50 rounded-full blur-2xl lg:blur-3xl group-hover:bg-brand-50 transition-all opacity-50 -z-10" />
-            </Link>
-          </motion.div>
-        ))}
+                <div className="absolute -right-4 -top-4 w-20 h-20 lg:-right-8 lg:-top-8 lg:w-32 lg:h-32 bg-slate-50 rounded-full blur-2xl lg:blur-3xl group-hover:bg-brand-50 transition-all opacity-50 -z-10" />
+              </Link>
+            </motion.div>
+          );
+        })}
       </div>
 
       <section className="relative bg-slate-900 rounded-[2.5rem] lg:rounded-[4rem] p-6 lg:p-20 overflow-hidden mt-8 lg:mt-12">
@@ -186,11 +220,31 @@ export default function Home({ user }: HomeProps) {
           <div className="w-full lg:w-2/5 aspect-square bg-white/5 backdrop-blur-sm rounded-[2.5rem] lg:rounded-[4rem] flex items-center justify-center border border-white/10 relative group">
             <div className="absolute inset-0 bg-brand-500/20 blur-[60px] lg:blur-[100px] group-hover:bg-brand-500/40 transition-all" />
             <div className="relative z-10 flex flex-col items-center gap-4 lg:gap-6">
-              <div className="w-24 h-24 lg:w-40 lg:h-40 bg-brand-500 rounded-[1.5rem] lg:rounded-[2.5rem] flex items-center justify-center shadow-2xl shadow-brand-500/50 animate-float">
-                <Trophy className="w-12 h-12 lg:w-20 lg:h-20 text-white" />
+              
+              <div className="w-32 h-32 lg:w-48 lg:h-48 flex items-center justify-center p-3 relative">
+                {/* Свечение прямо за кубком */}
+                <div className="absolute inset-0 bg-brand-500/30 rounded-full blur-2xl animate-pulse" />
+                
+                {/* 1. ВНЕШНЯЯ ОБЕРТКА: только для изменения позиции и размера (ФИКС) */}
+                <div 
+                  className="w-full h-full relative z-10 transition-transform duration-300"
+                  style={{
+                    transform: `translate(${trophyCfg.x}px, ${trophyCfg.y}px) scale(${trophyCfg.scale})`
+                  }}
+                >
+                  {/* 2. ВНУТРЕННЯЯ ОБЕРТКА: только для анимации парения */}
+                  <div className="w-full h-full animate-float">
+                    <img 
+                      src="/assets/CoolCat_trophey.webp" 
+                      alt="Cat King Trophy" 
+                      className="w-full h-full object-contain drop-shadow-2xl" 
+                    />
+                  </div>
+                </div>
               </div>
-              <div className="text-center">
-                <span className="text-white text-3xl lg:text-5xl font-black tracking-tighter block mb-1 lg:mb-2">CAT KING</span>
+
+              <div className="text-center mt-2">
+                <span className="text-white text-3xl lg:text-5xl font-black tracking-tighter block mb-1 lg:mb-2 drop-shadow-lg">CAT KING</span>
                 <span className="text-brand-400 text-[10px] lg:text-xs font-black uppercase tracking-[0.3em]">Exclusive Rank</span>
               </div>
             </div>
