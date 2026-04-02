@@ -9,15 +9,14 @@ interface HomeProps {
 }
 
 export default function Home({ user }: HomeProps) {
-  // Обновленный массив игр с путями *_original.webp
+  // Обновленный массив игр без фонов, но с удобной настройкой размера (imageScale)
   const games = [
     { 
       id: 'dice', 
       name: 'Dice', 
       subtitle: 'Игривые лапки',
       image: '/assets/dice_cat_original.webp', 
-      color: 'from-brand-500 to-brand-700', 
-      shadow: 'shadow-brand-500/40',
+      imageScale: 1.2, // Удобно менять размер здесь (1 = 100%, 1.2 = 120% и т.д.)
       path: '/dice', 
       desc: 'Угадай число, словно ловишь клубок!' 
     },
@@ -26,8 +25,7 @@ export default function Home({ user }: HomeProps) {
       name: 'Mines', 
       subtitle: 'Осторожный охотник',
       image: '/assets/mines_cat_original.webp', 
-      color: 'from-emerald-400 to-emerald-600', 
-      shadow: 'shadow-emerald-500/40',
+      imageScale: 1.1,
       path: '/mines', 
       desc: 'Найди вкусняшки, но избегай ловушек!' 
     },
@@ -36,8 +34,7 @@ export default function Home({ user }: HomeProps) {
       name: 'Keno', 
       subtitle: 'Кот-Оракул',
       image: '/assets/keno_cat_original.webp', 
-      color: 'from-purple-400 to-purple-600', 
-      shadow: 'shadow-purple-500/40',
+      imageScale: 1.15,
       path: '/keno', 
       desc: 'Какие числа предскажут тебе звезды?' 
     },
@@ -46,8 +43,7 @@ export default function Home({ user }: HomeProps) {
       name: 'Jackpot', 
       subtitle: 'Cat Boss',
       image: '/assets/jackpot_cat_original.webp', 
-      color: 'from-amber-400 to-amber-600', 
-      shadow: 'shadow-amber-500/40',
+      imageScale: 1.25,
       path: '/jackpot', 
       desc: 'Забери главный куш и стань боссом!' 
     },
@@ -120,24 +116,23 @@ export default function Home({ user }: HomeProps) {
               to={game.path}
               className="group relative bg-white p-4 lg:p-8 rounded-[2rem] lg:rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/50 hover:shadow-2xl transition-all flex flex-col items-center text-center overflow-hidden h-full"
             >
-              {/* Контейнер для картинки с индивидуальным градиентом */}
-              <div className={cn(
-                "w-20 h-20 lg:w-36 lg:h-36 rounded-[1.5rem] lg:rounded-[2.5rem] flex items-center justify-center mb-4 lg:mb-8 shadow-xl transition-all duration-500 group-hover:scale-110 group-hover:-translate-y-2 bg-gradient-to-br relative",
-                game.color,
-                game.shadow
-              )}>
-                {/* Внутреннее свечение (магия кота) */}
-                <div className="absolute inset-0 bg-white/20 rounded-full blur-xl scale-50 group-hover:scale-100 transition-transform duration-500" />
-                {/* Сама WEBP картинка */}
-                <img 
-                  src={game.image} 
-                  alt={game.name} 
-                  className="w-4/5 h-4/5 object-contain relative z-10 drop-shadow-2xl group-hover:rotate-6 transition-transform duration-500" 
-                  onError={(e) => {
-                    // Fallback на случай, если картинка не найдена
-                    (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/bottts/svg?seed=${game.id}`;
-                  }}
-                />
+              {/* Прозрачный контейнер для картинки */}
+              <div className="w-20 h-20 lg:w-36 lg:h-36 mb-4 lg:mb-8 flex items-center justify-center relative transition-transform duration-500 group-hover:-translate-y-2">
+                
+                {/* Обертка для применения масштаба (imageScale) без конфликта с Tailwind трансформациями */}
+                <div 
+                  className="relative z-10 flex items-center justify-center transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6"
+                  style={{ width: `${game.imageScale * 100}%`, height: `${game.imageScale * 100}%` }}
+                >
+                  <img 
+                    src={game.image} 
+                    alt={game.name} 
+                    className="w-full h-full object-contain drop-shadow-2xl" 
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/bottts/svg?seed=${game.id}`;
+                    }}
+                  />
+                </div>
               </div>
 
               {/* Лорный подзаголовок */}
