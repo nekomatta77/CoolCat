@@ -1,9 +1,8 @@
-import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { UserProfile } from '../types';
 import { Sparkles, Star, Zap, ChevronRight, Play } from 'lucide-react';
 import { motion } from 'motion/react';
-import { cn } from '../lib/utils';
+import { cn, useIsMobile } from '../lib/utils'; // Используем единый хук
 
 // ============================================================================
 // 🛠 НАСТРОЙКИ ПОЗИЦИОНИРОВАНИЯ И РАЗМЕРОВ (ГЛАВНАЯ СТРАНИЦА)
@@ -13,18 +12,6 @@ const TROPHY_CONFIG = {
   mobile: { x: 0, y: 10, scale: 1.9 },
 };
 
-// Хук для определения устройства
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(false);
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 1024);
-    check();
-    window.addEventListener('resize', check);
-    return () => window.removeEventListener('resize', check);
-  }, []);
-  return isMobile;
-}
-
 interface HomeProps {
   user: UserProfile;
 }
@@ -33,14 +20,13 @@ export default function Home({ user }: HomeProps) {
   const isMobile = useIsMobile();
   const trophyCfg = isMobile ? TROPHY_CONFIG.mobile : TROPHY_CONFIG.pc;
 
-  // Массив игр с индивидуальными настройками для каждой картинки
+  // Массив игр: удален лишний параметр desc
   const games = [
     { 
       id: 'dice', 
       name: 'Dice', 
       image: '/assets/dice_cat_original.webp', 
-      path: '/dice', 
-      desc: '',
+      path: '/dice',
       config: { 
         pc: { x: 0, y: 0, scale: 2 },
         mobile: { x: 0, y: 0, scale: 2.4 }
@@ -50,8 +36,7 @@ export default function Home({ user }: HomeProps) {
       id: 'mines', 
       name: 'Mines', 
       image: '/assets/mines_cat_original.webp', 
-      path: '/mines', 
-      desc: '',
+      path: '/mines',
       config: { 
         pc: { x: 0, y: 0, scale: 2 },
         mobile: { x: 0, y: -5, scale: 2.4 }
@@ -61,8 +46,7 @@ export default function Home({ user }: HomeProps) {
       id: 'keno', 
       name: 'Keno', 
       image: '/assets/keno_cat_original.webp', 
-      path: '/keno', 
-      desc: '',
+      path: '/keno',
       config: { 
         pc: { x: 0, y: 0, scale: 2.2 },
         mobile: { x: 0, y: 0, scale: 2.4 }
@@ -72,8 +56,7 @@ export default function Home({ user }: HomeProps) {
       id: 'jackpot', 
       name: 'Jackpot', 
       image: '/assets/jackpot_cat_original.webp', 
-      path: '/jackpot', 
-      desc: '',
+      path: '/jackpot',
       config: { 
         pc: { x: 0, y: -15, scale: 1.3 },
         mobile: { x: 0, y: -10, scale: 1.35 }
@@ -137,7 +120,6 @@ export default function Home({ user }: HomeProps) {
       {/* СЕТКА ИГР */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-6">
         {games.map((game, i) => {
-          // Получаем нужные настройки в зависимости от устройства
           const gameCfg = isMobile ? game.config.mobile : game.config.pc;
           
           return (
@@ -152,13 +134,10 @@ export default function Home({ user }: HomeProps) {
                 to={game.path}
                 className="group relative bg-white p-4 lg:p-8 rounded-[2rem] lg:rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/50 hover:shadow-2xl transition-all flex flex-col items-center text-center overflow-hidden h-full"
               >
-                {/* Прозрачный контейнер вместо цветного фона */}
                 <div className="w-24 h-24 lg:w-40 lg:h-40 mb-4 lg:mb-8 flex items-center justify-center relative">
                   
-                  {/* Мягкое свечение сзади кота */}
                   <div className="absolute inset-0 bg-slate-100 rounded-full blur-2xl scale-50 group-hover:scale-100 transition-transform duration-500 opacity-60" />
                   
-                  {/* Обертка для применения настроек (X, Y, Scale) */}
                   <div 
                     className="relative z-10 w-full h-full flex items-center justify-center transition-transform duration-300"
                     style={{
@@ -170,14 +149,15 @@ export default function Home({ user }: HomeProps) {
                       alt={game.name} 
                       className="w-full h-full object-contain drop-shadow-2xl group-hover:rotate-6 transition-transform duration-500" 
                       onError={(e) => {
-                        (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/bottts/svg?seed=${game.id}`;
+                        // Заменили DiceBear на стабильный локальный фоллбэк
+                        (e.target as HTMLImageElement).src = '/assets/CoolCat_logo.webp';
                       }}
                     />
                   </div>
                 </div>
 
-                <h3 className="text-xl lg:text-3xl font-black text-slate-900 mb-2 lg:mb-3 tracking-tight leading-none mt-2">{game.name}</h3>
-                <p className="text-[10px] lg:text-sm text-slate-400 font-medium leading-tight lg:leading-relaxed mb-4 lg:mb-8 px-1 lg:px-0 flex-1">{game.desc}</p>
+                {/* Удалили тег <p>, отображавший desc, так как он больше не нужен */}
+                <h3 className="text-xl lg:text-3xl font-black text-slate-900 mb-6 lg:mb-8 tracking-tight leading-none mt-2">{game.name}</h3>
                 
                 <div className="mt-auto w-full py-3 lg:py-5 bg-slate-50 rounded-xl lg:rounded-2xl text-slate-600 font-black text-[10px] lg:text-xs uppercase tracking-[0.2em] group-hover:bg-brand-600 group-hover:text-white transition-all flex items-center justify-center gap-1 lg:gap-2">
                   Играть <Play className="w-3 h-3 lg:w-4 lg:h-4 fill-current" />
@@ -222,17 +202,14 @@ export default function Home({ user }: HomeProps) {
             <div className="relative z-10 flex flex-col items-center gap-4 lg:gap-6">
               
               <div className="w-32 h-32 lg:w-48 lg:h-48 flex items-center justify-center p-3 relative">
-                {/* Свечение прямо за кубком */}
                 <div className="absolute inset-0 bg-brand-500/30 rounded-full blur-2xl animate-pulse" />
                 
-                {/* 1. ВНЕШНЯЯ ОБЕРТКА: только для изменения позиции и размера (ФИКС) */}
                 <div 
                   className="w-full h-full relative z-10 transition-transform duration-300"
                   style={{
                     transform: `translate(${trophyCfg.x}px, ${trophyCfg.y}px) scale(${trophyCfg.scale})`
                   }}
                 >
-                  {/* 2. ВНУТРЕННЯЯ ОБЕРТКА: только для анимации парения */}
                   <div className="w-full h-full animate-float">
                     <img 
                       src="/assets/CoolCat_trophey.webp" 

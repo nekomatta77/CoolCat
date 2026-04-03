@@ -1,6 +1,16 @@
 import { Link } from 'react-router-dom';
 import { UserProfile } from '../types';
-import { Wallet, LogOut, Menu, User as UserIcon } from 'lucide-react';
+import { Wallet, LogOut, Menu } from 'lucide-react';
+import { cn, useIsMobile } from '../lib/utils';
+
+// ============================================================================
+// 🛠 НАСТРОЙКИ ПОЗИЦИОНИРОВАНИЯ И РАЗМЕРОВ (АВАТАРКА В ШАПКЕ)
+// ============================================================================
+const HEADER_AVATAR_CONFIG = {
+  pc: { size: 80, x: 0, y: 0, scale: 1 },
+  mobile: { size: 60, x: 0, y: 0, scale: 1 }
+};
+// ============================================================================
 
 interface HeaderProps {
   user: UserProfile;
@@ -9,6 +19,9 @@ interface HeaderProps {
 }
 
 export default function Header({ user, onLogout, onMenuClick }: HeaderProps) {
+  const isMobile = useIsMobile();
+  const avatarCfg = isMobile ? HEADER_AVATAR_CONFIG.mobile : HEADER_AVATAR_CONFIG.pc;
+
   return (
     <header className="bg-white/80 backdrop-blur-xl border-b border-slate-100 px-4 lg:px-8 py-4 flex items-center justify-between sticky top-0 z-50">
       <div className="flex items-center gap-4">
@@ -29,9 +42,29 @@ export default function Header({ user, onLogout, onMenuClick }: HeaderProps) {
 
       <div className="flex items-center gap-2 lg:gap-4">
         <Link to="/profile" className="flex items-center gap-3 hover:bg-slate-50 p-1 pr-4 rounded-2xl transition-all group">
-          <div className="w-10 h-10 rounded-xl overflow-hidden border-2 border-slate-200 group-hover:border-brand-400 transition-all">
-            <img src={user.avatar} alt={user.nickname} className="w-full h-full object-cover" />
+          
+          {/* КОНТЕЙНЕР АВАТАРКИ: Добавлены динамические backgroundColor и borderColor */}
+          <div 
+            className="rounded-xl overflow-hidden border-2 transition-all flex items-center justify-center group-hover:opacity-80"
+            style={{ 
+              width: `${avatarCfg.size}px`, 
+              height: `${avatarCfg.size}px`,
+              backgroundColor: user.cardStyle.background,
+              borderColor: user.cardStyle.border
+            }}
+          >
+            <img 
+              src={user.avatar} 
+              alt={user.nickname} 
+              className="object-cover transition-transform duration-300" 
+              style={{
+                width: '100%',
+                height: '100%',
+                transform: `translate(${avatarCfg.x}px, ${avatarCfg.y}px) scale(${avatarCfg.scale})`
+              }}
+            />
           </div>
+
           <div className="text-right hidden sm:block">
             <p className="text-sm font-bold text-slate-800 leading-none mb-1">{user.nickname}</p>
             <p className="text-[10px] uppercase tracking-widest font-black text-brand-400 leading-none">

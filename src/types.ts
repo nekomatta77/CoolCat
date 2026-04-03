@@ -1,6 +1,6 @@
 export interface UserProfile {
   uid: string;
-  email?: string; // <-- Добавлено поле для хранения почты
+  email?: string;
   nickname: string;
   balance: number;
   rank: 'user' | 'vip' | 'admin';
@@ -23,6 +23,7 @@ export interface UserProfile {
   totalWithdrawals: number;
   wagerRequirement: number;
   lastDailyBonus?: string;
+  unlockedAvatars?: string[]; // <-- Добавлено поле для хранения разблокированных аватарок
 }
 
 export interface PromoCode {

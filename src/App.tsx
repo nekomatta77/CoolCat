@@ -4,6 +4,7 @@ import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc, setDoc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import { UserProfile } from './types';
+import { useIsMobile } from './lib/utils';
 import Layout from './components/Layout';
 import Auth from './components/Auth';
 import Home from './pages/Home';
@@ -19,26 +20,10 @@ import Profile from './pages/Profile';
 import Contacts from './pages/Contacts';
 import Admin from './pages/Admin';
 
-// ============================================================================
-// 🛠 НАСТРОЙКИ ПОЗИЦИОНИРОВАНИЯ И РАЗМЕРА ЛОАДЕРА (ЭКРАН ЗАГРУЗКИ)
-// ============================================================================
 const LOADER_CONFIG = {
-  pc: { size: 160, x: 0, y: 65 },   // size - размер картинки в пикселях
-  mobile: { size: 126, x: 0, y: 60 } // x, y - сдвиг (в пикселях)
+  pc: { size: 160, x: 0, y: 65 },
+  mobile: { size: 126, x: 0, y: 60 }
 };
-// ============================================================================
-
-// Вспомогательный хук для определения устройства
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(false);
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 1024);
-    check();
-    window.addEventListener('resize', check);
-    return () => window.removeEventListener('resize', check);
-  }, []);
-  return isMobile;
-}
 
 export default function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -69,10 +54,44 @@ export default function App() {
           const userSnap = await getDoc(userRef);
 
           if (userSnap.exists()) {
-            const userData = userSnap.data() as UserProfile;
+            let userData = userSnap.data() as UserProfile;
+            let needsDbUpdate = false;
+
+            // 1. Обновляем никнейм, если нужно
             if (currentUser.displayName && userData.nickname.startsWith('Cat') && userData.nickname !== currentUser.displayName) {
-              await updateDoc(userRef, { nickname: currentUser.displayName });
+              userData.nickname = currentUser.displayName;
+              needsDbUpdate = true;
             }
+
+            // =========================================================
+            // 🛠 АВТО-ФИКС СТАРЫХ АККАУНТОВ С ОШИБКОЙ DICEBEAR
+            // =========================================================
+            // Если у пользователя старая аватарка из dicebear, меняем на локальную
+            if (userData.avatar && userData.avatar.includes('api.dicebear.com')) {
+              userData.avatar = '/assets/avatars/ava1.webp';
+              needsDbUpdate = true;
+            }
+
+            // Если у старого пользователя нет массива разблокированных аватарок, выдаем базовые
+            if (!userData.unlockedAvatars) {
+              userData.unlockedAvatars = [
+                '/assets/avatars/ava1.webp',
+                '/assets/avatars/ava2.webp',
+                '/assets/avatars/ava3.webp'
+              ];
+              needsDbUpdate = true;
+            }
+            // =========================================================
+
+            // Сохраняем изменения в базу, если они были
+            if (needsDbUpdate) {
+              await updateDoc(userRef, { 
+                nickname: userData.nickname,
+                avatar: userData.avatar,
+                unlockedAvatars: userData.unlockedAvatars
+              });
+            }
+
             setUser(userData);
             setLoading(false);
 
@@ -92,7 +111,7 @@ export default function App() {
               rank: 'user',
               xp: 0,
               level: 1,
-              avatar: currentUser.photoURL || 'https://api.dicebear.com/7.x/bottts/svg?seed=CoolCat',
+              avatar: currentUser.photoURL || '/assets/avatars/ava1.webp',
               cardStyle: {
                 background: '#ffffff',
                 border: '#6366f1',
@@ -103,7 +122,12 @@ export default function App() {
               banned: false,
               totalDeposits: 0,
               totalWithdrawals: 0,
-              wagerRequirement: 0
+              wagerRequirement: 0,
+              unlockedAvatars: [
+                '/assets/avatars/ava1.webp',
+                '/assets/avatars/ava2.webp',
+                '/assets/avatars/ava3.webp'
+              ]
             };
             await setDoc(userRef, newUser);
             setUser(newUser);
@@ -157,7 +181,6 @@ export default function App() {
         <div className="relative flex flex-col items-center justify-center">
           <div className="absolute inset-0 bg-brand-400 rounded-full blur-[60px] opacity-20 animate-pulse" />
           
-          {/* КОНТЕЙНЕР ЛОАДЕРА С ПРИМЕНЕНИЕМ НАСТРОЕК */}
           <div 
             style={{ 
               width: `${loaderCfg.size}px`, 
