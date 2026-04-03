@@ -9,8 +9,8 @@ import { cn } from '../lib/utils';
 // 🛠 НАСТРОЙКИ ПОЗИЦИОНИРОВАНИЯ И РАЗМЕРОВ (ГЛАВНАЯ СТРАНИЦА)
 // ============================================================================
 const TROPHY_CONFIG = {
-  pc: { x: 0, y: 0, scale: 1.6 },
-  mobile: { x: 0, y: 0, scale: 1.8 },
+  pc: { x: 0, y: 20, scale: 1.5 },
+  mobile: { x: 0, y: 10, scale: 1.9 },
 };
 
 // Хук для определения устройства
@@ -40,7 +40,7 @@ export default function Home({ user }: HomeProps) {
       name: 'Dice', 
       image: '/assets/dice_cat_original.webp', 
       path: '/dice', 
-      desc: 'Угадай число, словно ловишь клубок!',
+      desc: '',
       config: { 
         pc: { x: 0, y: 0, scale: 2 },
         mobile: { x: 0, y: 0, scale: 2.4 }
@@ -51,7 +51,7 @@ export default function Home({ user }: HomeProps) {
       name: 'Mines', 
       image: '/assets/mines_cat_original.webp', 
       path: '/mines', 
-      desc: 'Найди вкусняшки, но избегай ловушек!',
+      desc: '',
       config: { 
         pc: { x: 0, y: 0, scale: 2 },
         mobile: { x: 0, y: -5, scale: 2.4 }
@@ -62,7 +62,7 @@ export default function Home({ user }: HomeProps) {
       name: 'Keno', 
       image: '/assets/keno_cat_original.webp', 
       path: '/keno', 
-      desc: 'Какие числа предскажут тебе звезды?',
+      desc: '',
       config: { 
         pc: { x: 0, y: 0, scale: 2.2 },
         mobile: { x: 0, y: 0, scale: 2.4 }
@@ -73,7 +73,7 @@ export default function Home({ user }: HomeProps) {
       name: 'Jackpot', 
       image: '/assets/jackpot_cat_original.webp', 
       path: '/jackpot', 
-      desc: 'Забери главный куш и стань боссом!',
+      desc: '',
       config: { 
         pc: { x: 0, y: -15, scale: 1.3 },
         mobile: { x: 0, y: -10, scale: 1.35 }
