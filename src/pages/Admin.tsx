@@ -2,13 +2,15 @@ import { useState, useEffect } from 'react';
 import { UserProfile, PromoCode } from '../types';
 import { doc, updateDoc, getDocs, query, collection, addDoc, deleteDoc, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Users, Ticket, Plus, List, Zap, Search, Ban, Trash2, Cat, CheckCircle2, AlertCircle, Copy, X, ShieldAlert } from 'lucide-react';
+import { Users, Ticket, Plus, List, Zap, Search, Ban, Trash2, Cat, CheckCircle2, AlertCircle, Copy, X, ShieldAlert, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 
 interface AdminProps {
   user: UserProfile;
 }
+
+type UserActionType = 'block' | 'unblock' | 'delete' | 'reset_wager';
 
 export default function Admin({ user }: AdminProps) {
   const [activeTab, setActiveTab] = useState<'users' | 'promo'>('users');
@@ -19,8 +21,8 @@ export default function Admin({ user }: AdminProps) {
   const [loading, setLoading] = useState(false);
   const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
 
-  // Модальное окно блокировки
-  const [blockModal, setBlockModal] = useState<{ userTarget: UserProfile, action: 'block' | 'unblock' } | null>(null);
+  // Универсальное модальное окно для действий с пользователем
+  const [userActionModal, setUserActionModal] = useState<{ userTarget: UserProfile, action: UserActionType } | null>(null);
 
   // ID только что созданного промокода для анимации
   const [newPromoId, setNewPromoId] = useState<string | null>(null);
@@ -61,15 +63,34 @@ export default function Admin({ user }: AdminProps) {
     }
   };
 
-  const confirmBlockAction = async () => {
-    if (!blockModal) return;
-    const isBanning = blockModal.action === 'block';
-    await handleUpdateUser(blockModal.userTarget.uid, { banned: isBanning });
-    setNotification({ 
-      message: `Игрок ${blockModal.userTarget.nickname} успешно ${isBanning ? 'заблокирован' : 'разблокирован'}!`, 
-      type: 'success' 
-    });
-    setBlockModal(null);
+  const confirmUserAction = async () => {
+    if (!userActionModal) return;
+    const { userTarget, action } = userActionModal;
+
+    try {
+      if (action === 'block' || action === 'unblock') {
+        const isBanning = action === 'block';
+        await handleUpdateUser(userTarget.uid, { banned: isBanning });
+        setNotification({ 
+          message: `Игрок ${userTarget.nickname} успешно ${isBanning ? 'заблокирован' : 'разблокирован'}!`, 
+          type: 'success' 
+        });
+      } 
+      else if (action === 'delete') {
+        await deleteDoc(doc(db, 'users', userTarget.uid));
+        setUsers(users.filter(u => u.uid !== userTarget.uid));
+        setNotification({ message: `Аккаунт ${userTarget.nickname} удален!`, type: 'success' });
+      }
+      else if (action === 'reset_wager') {
+        await handleUpdateUser(userTarget.uid, { wagerRequirement: 0 });
+        setNotification({ message: `Отыгрыш игрока ${userTarget.nickname} обнулен!`, type: 'success' });
+      }
+    } catch (error) {
+      console.error('Action error:', error);
+      setNotification({ message: 'Ошибка при выполнении действия', type: 'error' });
+    } finally {
+      setUserActionModal(null);
+    }
   };
 
   const handleCreatePromo = async (name: string, amount: number, activations: number, wager: number) => {
@@ -120,11 +141,70 @@ export default function Admin({ user }: AdminProps) {
 
   const filteredUsers = users.filter(u => u.nickname.toLowerCase().includes(search.toLowerCase()));
 
+  // Вспомогательная функция для рендера содержимого модалки
+  const getModalContent = () => {
+    if (!userActionModal) return null;
+    const { action, userTarget } = userActionModal;
+
+    const config = {
+      block: { title: 'Блокировка аккаунта', color: 'red', icon: ShieldAlert, text: 'заблокировать' },
+      unblock: { title: 'Разблокировка аккаунта', color: 'emerald', icon: CheckCircle2, text: 'разблокировать' },
+      delete: { title: 'Удаление аккаунта', color: 'red', icon: Trash2, text: 'навсегда удалить' },
+      reset_wager: { title: 'Обнуление отыгрыша', color: 'brand', icon: RefreshCw, text: 'обнулить отыгрыш (вагер) для' }
+    };
+
+    const cfg = config[action];
+    const Icon = cfg.icon;
+
+    return (
+      <div className="flex flex-col items-center text-center space-y-5 md:space-y-6">
+        <div className={cn(
+          "w-16 h-16 md:w-20 md:h-20 rounded-3xl flex items-center justify-center shadow-xl",
+          cfg.color === 'red' ? "bg-red-100 text-red-500 shadow-red-100" :
+          cfg.color === 'emerald' ? "bg-emerald-100 text-emerald-500 shadow-emerald-100" :
+          "bg-brand-100 text-brand-500 shadow-brand-100"
+        )}>
+          <Icon className="w-8 h-8 md:w-10 md:h-10" />
+        </div>
+        
+        <div className="space-y-2">
+          <h3 className="text-xl md:text-2xl font-black text-slate-900">{cfg.title}</h3>
+          <p className="text-slate-500 font-medium text-sm md:text-base leading-relaxed">
+            Вы уверены, что хотите {cfg.text} пользователя <br/>
+            <span className="font-black text-slate-900 truncate block max-w-xs mx-auto">"{userTarget.nickname}"</span>?
+            {action === 'delete' && <span className="block mt-2 text-xs text-red-500 font-bold">Это действие необратимо!</span>}
+          </p>
+        </div>
+
+        <div className="flex flex-col-reverse md:flex-row gap-3 w-full pt-2 md:pt-4">
+          <button 
+            onClick={() => setUserActionModal(null)}
+            className="w-full py-4 bg-slate-50 hover:bg-slate-100 text-slate-600 font-black rounded-2xl transition-all"
+          >
+            Отмена
+          </button>
+          <button 
+            onClick={confirmUserAction}
+            className={cn(
+              "w-full py-4 text-white font-black rounded-2xl transition-all shadow-lg",
+              cfg.color === 'red' ? "bg-red-500 hover:bg-red-600 shadow-red-200" :
+              cfg.color === 'emerald' ? "bg-emerald-500 hover:bg-emerald-600 shadow-emerald-200" :
+              "bg-brand-500 hover:bg-brand-600 shadow-brand-200"
+            )}
+          >
+            Да, уверен
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="max-w-7xl mx-auto space-y-6 md:space-y-8 pb-12 relative px-2 md:px-0">
       
+      {/* Модальное окно действий с пользователем */}
       <AnimatePresence>
-        {blockModal && (
+        {userActionModal && (
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -138,50 +218,12 @@ export default function Admin({ user }: AdminProps) {
               className="bg-white rounded-[2.5rem] p-6 md:p-8 max-w-md w-full shadow-2xl border border-slate-100 relative mx-4"
             >
               <button 
-                onClick={() => setBlockModal(null)}
+                onClick={() => setUserActionModal(null)}
                 className="absolute top-4 right-4 md:top-6 md:right-6 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all"
               >
                 <X className="w-6 h-6" />
               </button>
-              
-              <div className="flex flex-col items-center text-center space-y-5 md:space-y-6">
-                <div className={cn(
-                  "w-16 h-16 md:w-20 md:h-20 rounded-3xl flex items-center justify-center shadow-xl",
-                  blockModal.action === 'block' ? "bg-red-100 text-red-500 shadow-red-100" : "bg-emerald-100 text-emerald-500 shadow-emerald-100"
-                )}>
-                  {blockModal.action === 'block' ? <ShieldAlert className="w-8 h-8 md:w-10 md:h-10" /> : <CheckCircle2 className="w-8 h-8 md:w-10 md:h-10" />}
-                </div>
-                
-                <div className="space-y-2">
-                  <h3 className="text-xl md:text-2xl font-black text-slate-900">
-                    {blockModal.action === 'block' ? 'Блокировка аккаунта' : 'Разблокировка аккаунта'}
-                  </h3>
-                  <p className="text-slate-500 font-medium text-sm md:text-base leading-relaxed">
-                    Вы уверены, что хотите {blockModal.action === 'block' ? 'заблокировать' : 'разблокировать'} пользователя <br/>
-                    <span className="font-black text-slate-900 truncate block max-w-xs mx-auto">"{blockModal.userTarget.nickname}"</span>?
-                  </p>
-                </div>
-
-                <div className="flex flex-col-reverse md:flex-row gap-3 w-full pt-2 md:pt-4">
-                  <button 
-                    onClick={() => setBlockModal(null)}
-                    className="w-full py-4 bg-slate-50 hover:bg-slate-100 text-slate-600 font-black rounded-2xl transition-all"
-                  >
-                    Отмена
-                  </button>
-                  <button 
-                    onClick={confirmBlockAction}
-                    className={cn(
-                      "w-full py-4 text-white font-black rounded-2xl transition-all shadow-lg",
-                      blockModal.action === 'block' 
-                        ? "bg-red-500 hover:bg-red-600 shadow-red-200" 
-                        : "bg-emerald-500 hover:bg-emerald-600 shadow-emerald-200"
-                    )}
-                  >
-                    Да, уверен
-                  </button>
-                </div>
-              </div>
+              {getModalContent()}
             </motion.div>
           </motion.div>
         )}
@@ -259,86 +301,108 @@ export default function Admin({ user }: AdminProps) {
               />
             </div>
 
-            <div className="grid grid-cols-1 gap-4">
+            <div className="grid grid-cols-1 gap-5">
               {filteredUsers.map((u) => (
-                <div key={u.uid} className="bg-white p-4 md:p-5 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-xl shadow-slate-200/40 transition-all flex flex-col md:flex-row gap-5 md:gap-6 group relative overflow-hidden">
+                <div key={u.uid} className="bg-white p-5 md:p-6 rounded-[2rem] md:rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-xl shadow-slate-200/40 transition-all flex flex-col gap-5 md:gap-6 group relative overflow-hidden">
                   
-                  <div className="flex items-center justify-between w-full md:w-1/4">
-                    <div className="flex items-center gap-3 md:gap-4 min-w-0">
+                  {/* Шапка карточки: Профиль + Быстрые действия */}
+                  <div className="flex flex-col md:flex-row md:items-center justify-between w-full gap-4 pb-5 border-b border-slate-100">
+                    <div className="flex items-center gap-4 min-w-0">
                       <div className="relative shrink-0">
-                        <img src={u.avatar} className="w-12 h-12 md:w-14 md:h-14 rounded-2xl object-cover border-2 border-slate-100" alt="" />
+                        <img src={u.avatar} className="w-14 h-14 md:w-16 md:h-16 rounded-2xl object-cover border-2 border-slate-100 shadow-sm" alt="" />
                         {u.banned && (
-                          <div className="absolute -top-2 -right-2 w-5 h-5 md:w-6 md:h-6 bg-red-500 rounded-full flex items-center justify-center border-2 border-white shadow-sm">
-                            <Ban className="w-3 h-3 text-white" />
+                          <div className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center border-2 border-white shadow-sm">
+                            <Ban className="w-3.5 h-3.5 text-white" />
                           </div>
                         )}
                       </div>
                       <div className="min-w-0">
-                        <p className="font-black text-slate-900 text-base md:text-lg truncate">{u.nickname}</p>
-                        <p className={cn("text-[10px] font-black uppercase tracking-widest truncate", u.rank === 'admin' ? "text-brand-500" : "text-slate-400")}>
+                        <p className="font-black text-slate-900 text-lg md:text-xl truncate">{u.nickname}</p>
+                        <p className={cn("text-xs font-black uppercase tracking-widest mt-0.5", u.rank === 'admin' ? "text-brand-500" : "text-slate-400")}>
                           {u.rank} • LVL {u.level}
                         </p>
                       </div>
                     </div>
                     
-                    <button
-                      onClick={() => setBlockModal({ userTarget: u, action: u.banned ? 'unblock' : 'block' })}
-                      className={cn(
-                        "md:hidden p-3 rounded-xl transition-all shrink-0 ml-2",
-                        u.banned 
-                          ? "bg-emerald-50 text-emerald-500 hover:bg-emerald-500 hover:text-white" 
-                          : "bg-red-50 text-red-500 hover:bg-red-500 hover:text-white"
-                      )}
-                      title={u.banned ? 'Разблокировать' : 'Заблокировать'}
-                    >
-                      {u.banned ? <CheckCircle2 className="w-5 h-5" /> : <Ban className="w-5 h-5" />}
-                    </button>
+                    {/* Кнопки действий (Сброс отыгрыша, Блок, Удаление) */}
+                    <div className="flex items-center gap-2 md:gap-3 self-end md:self-auto w-full md:w-auto">
+                      <button
+                        onClick={() => setUserActionModal({ userTarget: u, action: 'reset_wager' })}
+                        className="flex-1 md:flex-none py-2.5 px-3 md:p-3 rounded-xl bg-brand-50 text-brand-500 hover:bg-brand-500 hover:text-white transition-all shadow-sm flex items-center justify-center gap-2"
+                        title="Сбросить отыгрыш"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                        <span className="md:hidden text-xs font-bold">Отыгрыш</span>
+                      </button>
+                      <button
+                        onClick={() => setUserActionModal({ userTarget: u, action: u.banned ? 'unblock' : 'block' })}
+                        className={cn(
+                          "flex-1 md:flex-none py-2.5 px-3 md:p-3 rounded-xl transition-all shadow-sm flex items-center justify-center gap-2",
+                          u.banned 
+                            ? "bg-emerald-50 text-emerald-500 hover:bg-emerald-500 hover:text-white" 
+                            : "bg-orange-50 text-orange-500 hover:bg-orange-500 hover:text-white"
+                        )}
+                        title={u.banned ? 'Разблокировать' : 'Заблокировать'}
+                      >
+                        {u.banned ? <CheckCircle2 className="w-4 h-4" /> : <Ban className="w-4 h-4" />}
+                        <span className="md:hidden text-xs font-bold">{u.banned ? 'Разбан' : 'Бан'}</span>
+                      </button>
+                      <button
+                        onClick={() => setUserActionModal({ userTarget: u, action: 'delete' })}
+                        className="flex-1 md:flex-none py-2.5 px-3 md:p-3 rounded-xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-sm flex items-center justify-center gap-2"
+                        title="Удалить аккаунт"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        <span className="md:hidden text-xs font-bold">Удалить</span>
+                      </button>
+                    </div>
                   </div>
                   
-                  <div className="grid grid-cols-2 md:flex flex-1 w-full gap-3 md:gap-0">
-                    <div className="w-full md:flex-1 md:border-l md:border-r border-slate-100 md:px-4">
-                      <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 pl-1">Баланс (CAT)</p>
+                  {/* Контент карточки: Поля редактирования и стата */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+                    {/* БАЛАНС */}
+                    <div className="space-y-2">
+                      <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400 pl-1">Баланс (CAT)</p>
                       <input
                         type="number"
                         defaultValue={u.balance}
                         onBlur={(e) => handleUpdateUser(u.uid, { balance: Number(e.target.value) })}
-                        className="w-full bg-slate-50 hover:bg-slate-100 focus:bg-white border-2 border-transparent focus:border-brand-500 rounded-xl px-3 py-2 font-black text-slate-900 text-sm outline-none transition-all"
+                        className="w-full bg-slate-50 hover:bg-slate-100 focus:bg-white border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-3 font-black text-slate-900 text-sm md:text-base outline-none transition-all shadow-inner"
                       />
                     </div>
 
-                    <div className="w-full md:flex-1 md:border-r border-slate-100 md:px-4">
-                      <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 pl-1">Пароль</p>
+                    {/* ОТЫГРЫШ */}
+                    <div className="space-y-2">
+                      <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400 pl-1 text-brand-500">Отыгрыш</p>
+                      <input
+                        type="number"
+                        key={`wager-${u.uid}-${u.wagerRequirement}`} // Force re-render if it changes via reset
+                        defaultValue={u.wagerRequirement || 0}
+                        onBlur={(e) => handleUpdateUser(u.uid, { wagerRequirement: Number(e.target.value) })}
+                        className="w-full bg-brand-50/50 hover:bg-brand-50 focus:bg-white border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-3 font-black text-brand-700 text-sm md:text-base outline-none transition-all shadow-inner"
+                      />
+                    </div>
+
+                    {/* ПАРОЛЬ */}
+                    <div className="space-y-2">
+                      <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400 pl-1">Пароль</p>
                       <input
                         type="text"
                         defaultValue={u.password || 'N/A'}
                         onBlur={(e) => handleUpdateUser(u.uid, { password: e.target.value })}
-                        className="w-full bg-slate-50 hover:bg-slate-100 focus:bg-white border-2 border-transparent focus:border-brand-500 rounded-xl px-3 py-2 font-bold text-slate-900 text-sm outline-none transition-all"
+                        className="w-full bg-slate-50 hover:bg-slate-100 focus:bg-white border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-3 font-bold text-slate-900 text-sm md:text-base outline-none transition-all shadow-inner"
                       />
                     </div>
-                  </div>
 
-                  <div className="w-full md:w-auto md:flex-1 md:px-4">
-                    <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 pl-1">Статистика</p>
-                    <div className="flex gap-4 text-xs font-bold text-slate-500 bg-slate-50 p-2.5 rounded-xl w-full justify-center md:justify-start">
-                      <span className="text-emerald-500 flex items-center gap-1">+ {u.totalDeposits}</span>
-                      <span className="text-slate-300">|</span>
-                      <span className="text-red-400 flex items-center gap-1">- {u.totalWithdrawals}</span>
+                    {/* СТАТИСТИКА */}
+                    <div className="space-y-2 col-span-2 md:col-span-1">
+                      <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400 pl-1">Статистика</p>
+                      <div className="flex flex-row items-center gap-4 text-xs md:text-sm font-black text-slate-500 bg-slate-50 border border-slate-100 px-4 py-3 rounded-xl w-full h-[46px] md:h-[52px]">
+                        <span className="text-emerald-500 flex items-center gap-1">+ {u.totalDeposits}</span>
+                        <span className="text-slate-300">|</span>
+                        <span className="text-red-400 flex items-center gap-1">- {u.totalWithdrawals}</span>
+                      </div>
                     </div>
-                  </div>
-
-                  <div className="hidden md:flex items-center justify-end px-2 shrink-0">
-                    <button
-                      onClick={() => setBlockModal({ userTarget: u, action: u.banned ? 'unblock' : 'block' })}
-                      className={cn(
-                        "p-4 rounded-2xl transition-all flex items-center justify-center",
-                        u.banned 
-                          ? "bg-emerald-50 text-emerald-500 hover:bg-emerald-500 hover:text-white shadow-sm" 
-                          : "bg-red-50 text-red-500 hover:bg-red-500 hover:text-white shadow-sm"
-                      )}
-                      title={u.banned ? 'Разблокировать' : 'Заблокировать'}
-                    >
-                      {u.banned ? <CheckCircle2 className="w-5 h-5" /> : <Ban className="w-5 h-5" />}
-                    </button>
                   </div>
                 </div>
               ))}
@@ -472,7 +536,6 @@ export default function Admin({ user }: AdminProps) {
                           <p className="font-bold text-slate-900 text-sm md:text-base">x{p.wager}</p>
                         </div>
                         
-                        {/* ДОБАВЛЕН ОТСТУП pr-14 md:pr-0, чтобы кнопка удаления не перекрывала текст */}
                         <div className="col-span-2 w-full mt-2 pr-14 md:pr-0">
                           <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 flex justify-between w-full">
                             <span>Активации</span>

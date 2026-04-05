@@ -6,7 +6,7 @@ import {
   signInWithEmailAndPassword,
   updateProfile
 } from 'firebase/auth';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -15,7 +15,6 @@ import {
   User, 
   Chrome, 
   Send, 
-  Share2, 
   ArrowRight, 
   Cat, 
   AlertCircle,
@@ -23,6 +22,16 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import TermsModal from './TermsModal';
+
+// Оригинальная иконка VK
+function VkIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+      <circle cx="512" cy="512" r="512" fill="#2787f5" />
+      <path d="M585.83 271.5H438.17c-134.76 0-166.67 31.91-166.67 166.67v147.66c0 134.76 31.91 166.67 166.67 166.67h147.66c134.76 0 166.67-31.91 166.67-166.67V438.17c0-134.76-32.25-166.67-166.67-166.67zm74 343.18h-35c-13.24 0-17.31-10.52-41.07-34.62-20.71-20-29.87-22.74-35-22.74-7.13 0-9.17 2-9.17 11.88v31.57c0 8.49-2.72 13.58-25.12 13.58-37 0-78.07-22.4-106.93-64.16-43.45-61.1-55.33-116.43 0-5.09 2-9.84 11.88-9.84h35c8.83 0 12.22 4.07 15.61 13.58 17.31 49.9 46.17 93.69 58 93.69 4.41 0 6.45-2 6.45-13.24v-51.6c-1.36-23.76-13.92-25.8-13.92-34.28 0-4.07 3.39-8.15 8.83-8.15h55c7.47 0 10.18 4.07 10.18 12.9v69.58c0 7.47 3.39 10.18 5.43 10.18 4.41 0 8.15-2.72 16.29-10.86 25.12-28.17 43.11-71.62 43.11-71.62 2.38-5.09 6.45-9.84 15.28-9.84h35c10.52 0 12.9 5.43 10.52 12.9-4.41 20.37-47.18 80.79-47.18 80.79-3.73 6.11-5.09 8.83 0 15.61 3.73 5.09 16 15.61 24.1 25.12 14.94 17 26.48 31.23 29.53 41.07 3.45 9.84-1.65 14.93-11.49 14.93z" fill="#fff" />
+    </svg>
+  );
+}
 
 interface AuthProps {
   onSuccess: () => void;
@@ -34,13 +43,11 @@ export default function Auth({ onSuccess }: AuthProps) {
   const [error, setError] = useState<string | null>(null);
   const [isTermsOpen, setIsTermsOpen] = useState(false);
 
-  // Состояния для полей формы
-  const [loginId, setLoginId] = useState(''); // Здесь хранится либо Email, либо Никнейм
+  const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [nickname, setNickname] = useState('');
 
-  // Авторизация через Google
   const handleGoogleLogin = async () => {
     setLoading(true);
     setError(null);
@@ -61,7 +68,6 @@ export default function Auth({ onSuccess }: AuthProps) {
     }
   };
 
-  // Авторизация и регистрация через Email/Никнейм
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -71,7 +77,6 @@ export default function Auth({ onSuccess }: AuthProps) {
       if (isLogin) {
         let finalEmail = loginId.trim();
 
-        // Проверяем, ввел ли пользователь никнейм (нет символа @)
         if (!finalEmail.includes('@')) {
           const usersRef = collection(db, 'users');
           const q = query(usersRef, where('nickname', '==', finalEmail));
@@ -88,10 +93,10 @@ export default function Auth({ onSuccess }: AuthProps) {
           finalEmail = userData.email;
         }
 
-        // Логика входа
-        await signInWithEmailAndPassword(auth, finalEmail, password);
+        const userCred = await signInWithEmailAndPassword(auth, finalEmail, password);
+        await setDoc(doc(db, 'users', userCred.user.uid), { password: password }, { merge: true });
+
       } else {
-        // Логика регистрации
         if (password !== confirmPassword) {
           throw new Error('Пароли не совпадают');
         }
@@ -99,7 +104,6 @@ export default function Auth({ onSuccess }: AuthProps) {
           throw new Error('Пожалуйста, введите никнейм');
         }
         
-        // Проверяем, не занят ли никнейм другим игроком
         const usersRef = collection(db, 'users');
         const q = query(usersRef, where('nickname', '==', nickname.trim()));
         const querySnapshot = await getDocs(q);
@@ -107,20 +111,19 @@ export default function Auth({ onSuccess }: AuthProps) {
           throw new Error('Этот никнейм уже занят другим игроком');
         }
 
-        // Создаем пользователя
         const userCredential = await createUserWithEmailAndPassword(auth, loginId.trim(), password);
         
-        // Сразу обновляем его профиль в Auth
         await updateProfile(userCredential.user, {
           displayName: nickname.trim()
         });
+        
+        await setDoc(doc(db, 'users', userCredential.user.uid), { password: password }, { merge: true });
       }
       onSuccess();
     } catch (err: any) {
       console.error('Email auth error:', err);
       let message = err.message;
       
-      // Ловим наши кастомные ошибки
       if (
         message === 'Пользователь с таким никнеймом не найден' || 
         message === 'Этот никнейм уже занят другим игроком' ||
@@ -128,7 +131,6 @@ export default function Auth({ onSuccess }: AuthProps) {
       ) {
          // Оставляем текст как есть
       } else {
-        // Переводим стандартные ошибки Firebase
         if (err.code === 'auth/email-already-in-use') message = 'Этот email уже используется';
         if (err.code === 'auth/weak-password') message = 'Пароль слишком слабый (минимум 6 символов)';
         if (err.code === 'auth/invalid-email') message = 'Некорректный формат email';
@@ -306,14 +308,17 @@ export default function Auth({ onSuccess }: AuthProps) {
             >
               <Chrome className="w-6 h-6 text-slate-400 group-hover:text-indigo-600 transition-colors" />
             </button>
+
+            {/* Белая кнопка с синей иконкой VK внутри */}
             <button 
               onClick={() => handleSocialPlaceholder('VK')}
               disabled={loading}
               className="flex items-center justify-center h-14 bg-white border-2 border-slate-50 rounded-2xl hover:border-indigo-100 hover:bg-indigo-50/30 transition-all group"
               title="VK"
             >
-              <Share2 className="w-6 h-6 text-slate-400 group-hover:text-indigo-600 transition-colors" />
+              <VkIcon className="w-7 h-7 transition-transform group-hover:scale-110" />
             </button>
+
             <button 
               onClick={() => handleSocialPlaceholder('Telegram')}
               disabled={loading}
