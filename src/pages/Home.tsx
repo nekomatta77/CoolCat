@@ -8,8 +8,8 @@ import { cn, useIsMobile } from '../lib/utils'; // Используем един
 // 🛠 НАСТРОЙКИ ПОЗИЦИОНИРОВАНИЯ И РАЗМЕРОВ (ГЛАВНАЯ СТРАНИЦА)
 // ============================================================================
 const TROPHY_CONFIG = {
-  pc: { x: 0, y: 20, scale: 1.5 },
-  mobile: { x: 0, y: 10, scale: 1.9 },
+  pc: { x: 0, y: 20, scale: 1.4 },
+  mobile: { x: 0, y: 10, scale: 1.6 },
 };
 
 interface HomeProps {
