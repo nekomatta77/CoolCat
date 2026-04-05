@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence, PanInfo } from 'motion/react';
 import { 
   Trophy, ChevronRight, ChevronLeft, Lock, Unlock, 
-  Star, Shield, Crown, Zap, Gem, Flame, Target, Gift, Coins
+  Star, Shield, Crown, Zap, Gem, Flame, Target, Gift, Coins, Loader2
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -36,7 +36,18 @@ export default function Level({ user }: { user: any }) {
   const actualRankIndex = currentRankIndex === -1 ? 0 : RANKS.length - 1 - currentRankIndex;
   
   const [activeIndex, setActiveIndex] = useState(actualRankIndex);
-  const [direction, setDirection] = useState(0); // 1 = вперед, -1 = назад
+  const [direction, setDirection] = useState(0); 
+  
+  // Состояние для отслеживания загруженных картинок
+  const [loadedImages, setLoadedImages] = useState<Record<number, boolean>>({});
+
+  // Фоновая предзагрузка всех картинок при монтировании компонента
+  useEffect(() => {
+    RANKS.forEach(rank => {
+      const img = new Image();
+      img.src = `/assets/ranks/cat_rank${rank.id}.webp`;
+    });
+  }, []);
 
   const handlePrev = () => {
     setDirection(-1);
@@ -48,7 +59,6 @@ export default function Level({ user }: { user: any }) {
     setActiveIndex(prev => Math.min(RANKS.length - 1, prev + 1));
   };
 
-  // Обработка свайпов (Drag)
   const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     const swipeThreshold = 50;
     if (info.offset.x < -swipeThreshold && activeIndex < RANKS.length - 1) {
@@ -60,6 +70,7 @@ export default function Level({ user }: { user: any }) {
 
   const activeRank = RANKS[activeIndex];
   const isUnlocked = userExp >= activeRank.points;
+  const isCurrentImgLoaded = loadedImages[activeRank.id];
 
   const currentRankObj = RANKS[actualRankIndex];
   const nextRankObj = RANKS[actualRankIndex + 1];
@@ -108,9 +119,7 @@ export default function Level({ user }: { user: any }) {
         </div>
       </section>
 
-      {/* Слайдер карточек рангов */}
       <section className="relative flex items-center justify-center pt-8">
-        {/* Кнопка "Назад" - Скрыта на мобильных (hidden md:flex) */}
         <button 
           onClick={handlePrev}
           disabled={activeIndex === 0}
@@ -127,12 +136,10 @@ export default function Level({ user }: { user: any }) {
               animate={{ opacity: 1, x: 0, scale: 1 }}
               exit={{ opacity: 0, x: direction > 0 ? -50 : 50, scale: 0.95 }}
               transition={{ duration: 0.3 }}
-              // Настройки для свайпов
               drag="x"
               dragConstraints={{ left: 0, right: 0 }}
               dragElastic={0.2}
               onDragEnd={handleDragEnd}
-              // Класс cursor-grab показывает, что элемент можно тянуть
               className={cn(
                 "bg-white rounded-[3rem] border-2 shadow-2xl p-6 md:p-8 relative overflow-hidden flex flex-col cursor-grab active:cursor-grabbing",
                 activeRank.border,
@@ -145,18 +152,32 @@ export default function Level({ user }: { user: any }) {
                 
                 {/* Блок с изображением кота */}
                 <div className="relative h-56 md:h-72 w-full flex items-center justify-center">
-                   {/* Свечение позади кота */}
-                   <div className={cn("absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-40 blur-[50px] rounded-full pointer-events-none", activeRank.bg)} />
                    
+                   {/* Свечение появляется плавно вместе с картинкой */}
+                   <div className={cn(
+                     "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-40 blur-[50px] rounded-full pointer-events-none transition-opacity duration-700", 
+                     activeRank.bg,
+                     isCurrentImgLoaded ? "opacity-100" : "opacity-0"
+                   )} />
+                   
+                   {/* Лоадер отображается пока картинка не загрузится */}
+                   {!isCurrentImgLoaded && (
+                     <Loader2 className="w-8 h-8 text-slate-300 animate-spin absolute z-0" />
+                   )}
+
+                   {/* Сама картинка */}
                    <img 
                      src={`/assets/ranks/cat_rank${activeRank.id}.webp`}
                      alt={activeRank.name}
-                     className="h-full w-auto object-contain relative z-10 drop-shadow-2xl select-none"
-                     draggable="false" // Отключаем дефолтное перетаскивание картинок браузером
+                     onLoad={() => setLoadedImages(prev => ({ ...prev, [activeRank.id]: true }))}
+                     className={cn(
+                       "h-full w-auto object-contain relative z-10 drop-shadow-2xl select-none transition-all duration-500",
+                       isCurrentImgLoaded ? "opacity-100 scale-100" : "opacity-0 scale-95"
+                     )}
+                     draggable="false"
                    />
                 </div>
 
-                {/* Шапка с названием и XP */}
                 <div className="flex flex-col items-center text-center space-y-2">
                   <div className="flex items-center gap-2 justify-center">
                     <h3 className="text-3xl font-black text-slate-900 tracking-tight">{activeRank.name}</h3>
@@ -168,7 +189,6 @@ export default function Level({ user }: { user: any }) {
                   </p>
                 </div>
 
-                {/* Статистика */}
                 <div className="grid grid-cols-2 gap-3 md:gap-4 mt-auto">
                   <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col items-center text-center">
                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Кешбэк</p>
@@ -193,7 +213,6 @@ export default function Level({ user }: { user: any }) {
                   </div>
                 </div>
 
-                {/* Уникальный бонус */}
                 <div className="pt-4 border-t border-slate-100 flex items-center gap-4">
                   <div className="w-14 h-14 bg-amber-50 rounded-2xl flex items-center justify-center shrink-0 border border-amber-100">
                     <Gift className="w-7 h-7 text-amber-500" />
@@ -209,7 +228,6 @@ export default function Level({ user }: { user: any }) {
           </AnimatePresence>
         </div>
 
-        {/* Кнопка "Вперед" - Скрыта на мобильных */}
         <button 
           onClick={handleNext}
           disabled={activeIndex === RANKS.length - 1}
@@ -219,7 +237,6 @@ export default function Level({ user }: { user: any }) {
         </button>
       </section>
 
-      {/* Точки пагинации внизу */}
       <div className="flex justify-center flex-wrap gap-2 pt-6 px-4">
         {RANKS.map((r, i) => (
           <button
