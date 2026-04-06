@@ -1,13 +1,23 @@
-import { useState, useCallback } from 'react';
+import { useState, useRef } from 'react';
 import { UserProfile } from '../types';
-import { doc, updateDoc, addDoc, collection } from 'firebase/firestore';
+import { doc, updateDoc, addDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Grid3X3, Bomb, Gem, Trophy, Coins, Settings, ArrowRight, ShieldCheck, Zap, Sparkles, Play } from 'lucide-react';
+import { Grid3X3, Bomb, Gem, Trophy, Coins, Settings, ArrowRight, ShieldCheck, Play, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 
 interface MinesProps {
   user: UserProfile;
+}
+
+interface MutableAchievement {
+  id?: string;
+  userId: string;
+  type: string;
+  category: string;
+  progress: number;
+  completed: boolean;
+  rewarded: boolean;
 }
 
 export default function Mines({ user }: MinesProps) {
@@ -18,6 +28,10 @@ export default function Mines({ user }: MinesProps) {
   const [revealed, setRevealed] = useState<boolean[]>(Array(25).fill(false));
   const [multiplier, setMultiplier] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [unlockedAch, setUnlockedAch] = useState<string | null>(null);
+
+  // Блокировка от спам-кликов
+  const isProcessing = useRef(false);
 
   const calculateMultiplier = (revealedCount: number) => {
     let mult = 1;
@@ -45,7 +59,7 @@ export default function Mines({ user }: MinesProps) {
   };
 
   const handleTileClick = async (idx: number) => {
-    if (gameState !== 'playing' || revealed[idx]) return;
+    if (gameState !== 'playing' || revealed[idx] || isProcessing.current) return;
 
     const newRevealed = [...revealed];
     newRevealed[idx] = true;
@@ -71,34 +85,155 @@ export default function Mines({ user }: MinesProps) {
   };
 
   const cashout = async () => {
-    if (gameState !== 'playing') return;
+    if (gameState !== 'playing' || isProcessing.current) return;
+    isProcessing.current = true;
     setLoading(true);
+    
     const payout = bet * multiplier;
     const newBalance = user.balance - bet + payout;
     setGameState('won');
 
     try {
-      await updateDoc(doc(db, 'users', user.uid), {
-        balance: newBalance,
-        xp: user.xp + bet / 10
-      });
-      await addDoc(collection(db, 'gameSessions'), {
-        userId: user.uid,
-        gameType: 'mines',
-        bet,
-        multiplier,
-        payout,
-        timestamp: new Date().toISOString()
-      });
+      const achQuery = query(collection(db, 'achievements'), where('userId', '==', user.uid), where('category', '==', 'mines'));
+      const achSnapshot = await getDocs(achQuery);
+      
+      const userAchs: MutableAchievement[] = achSnapshot.docs.map(d => ({ 
+        id: d.id, 
+        ...d.data() 
+      } as MutableAchievement));
+
+      const getAch = (type: string): MutableAchievement => {
+        const existing = userAchs.find(a => a.type === type);
+        return existing ? { ...existing } : { 
+          type, category: 'mines', progress: 0, completed: false, rewarded: false, userId: user.uid 
+        };
+      };
+
+      const updates: MutableAchievement[] = [];
+      const newAchsToCreate: MutableAchievement[] = [];
+      let newlyUnlocked: string | null = null;
+
+      const processAch = (type: string, target: number, progressFn: (a: MutableAchievement) => MutableAchievement, title: string) => {
+        let ach = getAch(type);
+        if (ach.completed) return;
+        
+        const oldProg = ach.progress;
+        ach = progressFn({ ...ach });
+        
+        if (ach.progress >= target) {
+          ach.progress = target;
+          ach.completed = true;
+          newlyUnlocked = title; 
+        }
+        
+        if (ach.progress !== oldProg || ach.completed) {
+          if (ach.id) {
+            const existingIdx = updates.findIndex(u => u.id === ach.id);
+            if (existingIdx >= 0) updates[existingIdx] = ach;
+            else updates.push(ach);
+          } else {
+            const existingIdx = newAchsToCreate.findIndex(u => u.type === ach.type);
+            if (existingIdx >= 0) newAchsToCreate[existingIdx] = ach;
+            else newAchsToCreate.push(ach);
+          }
+        }
+      };
+
+      // Расчет открытых безопасных ячеек
+      const revealedCount = revealed.filter((r, i) => r && !grid[i]).length;
+
+      // Проверки достижений Mines
+      if (bet >= 100) {
+        processAch('mines_sapper1', 25, a => { a.progress++; return a; }, 'Кот-сапер');
+        processAch('mines_sapper2', 50, a => { a.progress++; return a; }, 'Кот-сапер II');
+      }
+
+      if (bet >= 250 && minesCount >= 5) {
+        processAch('mines_sapper3', 100, a => { a.progress++; return a; }, 'Кот-сапер III');
+      }
+
+      if (minesCount === 24 && bet >= 100) {
+        processAch('mines_careful', 5, a => { a.progress++; return a; }, 'Осторожные лапки');
+      }
+
+      if (multiplier >= 50) {
+        processAch('mines_kitty1', 1, a => { a.progress = 1; return a; }, 'В поисках кисы');
+      }
+      if (multiplier >= 100) {
+        processAch('mines_kitty2', 1, a => { a.progress = 1; return a; }, 'В поисках кисы II');
+      }
+      if (multiplier >= 250) {
+        processAch('mines_kitty3', 1, a => { a.progress = 1; return a; }, 'В поисках кисы III');
+      }
+      if (multiplier >= 800 && bet >= 25) {
+        processAch('mines_kitty4', 1, a => { a.progress = 1; return a; }, 'В поисках кисы IV');
+      }
+
+      // Открытие всех выигрышных ячеек
+      if (minesCount === 2 && revealedCount === 23) {
+        processAch('mines_infinity1', 1, a => { a.progress = 1; return a; }, 'Бесконечность не предел');
+      }
+      if (minesCount === 3 && revealedCount === 22 && bet >= 5) {
+        processAch('mines_infinity2', 1, a => { a.progress = 1; return a; }, 'Бесконечность не предел II');
+      }
+
+      await Promise.all([
+        updateDoc(doc(db, 'users', user.uid), {
+          balance: newBalance,
+          xp: (user.xp || 0) + bet / 10
+        }),
+        addDoc(collection(db, 'gameSessions'), {
+          userId: user.uid,
+          gameType: 'mines',
+          bet,
+          multiplier,
+          payout,
+          timestamp: new Date().toISOString()
+        }),
+        ...updates.map(ach => updateDoc(doc(db, 'achievements', ach.id as string), { progress: ach.progress, completed: ach.completed })),
+        ...newAchsToCreate.map(ach => {
+          const { id, ...data } = ach;
+          return addDoc(collection(db, 'achievements'), data);
+        })
+      ]);
+
+      if (newlyUnlocked) {
+        setUnlockedAch(newlyUnlocked);
+        setTimeout(() => setUnlockedAch(null), 4000);
+      }
+
     } catch (error) {
       console.error('Mines error:', error);
     } finally {
       setLoading(false);
+      setTimeout(() => {
+        isProcessing.current = false;
+      }, 300);
     }
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 pb-12">
+    <div className="max-w-6xl mx-auto space-y-8 pb-12 relative">
+
+      <AnimatePresence>
+        {unlockedAch && (
+          <motion.div
+            initial={{ opacity: 0, y: -50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -50, scale: 0.9 }}
+            className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] bg-white px-6 py-4 rounded-3xl shadow-2xl border-2 border-brand-200 flex items-center gap-4 min-w-[300px]"
+          >
+            <div className="w-12 h-12 bg-brand-100 rounded-xl flex items-center justify-center shrink-0">
+              <Trophy className="w-6 h-6 text-brand-600" />
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-brand-500 mb-0.5">Достижение открыто!</p>
+              <p className="text-lg font-black text-slate-900 leading-tight">{unlockedAch}</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <header className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div className="flex items-center gap-6">
           <div className="w-16 h-16 bg-brand-500 rounded-[2rem] flex items-center justify-center shadow-2xl shadow-brand-200">

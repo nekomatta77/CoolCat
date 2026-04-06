@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { UserProfile } from '../types';
-import { doc, updateDoc, addDoc, collection, onSnapshot, query, orderBy, limit } from 'firebase/firestore';
+import { doc, updateDoc, addDoc, collection, onSnapshot, query, orderBy, limit, getDocs, where } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Trophy, Coins, History, Sparkles, Star, Zap, ShieldCheck, ArrowRight, Play, RotateCcw } from 'lucide-react';
+import { Trophy, Coins, History, Sparkles, Star, Zap, ShieldCheck, Play, RotateCcw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -15,6 +15,16 @@ interface JackpotProps {
   user: UserProfile;
 }
 
+interface MutableAchievement {
+  id?: string;
+  userId: string;
+  type: string;
+  category: string;
+  progress: number;
+  completed: boolean;
+  rewarded: boolean;
+}
+
 export default function Jackpot({ user }: JackpotProps) {
   const [bet, setBet] = useState(10);
   const [history, setHistory] = useState<any[]>([]);
@@ -22,6 +32,9 @@ export default function Jackpot({ user }: JackpotProps) {
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [rotation, setRotation] = useState(0);
+  const [unlockedAch, setUnlockedAch] = useState<string | null>(null);
+
+  const isProcessing = useRef(false);
 
   useEffect(() => {
     const q = query(collection(db, 'gameSessions'), orderBy('timestamp', 'desc'), limit(10));
@@ -32,22 +45,22 @@ export default function Jackpot({ user }: JackpotProps) {
   }, []);
 
   const handleSpin = async () => {
-    if (bet > user.balance || bet <= 0 || spinning) return;
+    if (bet > user.balance || bet <= 0 || spinning || isProcessing.current) return;
+    isProcessing.current = true;
     setLoading(true);
     setSpinning(true);
     setResult(null);
 
-    // Calculate result
     const roll = Math.random() * 100;
     let multiplier = 0;
     let targetRotation = 0;
 
     if (roll < 0.1) {
-      multiplier = 1000; // Jackpot
-      targetRotation = 360 * 10 + 0; // 0 degrees
+      multiplier = 1000;
+      targetRotation = 360 * 10 + 0;
     } else if (roll < 1) {
       multiplier = 100;
-      targetRotation = 360 * 10 + 45; // 45 degrees
+      targetRotation = 360 * 10 + 45;
     } else if (roll < 5) {
       multiplier = 10;
       targetRotation = 360 * 10 + 90;
@@ -67,35 +80,107 @@ export default function Jackpot({ user }: JackpotProps) {
     const payout = bet * multiplier;
     const newBalance = user.balance - bet + payout;
 
+    const isWin = multiplier > 1; // 1.2x, 2x, 10x, etc.
+    const prevStreak = (user as any).jackpotWinStreak || 0;
+    const newStreak = isWin ? prevStreak + 1 : 0;
+
     try {
-      // Delay for animation
       await new Promise(r => setTimeout(r, 3000));
 
-      await updateDoc(doc(db, 'users', user.uid), {
-        balance: newBalance,
-        xp: user.xp + bet / 10
-      });
-      await addDoc(collection(db, 'gameSessions'), {
-        userId: user.uid,
-        gameType: 'jackpot',
-        bet,
-        multiplier,
-        payout,
-        timestamp: new Date().toISOString(),
-        nickname: user.nickname,
-        avatar: user.avatar
-      });
+      const achQuery = query(collection(db, 'achievements'), where('userId', '==', user.uid), where('category', '==', 'jackpot'));
+      const achSnapshot = await getDocs(achQuery);
+      const userAchs: MutableAchievement[] = achSnapshot.docs.map(d => ({ id: d.id, ...d.data() } as MutableAchievement));
+
+      const getAch = (type: string): MutableAchievement => {
+        const existing = userAchs.find(a => a.type === type);
+        return existing ? { ...existing } : { type, category: 'jackpot', progress: 0, completed: false, rewarded: false, userId: user.uid };
+      };
+
+      const updates: MutableAchievement[] = [];
+      const newAchsToCreate: MutableAchievement[] = [];
+      let newlyUnlocked: string | null = null;
+
+      const processAch = (type: string, target: number, progressFn: (a: MutableAchievement) => MutableAchievement, title: string) => {
+        let ach = getAch(type);
+        if (ach.completed) return;
+        const oldProg = ach.progress;
+        ach = progressFn({ ...ach });
+        if (ach.progress >= target) {
+          ach.progress = target;
+          ach.completed = true;
+          newlyUnlocked = title; 
+        }
+        if (ach.progress !== oldProg || ach.completed) {
+          if (ach.id) {
+            const existingIdx = updates.findIndex(u => u.id === ach.id);
+            if (existingIdx >= 0) updates[existingIdx] = ach; else updates.push(ach);
+          } else {
+            const existingIdx = newAchsToCreate.findIndex(u => u.type === ach.type);
+            if (existingIdx >= 0) newAchsToCreate[existingIdx] = ach; else newAchsToCreate.push(ach);
+          }
+        }
+      };
+
+      if (bet >= 100) processAch('jackpot_ticket1', 10, a => { a.progress++; return a; }, 'Билет в высшее общество');
+      if (bet >= 250) processAch('jackpot_ticket2', 25, a => { a.progress++; return a; }, 'Билет в высшее общество II');
+      if (bet >= 1000) processAch('jackpot_ticket3', 50, a => { a.progress++; return a; }, 'Билет в высшее общество III');
+      
+      processAch('jackpot_predator', 5, a => {
+        if (isWin) a.progress++; else a.progress = 0;
+        return a;
+      }, 'Азартный хищник');
+
+      if (payout > 10000) {
+        processAch('jackpot_big_catch', 1, a => { a.progress = 1; return a; }, 'Большой куш');
+      }
+
+      await Promise.all([
+        updateDoc(doc(db, 'users', user.uid), { 
+          balance: newBalance, 
+          xp: (user.xp || 0) + bet / 10,
+          jackpotWinStreak: newStreak 
+        }),
+        addDoc(collection(db, 'gameSessions'), { userId: user.uid, gameType: 'jackpot', bet, multiplier, payout, timestamp: new Date().toISOString(), nickname: user.nickname, avatar: user.avatar }),
+        ...updates.map(ach => updateDoc(doc(db, 'achievements', ach.id as string), { progress: ach.progress, completed: ach.completed })),
+        ...newAchsToCreate.map(ach => { const { id, ...data } = ach; return addDoc(collection(db, 'achievements'), data); })
+      ]);
+
       setResult({ multiplier, payout });
+      
+      if (newlyUnlocked) {
+        setUnlockedAch(newlyUnlocked);
+        setTimeout(() => setUnlockedAch(null), 4000);
+      }
     } catch (error) {
       console.error('Jackpot error:', error);
     } finally {
       setSpinning(false);
       setLoading(false);
+      setTimeout(() => { isProcessing.current = false; }, 300);
     }
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 pb-12">
+    <div className="max-w-6xl mx-auto space-y-8 pb-12 relative">
+      <AnimatePresence>
+        {unlockedAch && (
+          <motion.div
+            initial={{ opacity: 0, y: -50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -50, scale: 0.9 }}
+            className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] bg-white px-6 py-4 rounded-3xl shadow-2xl border-2 border-brand-200 flex items-center gap-4 min-w-[300px]"
+          >
+            <div className="w-12 h-12 bg-brand-100 rounded-xl flex items-center justify-center shrink-0">
+              <Trophy className="w-6 h-6 text-brand-600" />
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-brand-500 mb-0.5">Достижение открыто!</p>
+              <p className="text-lg font-black text-slate-900 leading-tight">{unlockedAch}</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <header className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div className="flex items-center gap-6">
           <div className="w-16 h-16 bg-brand-500 rounded-[2rem] flex items-center justify-center shadow-2xl shadow-brand-200">

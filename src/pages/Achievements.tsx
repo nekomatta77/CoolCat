@@ -6,7 +6,7 @@ import {
   Trophy, Dice5, Grid3X3, Layers, Coins, CheckCircle2, Lock, 
   Star, Sparkles, ChevronLeft, ChevronRight, Gift, ArrowRight 
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, PanInfo } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -18,7 +18,6 @@ interface AchievementsProps {
   user: UserProfile;
 }
 
-// Расширенный тип для локального списка достижений
 interface LocalAchievement {
   id: string;
   category: 'dice' | 'mines' | 'keno' | 'jackpot' | 'general';
@@ -34,7 +33,6 @@ export default function Achievements({ user }: AchievementsProps) {
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Состояния для карусели: текущий индекс в каждой категории и направление анимации
   const [activeIndices, setActiveIndices] = useState<Record<string, number>>({
     dice: 0, mines: 0, keno: 0, jackpot: 0, general: 0
   });
@@ -58,17 +56,37 @@ export default function Achievements({ user }: AchievementsProps) {
     { id: 'dice_nine_lives', category: 'dice', title: 'Девять жизней', desc: 'Выиграть после 8 поражений подряд (шанс <50%)', target: 1, rewardCat: 50, rewardXp: 100, bonus: 'Аватар "NINE LIVES"' },
     { id: 'dice_madman', category: 'dice', title: 'Безумец', desc: 'Ставка 15,000 CAT на шанс 90% и выигрыш', target: 1, rewardCat: 333, rewardXp: 999, bonus: 'Префикс "БЕЗУМИЕ"' },
     
-    // --- MINES (Пока заглушки) ---
-    { id: 'mines_50', category: 'mines', title: 'Сапер-новичок', desc: 'Найдите 50 кристаллов в Mines', target: 50, rewardCat: 300, rewardXp: 100 },
+    // --- MINES ---
+    { id: 'mines_sapper1', category: 'mines', title: 'Кот-сапер', desc: 'Завершить игры победой 25 раз, ставка от 100 CAT', target: 25, rewardCat: 50, rewardXp: 100 },
+    { id: 'mines_sapper2', category: 'mines', title: 'Кот-сапер II', desc: 'Завершить игры победой 50 раз, ставка от 100 CAT', target: 50, rewardCat: 100, rewardXp: 250 },
+    { id: 'mines_sapper3', category: 'mines', title: 'Кот-сапер III', desc: 'Выиграть 100 раз (ставка от 250 CAT, от 5 мин)', target: 100, rewardCat: 150, rewardXp: 400, bonus: 'Аватар "Кот-сапёр"' },
+    { id: 'mines_careful', category: 'mines', title: 'Осторожные лапки', desc: 'Выиграть 5 раз на 24 минах, ставка от 100 CAT', target: 5, rewardCat: 250, rewardXp: 100 },
+    { id: 'mines_kitty1', category: 'mines', title: 'В поисках кисы', desc: 'Поймать x50 в одной игре', target: 1, rewardCat: 50, rewardXp: 10 },
+    { id: 'mines_kitty2', category: 'mines', title: 'В поисках кисы II', desc: 'Поймать x100 в одной игре', target: 1, rewardCat: 100, rewardXp: 20 },
+    { id: 'mines_kitty3', category: 'mines', title: 'В поисках кисы III', desc: 'Поймать x250 в одной игре', target: 1, rewardCat: 200, rewardXp: 40 },
+    { id: 'mines_kitty4', category: 'mines', title: 'В поисках кисы IV', desc: 'Поймать x800 (ставка от 25 CAT)', target: 1, rewardCat: 1500, rewardXp: 10000, bonus: 'Аватар "I find"' },
+    { id: 'mines_infinity1', category: 'mines', title: 'Бесконечность не предел', desc: 'Открыть все выигрышные ячейки на 2-х минах', target: 1, rewardCat: 300, rewardXp: 800 },
+    { id: 'mines_infinity2', category: 'mines', title: 'Бесконечность не предел II', desc: 'Открыть все ячейки на 3-х минах (ставка от 5 CAT)', target: 1, rewardCat: 1000, rewardXp: 1500, bonus: 'Аватар "Buzz-Cat"' },
     
-    // --- KENO (Пока заглушки) ---
-    { id: 'keno_win', category: 'keno', title: 'Числовой гений', desc: 'Угадайте 5 чисел в Keno за раз', target: 5, rewardCat: 1000, rewardXp: 200 },
+    // --- KENO ---
+    { id: 'keno_line1', category: 'keno', title: 'Первая линия', desc: 'Сыграть 25 игр (ставка от 20 CAT)', target: 25, rewardCat: 50, rewardXp: 50 },
+    { id: 'keno_line2', category: 'keno', title: 'Первая линия II', desc: 'Сыграть 50 игр (ставка от 40 CAT)', target: 50, rewardCat: 150, rewardXp: 200 },
+    { id: 'keno_line3', category: 'keno', title: 'Первая линия III', desc: 'Сыграть 100 игр (ставка от 100 CAT)', target: 100, rewardCat: 300, rewardXp: 400, bonus: 'Аватар "Paw"' },
+    { id: 'keno_lucky_num', category: 'keno', title: 'Счастливое число', desc: 'Выиграть 5 раз ПОДРЯД, угадав 1 из 1 числа', target: 5, rewardCat: 300, rewardXp: 500, bonus: 'Аватары "Numbers"' },
+    { id: 'keno_magic', category: 'keno', title: 'Кошачья магия', desc: 'Поймать множитель x200 или выше (ставка от 50 CAT)', target: 1, rewardCat: 1500, rewardXp: 2500 },
+    { id: 'keno_nostracat', category: 'keno', title: 'Ностракотус', desc: 'Угадать 10 из 10 чисел (ставка от 10 CAT)', target: 1, rewardCat: 5000, rewardXp: 10000, bonus: 'Префикс "ПРОРОК", Аватар "Magic Cat"' },
     
-    // --- JACKPOT (Пока заглушки) ---
-    { id: 'jackpot_spin', category: 'jackpot', title: 'Спиннер', desc: 'Сделайте 50 спинов в Jackpot', target: 50, rewardCat: 500, rewardXp: 150 },
+    // --- JACKPOT ---
+    { id: 'jackpot_ticket1', category: 'jackpot', title: 'Билет в высшее общество', desc: 'Сыграть 10 раз (ставка от 100 CAT)', target: 10, rewardCat: 150, rewardXp: 100 },
+    { id: 'jackpot_ticket2', category: 'jackpot', title: 'Билет в высшее общество II', desc: 'Сыграть 25 раз (ставка от 250 CAT)', target: 25, rewardCat: 300, rewardXp: 200 },
+    { id: 'jackpot_ticket3', category: 'jackpot', title: 'Билет в высшее общество III', desc: 'Сыграть 50 раз (ставка от 1000 CAT)', target: 50, rewardCat: 500, rewardXp: 500, bonus: 'Фон "Любимец общества"' },
+    { id: 'jackpot_predator', category: 'jackpot', title: 'Азартный хищник', desc: 'Выиграть 5 раз ПОДРЯД', target: 5, rewardCat: 300, rewardXp: 250, bonus: 'Аватар "Tiger"' },
+    { id: 'jackpot_big_catch', category: 'jackpot', title: 'Большой куш', desc: 'Выиграть за раз более 10,000 CAT', target: 1, rewardCat: 1000, rewardXp: 1500 },
     
-    // --- GENERAL (Пока заглушки) ---
-    { id: 'dep_1000', category: 'general', title: 'Инвестор', desc: 'Сумма депозитов более 1000 CAT', target: 1000, rewardCat: 2000, rewardXp: 500 },
+    // --- GENERAL ---
+    { id: 'gen_first_step', category: 'general', title: 'Первые шаги', desc: 'Сумма депозитов более 100 CAT', target: 100, rewardCat: 500, rewardXp: 100 },
+    { id: 'gen_investor', category: 'general', title: 'Инвестор', desc: 'Сумма депозитов более 10,000 CAT', target: 10000, rewardCat: 2000, rewardXp: 1000 },
+    { id: 'gen_crypto_cat', category: 'general', title: 'Крипто-Кот', desc: 'Сумма депозитов более 100,000 CAT', target: 100000, rewardCat: 15000, rewardXp: 5000, bonus: 'Фон "CRYPTO"' },
   ];
 
   useEffect(() => {
@@ -88,7 +106,6 @@ export default function Achievements({ user }: AchievementsProps) {
     try {
       await updateDoc(doc(db, 'achievements', ach.id), { rewarded: true });
       
-      // ИСПРАВЛЕНИЕ: Используем строго user.xp
       await updateDoc(doc(db, 'users', user.uid), { 
         balance: (user.balance || 0) + item.rewardCat,
         xp: (user.xp || 0) + item.rewardXp
@@ -114,6 +131,17 @@ export default function Achievements({ user }: AchievementsProps) {
       ...prev, 
       [categoryId]: Math.max((prev[categoryId] || 0) - 1, 0) 
     }));
+  };
+
+  // Обработчик свайпов для телефонов
+  const handleDragEnd = (categoryId: string, maxIndex: number, event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    const swipeThreshold = 50;
+    const currentIndex = activeIndices[categoryId] || 0;
+    if (info.offset.x < -swipeThreshold && currentIndex < maxIndex) {
+      handleNext(categoryId, maxIndex);
+    } else if (info.offset.x > swipeThreshold && currentIndex > 0) {
+      handlePrev(categoryId);
+    }
   };
 
   return (
@@ -144,7 +172,6 @@ export default function Achievements({ user }: AchievementsProps) {
 
           return (
             <div key={cat.id} className="space-y-6">
-              {/* Заголовок категории */}
               <div className="flex items-center gap-4">
                 <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg", cat.color, cat.shadow)}>
                   <cat.icon className="w-6 h-6 text-white" />
@@ -156,10 +183,8 @@ export default function Achievements({ user }: AchievementsProps) {
                 </div>
               </div>
               
-              {/* Карусель */}
               <div className="relative flex items-center justify-center pt-2">
-                
-                {/* Левая стрелка */}
+                {/* Левая стрелка (ТОЛЬКО НА ПК) */}
                 <button 
                   onClick={() => handlePrev(cat.id)}
                   disabled={currentIndex === 0}
@@ -177,14 +202,17 @@ export default function Achievements({ user }: AchievementsProps) {
                       animate={{ opacity: 1, x: 0, scale: 1 }}
                       exit={{ opacity: 0, x: direction > 0 ? -50 : 50, scale: 0.95 }}
                       transition={{ duration: 0.3 }}
+                      drag="x"
+                      dragConstraints={{ left: 0, right: 0 }}
+                      dragElastic={0.2}
+                      onDragEnd={(e, info) => handleDragEnd(cat.id, catAchievements.length - 1, e, info)}
                       className={cn(
-                        "bg-white p-6 md:p-8 rounded-[2.5rem] border-2 transition-all duration-300 flex flex-col justify-between group relative overflow-hidden min-h-[320px]",
+                        "bg-white p-6 md:p-8 rounded-[2.5rem] border-2 transition-all duration-300 flex flex-col justify-between group relative overflow-hidden min-h-[320px] cursor-grab active:cursor-grabbing",
                         isCompleted 
                           ? "border-brand-300 shadow-2xl shadow-brand-200/50" 
                           : "border-slate-100 shadow-xl shadow-slate-200/50"
                       )}
                     >
-                      {/* Свечение для выполненных */}
                       {isCompleted && (
                         <div className="absolute -top-32 -right-32 w-64 h-64 bg-brand-400 rounded-full blur-[100px] opacity-20 pointer-events-none" />
                       )}
@@ -209,7 +237,6 @@ export default function Achievements({ user }: AchievementsProps) {
                           </div>
                         </div>
                         
-                        {/* Прогресс-бар */}
                         <div className="space-y-3">
                           <div className="flex justify-between text-[11px] font-black uppercase tracking-widest text-slate-400">
                             <span>Прогресс</span>
@@ -230,7 +257,6 @@ export default function Achievements({ user }: AchievementsProps) {
                         </div>
                       </div>
 
-                      {/* Блок наград */}
                       <div className="mt-8 pt-6 border-t border-slate-100 flex flex-col sm:flex-row items-center gap-6 relative z-10">
                         <div className="flex-1 grid grid-cols-2 gap-3 w-full">
                           {item.rewardCat > 0 && (
@@ -278,7 +304,7 @@ export default function Achievements({ user }: AchievementsProps) {
                   </AnimatePresence>
                 </div>
 
-                {/* Правая стрелка */}
+                {/* Правая стрелка (ТОЛЬКО НА ПК) */}
                 <button 
                   onClick={() => handleNext(cat.id, catAchievements.length - 1)}
                   disabled={currentIndex === catAchievements.length - 1}
@@ -288,25 +314,7 @@ export default function Achievements({ user }: AchievementsProps) {
                 </button>
               </div>
               
-              {/* Мобильная навигация (кнопки под карточкой на маленьких экранах) */}
-              <div className="flex md:hidden justify-center gap-4 pt-2">
-                <button 
-                  onClick={() => handlePrev(cat.id)}
-                  disabled={currentIndex === 0}
-                  className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-md border border-slate-100 text-slate-400 disabled:opacity-30"
-                >
-                  <ChevronLeft className="w-6 h-6" />
-                </button>
-                <button 
-                  onClick={() => handleNext(cat.id, catAchievements.length - 1)}
-                  disabled={currentIndex === catAchievements.length - 1}
-                  className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-md border border-slate-100 text-slate-400 disabled:opacity-30"
-                >
-                  <ChevronRight className="w-6 h-6" />
-                </button>
-              </div>
-
-              {/* Точечки навигации */}
+              {/* Точечки навигации (остаются видимыми везде) */}
               <div className="flex justify-center gap-2 pt-2">
                 {catAchievements.map((_, i) => (
                   <button

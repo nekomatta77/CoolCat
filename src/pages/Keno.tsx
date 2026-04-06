@@ -1,8 +1,8 @@
-import { useState, useCallback } from 'react';
+import { useState, useRef } from 'react';
 import { UserProfile } from '../types';
-import { doc, updateDoc, addDoc, collection } from 'firebase/firestore';
+import { doc, updateDoc, addDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Layers, Sparkles, Coins, ShieldCheck, ArrowRight, RotateCcw, Zap } from 'lucide-react';
+import { Layers, Sparkles, Coins, ShieldCheck, ArrowRight, RotateCcw, Zap, Trophy } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -15,6 +15,16 @@ interface KenoProps {
   user: UserProfile;
 }
 
+interface MutableAchievement {
+  id?: string;
+  userId: string;
+  type: string;
+  category: string;
+  progress: number;
+  completed: boolean;
+  rewarded: boolean;
+}
+
 export default function Keno({ user }: KenoProps) {
   const [bet, setBet] = useState(10);
   const [selected, setSelected] = useState<number[]>([]);
@@ -22,6 +32,9 @@ export default function Keno({ user }: KenoProps) {
   const [gameState, setGameState] = useState<'idle' | 'drawing' | 'finished'>('idle');
   const [payout, setPayout] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [unlockedAch, setUnlockedAch] = useState<string | null>(null);
+
+  const isProcessing = useRef(false);
 
   const multipliers: { [key: number]: number[] } = {
     1: [0, 3.8],
@@ -63,7 +76,8 @@ export default function Keno({ user }: KenoProps) {
   };
 
   const handlePlay = async () => {
-    if (bet > user.balance || bet <= 0 || selected.length === 0) return;
+    if (bet > user.balance || bet <= 0 || selected.length === 0 || isProcessing.current) return;
+    isProcessing.current = true;
     setLoading(true);
     setGameState('drawing');
     setDrawn([]);
@@ -75,7 +89,6 @@ export default function Keno({ user }: KenoProps) {
       if (!newDrawn.includes(num)) newDrawn.push(num);
     }
 
-    // Simulate drawing
     for (let i = 1; i <= 10; i++) {
       await new Promise(r => setTimeout(r, 150));
       setDrawn(newDrawn.slice(0, i));
@@ -86,30 +99,109 @@ export default function Keno({ user }: KenoProps) {
     const winAmount = bet * mult;
     const newBalance = user.balance - bet + winAmount;
 
+    const isOneNumWin = selected.length === 1 && matches === 1;
+    const prevOneNumStreak = (user as any).kenoWinStreakOneNum || 0;
+    const newOneNumStreak = isOneNumWin ? prevOneNumStreak + 1 : 0;
+
     try {
-      await updateDoc(doc(db, 'users', user.uid), {
-        balance: newBalance,
-        xp: user.xp + bet / 10
-      });
-      await addDoc(collection(db, 'gameSessions'), {
-        userId: user.uid,
-        gameType: 'keno',
-        bet,
-        multiplier: mult,
-        payout: winAmount,
-        timestamp: new Date().toISOString()
-      });
+      const achQuery = query(collection(db, 'achievements'), where('userId', '==', user.uid), where('category', '==', 'keno'));
+      const achSnapshot = await getDocs(achQuery);
+      const userAchs: MutableAchievement[] = achSnapshot.docs.map(d => ({ id: d.id, ...d.data() } as MutableAchievement));
+
+      const getAch = (type: string): MutableAchievement => {
+        const existing = userAchs.find(a => a.type === type);
+        return existing ? { ...existing } : { type, category: 'keno', progress: 0, completed: false, rewarded: false, userId: user.uid };
+      };
+
+      const updates: MutableAchievement[] = [];
+      const newAchsToCreate: MutableAchievement[] = [];
+      let newlyUnlocked: string | null = null;
+
+      const processAch = (type: string, target: number, progressFn: (a: MutableAchievement) => MutableAchievement, title: string) => {
+        let ach = getAch(type);
+        if (ach.completed) return;
+        const oldProg = ach.progress;
+        ach = progressFn({ ...ach });
+        if (ach.progress >= target) {
+          ach.progress = target;
+          ach.completed = true;
+          newlyUnlocked = title; 
+        }
+        if (ach.progress !== oldProg || ach.completed) {
+          if (ach.id) {
+            const existingIdx = updates.findIndex(u => u.id === ach.id);
+            if (existingIdx >= 0) updates[existingIdx] = ach; else updates.push(ach);
+          } else {
+            const existingIdx = newAchsToCreate.findIndex(u => u.type === ach.type);
+            if (existingIdx >= 0) newAchsToCreate[existingIdx] = ach; else newAchsToCreate.push(ach);
+          }
+        }
+      };
+
+      if (bet >= 20) processAch('keno_line1', 25, a => { a.progress++; return a; }, 'Первая линия');
+      if (bet >= 40) processAch('keno_line2', 50, a => { a.progress++; return a; }, 'Первая линия II');
+      if (bet >= 100) processAch('keno_line3', 100, a => { a.progress++; return a; }, 'Первая линия III');
+      
+      processAch('keno_lucky_num', 5, a => {
+        if (isOneNumWin) a.progress++; else a.progress = 0;
+        return a;
+      }, 'Счастливое число');
+
+      if (mult >= 200 && bet >= 50) {
+        processAch('keno_magic', 1, a => { a.progress = 1; return a; }, 'Кошачья магия');
+      }
+
+      if (selected.length === 10 && matches === 10 && bet >= 10) {
+        processAch('keno_nostracat', 1, a => { a.progress = 1; return a; }, 'Ностракотус');
+      }
+
+      await Promise.all([
+        updateDoc(doc(db, 'users', user.uid), { 
+          balance: newBalance, 
+          xp: (user.xp || 0) + bet / 10,
+          kenoWinStreakOneNum: newOneNumStreak
+        }),
+        addDoc(collection(db, 'gameSessions'), { userId: user.uid, gameType: 'keno', bet, multiplier: mult, payout: winAmount, timestamp: new Date().toISOString() }),
+        ...updates.map(ach => updateDoc(doc(db, 'achievements', ach.id as string), { progress: ach.progress, completed: ach.completed })),
+        ...newAchsToCreate.map(ach => { const { id, ...data } = ach; return addDoc(collection(db, 'achievements'), data); })
+      ]);
+
       setPayout(winAmount);
       setGameState('finished');
+
+      if (newlyUnlocked) {
+        setUnlockedAch(newlyUnlocked);
+        setTimeout(() => setUnlockedAch(null), 4000);
+      }
     } catch (error) {
       console.error('Keno error:', error);
     } finally {
       setLoading(false);
+      setTimeout(() => { isProcessing.current = false; }, 300);
     }
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 pb-12">
+    <div className="max-w-6xl mx-auto space-y-8 pb-12 relative">
+      <AnimatePresence>
+        {unlockedAch && (
+          <motion.div
+            initial={{ opacity: 0, y: -50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -50, scale: 0.9 }}
+            className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] bg-white px-6 py-4 rounded-3xl shadow-2xl border-2 border-brand-200 flex items-center gap-4 min-w-[300px]"
+          >
+            <div className="w-12 h-12 bg-brand-100 rounded-xl flex items-center justify-center shrink-0">
+              <Trophy className="w-6 h-6 text-brand-600" />
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-brand-500 mb-0.5">Достижение открыто!</p>
+              <p className="text-lg font-black text-slate-900 leading-tight">{unlockedAch}</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <header className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div className="flex items-center gap-6">
           <div className="w-16 h-16 bg-brand-500 rounded-3xl flex items-center justify-center shadow-lg shadow-brand-200">
