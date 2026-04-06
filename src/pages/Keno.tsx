@@ -289,17 +289,17 @@ export default function Keno({ user }: KenoProps) {
                 className={cn(
                   "p-6 rounded-3xl text-center space-y-1 border",
                   payout > 0 
-                    ? "bg-emerald-50 text-emerald-600 border-emerald-100" 
-                    : "bg-slate-50 text-slate-400 border-slate-100"
+                    ? "bg-gradient-to-b from-emerald-400 to-emerald-500 text-white border-emerald-400/50 shadow-xl shadow-emerald-500/40" 
+                    : "bg-gradient-to-b from-slate-100 to-slate-200 text-slate-500 border-slate-200 shadow-lg shadow-slate-200/50"
                 )}
               >
                 {payout > 0 ? (
                   <>
-                    <p className="text-[10px] font-black uppercase tracking-widest">Победа!</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-white/80">Победа!</p>
                     <p className="text-2xl font-black">+{payout.toFixed(2)} CAT</p>
                   </>
                 ) : (
-                  <p className="text-sm font-bold">Попробуй еще раз!</p>
+                  <p className="text-sm font-bold text-slate-500">Попробуй еще раз!</p>
                 )}
               </motion.div>
             )}

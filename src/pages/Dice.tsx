@@ -208,7 +208,8 @@ export default function Dice({ user }: DiceProps) {
 
           </div>
 
-          <div className="bg-emerald-50 py-5 px-6 sm:py-6 sm:px-8 rounded-[1.5rem] sm:rounded-[2rem] border border-emerald-100 mb-4 sm:mb-6 flex items-center justify-between">
+          {/* ИЗМЕНЕНА ОБВОДКА: border-2 border-emerald-600 */}
+          <div className="bg-emerald-50 py-5 px-6 sm:py-6 sm:px-8 rounded-[1.5rem] sm:rounded-[2rem] border-2 border-emerald-600 mb-4 sm:mb-6 flex items-center justify-between shadow-lg shadow-emerald-500/10">
             <div className="flex items-center gap-3">
               <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-500" />
               <span className="text-[11px] sm:text-xs font-black uppercase text-emerald-600 tracking-widest">Возможный выигрыш</span>
@@ -237,8 +238,10 @@ export default function Dice({ user }: DiceProps) {
                   exit={{ opacity: 0, scale: 0.9, y: -5 }}
                   transition={{ duration: 0.15 }}
                   className={cn(
-                    "px-8 py-3 rounded-2xl font-black uppercase tracking-widest text-sm sm:text-base flex items-center gap-3 shadow-sm border",
-                    win ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-rose-50 text-rose-500 border-rose-100"
+                    "px-8 py-3 rounded-2xl font-black uppercase tracking-widest text-sm sm:text-base flex items-center gap-3 border",
+                    win 
+                      ? "bg-gradient-to-b from-emerald-400 to-emerald-500 text-white border-emerald-400/50 shadow-lg shadow-emerald-500/40" 
+                      : "bg-gradient-to-b from-rose-400 to-rose-500 text-white border-rose-400/50 shadow-lg shadow-rose-500/40"
                   )}
                 >
                   {win ? (
@@ -264,7 +267,7 @@ export default function Dice({ user }: DiceProps) {
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white p-4 sm:p-8 rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/50 w-full">
           
           <div className="flex flex-col items-center justify-center min-h-[100px] mb-8 relative">
-              <motion.div className={cn("text-[4rem] sm:text-[6rem] font-black tracking-tighter leading-none transition-colors", win === true ? 'text-emerald-500 drop-shadow-[0_0_20px_rgba(16,185,129,0.2)]' : win === false ? 'text-rose-500 drop-shadow-[0_0_20px_rgba(244,63,94,0.2)]' : 'text-slate-300')}>
+              <motion.div className={cn("text-[4rem] sm:text-[6rem] font-black tracking-tighter leading-none transition-colors", win === true ? 'text-emerald-500 drop-shadow-[0_0_30px_rgba(16,185,129,0.5)]' : win === false ? 'text-rose-500 drop-shadow-[0_0_30px_rgba(244,63,94,0.5)]' : 'text-slate-300')}>
                 {result !== null ? result.toFixed(2) : '00.00'}
               </motion.div>
           </div>
@@ -332,8 +335,8 @@ export default function Dice({ user }: DiceProps) {
               </div>
             </div>
 
-            {/* ПРАВАЯ КОЛОНКА: ВЫИГРЫШ */}
-            <div className="bg-emerald-50 p-4 sm:p-5 rounded-[1.5rem] sm:rounded-3xl border border-emerald-100 flex flex-col items-center justify-center text-center relative overflow-hidden h-full min-h-[140px]">
+            {/* ПРАВАЯ КОЛОНКА: ВЫИГРЫШ (ИЗМЕНЕНА ДЛЯ МОБИЛЬНЫХ: min-h-[70px] sm:min-h-[140px] и отступы p-3 sm:p-5) */}
+            <div className="bg-emerald-50 p-3 sm:p-5 rounded-[1.5rem] sm:rounded-3xl border border-emerald-100 flex flex-col items-center justify-center text-center relative overflow-hidden h-full min-h-[70px] sm:min-h-[140px]">
               <Sparkles className="absolute -right-4 -top-4 w-24 h-24 text-emerald-500/10 rotate-12" />
               <span className="text-[10px] sm:text-[11px] font-black uppercase text-emerald-600 tracking-widest mb-1 sm:mb-2 relative z-10 flex items-center gap-1 sm:gap-2">
                 Множитель <span className="text-emerald-800 bg-emerald-200/50 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-md sm:rounded-lg">x{multiplier}</span>

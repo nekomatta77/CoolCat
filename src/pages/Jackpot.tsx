@@ -349,7 +349,7 @@ export default function Jackpot({ user }: JackpotProps) {
                   >
                     <p className={cn(
                       "text-8xl font-black tracking-tighter leading-none",
-                      result.multiplier > 1 ? "text-emerald-500" : "text-slate-400"
+                      result.multiplier > 1 ? "text-transparent bg-clip-text bg-gradient-to-b from-emerald-400 to-emerald-600 drop-shadow-[0_0_20px_rgba(52,211,153,0.5)]" : "text-slate-400"
                     )}>
                       x{result.multiplier}
                     </p>
@@ -365,7 +365,7 @@ export default function Jackpot({ user }: JackpotProps) {
                       <motion.div
                         initial={{ opacity: 0, scale: 0 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        className="mt-6 inline-flex items-center gap-2 px-6 py-2 bg-brand-600 text-white rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-xl shadow-brand-200"
+                        className="mt-6 inline-flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-emerald-400 to-emerald-500 text-white rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-xl shadow-emerald-500/40 border border-emerald-400/50"
                       >
                         <Sparkles className="w-3 h-3" /> Big Win!
                       </motion.div>

@@ -347,7 +347,7 @@ export default function Mines({ user }: MinesProps) {
               <motion.div 
                 initial={{ scale: 0.9, opacity: 0, y: 10 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
-                className="p-5 bg-emerald-50 border-2 border-emerald-100 rounded-[2rem] text-emerald-600 font-black text-center flex items-center justify-center gap-3 shadow-xl shadow-emerald-100/50"
+                className="p-5 bg-gradient-to-b from-emerald-400 to-emerald-500 border border-emerald-400/50 rounded-[2rem] text-white font-black text-center flex items-center justify-center gap-3 shadow-xl shadow-emerald-500/40"
               >
                 <Sparkles className="w-5 h-5" /> Победа! +{(bet * multiplier).toFixed(2)} CAT
               </motion.div>
@@ -356,7 +356,7 @@ export default function Mines({ user }: MinesProps) {
               <motion.div 
                 initial={{ scale: 0.9, opacity: 0, y: 10 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
-                className="p-5 bg-rose-50 border-2 border-rose-100 rounded-[2rem] text-rose-600 font-black text-center flex items-center justify-center gap-3 shadow-xl shadow-rose-100/50"
+                className="p-5 bg-gradient-to-b from-rose-400 to-rose-500 border border-rose-400/50 rounded-[2rem] text-white font-black text-center flex items-center justify-center gap-3 shadow-xl shadow-rose-500/40"
               >
                 <Bomb className="w-5 h-5" /> Бум! Проигрыш
               </motion.div>
