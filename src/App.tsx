@@ -46,6 +46,17 @@ export default function App() {
         setLoading(true);
         setDbError(null);
         
+        // 🔒 ПРОВЕРКА НА ПОЛНОЕ УДАЛЕНИЕ (ЧЕРНЫЙ СПИСОК)
+        const deletedRef = doc(db, 'deleted_users', firebaseUser.uid);
+        const deletedSnap = await getDoc(deletedRef);
+        
+        if (deletedSnap.exists()) {
+          setDbError("Ваш аккаунт был навсегда удален администратором.");
+          await signOut(auth);
+          setLoading(false);
+          return;
+        }
+        
         const userRef = doc(db, 'users', firebaseUser.uid);
         try {
           await firebaseUser.reload();
@@ -57,7 +68,6 @@ export default function App() {
             let dbData = userSnap.data() as Partial<UserProfile>;
             let needsDbUpdate = false;
 
-            // ИЗМЕНЕНИЕ: Жесткая защита от отсутствующих полей (чтобы не было сброса)
             if (!dbData.cardStyle) {
               dbData.cardStyle = { background: '#ffffff', border: '#6366f1', color: '#1e293b', pattern: 'none' };
               needsDbUpdate = true;
@@ -71,19 +81,16 @@ export default function App() {
               needsDbUpdate = true;
             }
 
-            // 1. Обновляем никнейм, если нужно
             if (currentUser.displayName && dbData.nickname?.startsWith('Cat') && dbData.nickname !== currentUser.displayName) {
               dbData.nickname = currentUser.displayName;
               needsDbUpdate = true;
             }
 
-            // 2. Авто-фикс старых аватарок dicebear
             if (dbData.avatar && dbData.avatar.includes('api.dicebear.com')) {
               dbData.avatar = '/assets/avatars/ava1.webp';
               needsDbUpdate = true;
             }
 
-            // Сохраняем изменения в базу, если они были
             if (needsDbUpdate) {
               await updateDoc(userRef, { 
                 nickname: dbData.nickname,
@@ -104,7 +111,6 @@ export default function App() {
               console.error("User snapshot error:", error);
             });
           } else {
-            // Если документ не найден вообще - создаем полноценный профиль
             const newUser: UserProfile = {
               uid: currentUser.uid,
               email: currentUser.email || undefined,
@@ -163,14 +169,14 @@ export default function App() {
   if (dbError) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-red-50 p-4 text-center">
-        <div className="bg-white p-8 rounded-3xl shadow-xl max-w-md w-full">
-          <h1 className="text-2xl font-bold text-red-600 mb-4">Ошибка Базы Данных</h1>
-          <p className="text-slate-700 mb-6">{dbError}</p>
+        <div className="bg-white p-8 rounded-3xl shadow-xl max-w-md w-full border-2 border-red-100">
+          <h1 className="text-2xl font-black text-red-600 mb-4 tracking-tighter">ОШИБКА ДОСТУПА</h1>
+          <p className="text-slate-700 font-medium mb-6 leading-relaxed">{dbError}</p>
           <button
             onClick={() => { setDbError(null); handleLogout(); }}
-            className="bg-brand-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-brand-700 transition-colors"
+            className="w-full bg-red-500 text-white px-6 py-4 rounded-2xl font-black hover:bg-red-600 transition-colors uppercase tracking-widest shadow-lg shadow-red-200"
           >
-            Выйти и попробовать снова
+            Вернуться на главную
           </button>
         </div>
       </div>
@@ -217,11 +223,11 @@ export default function App() {
 
   if (user.banned) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-red-50">
-        <div className="text-center p-8 bg-white rounded-3xl shadow-xl">
-          <h1 className="text-4xl font-bold text-red-600 mb-4">Вы забанены</h1>
-          <p className="text-slate-600">Обратитесь в поддержку для выяснения причин.</p>
-          <button onClick={handleLogout} className="mt-6 text-brand-600 underline">Выйти</button>
+      <div className="flex items-center justify-center min-h-screen bg-red-50 p-4">
+        <div className="text-center p-8 bg-white rounded-3xl shadow-xl max-w-md w-full border-2 border-red-100">
+          <h1 className="text-4xl font-black text-red-600 mb-4 tracking-tighter">ВЫ ЗАБАНЕНЫ</h1>
+          <p className="text-slate-600 font-medium leading-relaxed">Доступ к вашему аккаунту ограничен. Обратитесь в поддержку для выяснения причин.</p>
+          <button onClick={handleLogout} className="mt-8 text-brand-600 font-bold hover:underline">Выйти из аккаунта</button>
         </div>
       </div>
     );

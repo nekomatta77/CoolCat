@@ -125,7 +125,7 @@ export default function Dice({ user }: DiceProps) {
   const overTarget = Math.ceil((100 - chance) * maxNumber);
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 pb-12 relative flex flex-col min-h-[calc(100vh-120px)]">
+    <div className="max-w-4xl mx-auto lg:ml-0 lg:mr-auto space-y-6 pb-12 relative flex flex-col min-h-[calc(100vh-120px)]">
       
       <AnimatePresence>
         {unlockedAch && (
@@ -155,51 +155,57 @@ export default function Dice({ user }: DiceProps) {
       </header>
 
       {/* =========================================
-          РЕЖИМ CLASSIC (УВЕЛИЧЕННАЯ ВЫСОТА И ОТСТУПЫ)
+          РЕЖИМ CLASSIC 
           ========================================= */}
       {diceMode === 'classic' && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white p-5 sm:p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 w-full">
           
           <div className="grid grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6">
-            {/* ПАНЕЛЬ СТАВКИ */}
-            <div className="bg-slate-50 p-4 sm:p-6 rounded-[1.5rem] sm:rounded-3xl border border-slate-100 focus-within:border-brand-300 transition-colors flex flex-col justify-between min-h-[140px]">
-              <div className="flex justify-between items-center mb-3 sm:mb-4">
-                <span className="text-[10px] sm:text-xs font-black uppercase text-slate-400 tracking-wider">Ставка</span>
-                <span className="text-[10px] sm:text-xs font-black uppercase text-brand-500 tracking-widest bg-brand-100/50 px-2.5 py-1 rounded-lg hidden sm:block">
-                  {user.balance.toFixed(2)}
-                </span>
+            
+            {/* ЛЕВАЯ КОЛОНКА: СТАВКА */}
+            <div className="flex flex-col gap-2 sm:gap-3">
+              <div className="bg-slate-50 p-4 sm:p-5 rounded-[1.5rem] sm:rounded-3xl border border-slate-100 focus-within:border-brand-300 transition-colors flex flex-col justify-center h-full">
+                <div className="flex justify-between items-center mb-2 sm:mb-3">
+                  <span className="text-[10px] sm:text-xs font-black uppercase text-slate-400 tracking-wider">Ставка</span>
+                  <span className="text-[10px] sm:text-xs font-black uppercase text-brand-500 tracking-widest bg-brand-100/50 px-2.5 py-1 rounded-lg hidden sm:block">
+                    {user.balance.toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex items-center">
+                  <Coins className="w-5 h-5 sm:w-6 sm:h-6 text-slate-400 mr-2 shrink-0" />
+                  <input type="number" step="0.01" value={bet} onChange={e => setBet(Number(e.target.value))} className="w-full bg-transparent font-black text-slate-900 text-2xl sm:text-3xl outline-none" />
+                </div>
               </div>
-              <div className="flex items-center mb-4 sm:mb-5">
-                <Coins className="w-5 h-5 sm:w-6 sm:h-6 text-slate-400 mr-2 shrink-0" />
-                <input type="number" step="0.01" value={bet} onChange={e => setBet(Number(e.target.value))} className="w-full bg-transparent font-black text-slate-900 text-2xl sm:text-3xl outline-none" />
-              </div>
-              <div className="grid grid-cols-2 lg:flex gap-1.5 sm:gap-2 h-auto lg:h-11 w-full">
-                <button onClick={() => setBet(1)} className="order-3 lg:order-1 bg-white hover:bg-brand-50 hover:text-brand-600 rounded-xl py-2 lg:py-0 text-[10px] sm:text-[11px] font-black text-slate-500 transition-all shadow-sm border border-slate-200 lg:flex-1">МИН</button>
-                <button onClick={() => setBet(Number(Math.max(1, bet / 2).toFixed(2)))} className="order-1 lg:order-2 bg-white hover:bg-brand-50 hover:text-brand-600 rounded-xl py-2 lg:py-0 text-[10px] sm:text-[11px] font-black text-slate-500 transition-all shadow-sm border border-slate-200 lg:flex-1">/2</button>
-                <button onClick={() => setBet(Number(Math.min(user.balance, bet * 2).toFixed(2)))} className="order-2 lg:order-3 bg-white hover:bg-brand-50 hover:text-brand-600 rounded-xl py-2 lg:py-0 text-[10px] sm:text-[11px] font-black text-slate-500 transition-all shadow-sm border border-slate-200 lg:flex-1">X2</button>
-                <button onClick={() => setBet(Number(user.balance.toFixed(2)))} className="order-4 lg:order-4 bg-white hover:bg-brand-50 hover:text-brand-600 rounded-xl py-2 lg:py-0 text-[10px] sm:text-[11px] font-black text-slate-500 transition-all shadow-sm border border-slate-200 lg:flex-1">МАКС</button>
+              <div className="grid grid-cols-2 lg:flex gap-1.5 sm:gap-2 w-full">
+                <button onClick={() => setBet(1)} className="order-3 lg:order-1 flex-1 bg-slate-50 hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 border border-slate-100 rounded-xl py-2 sm:py-2.5 text-[10px] sm:text-[11px] font-black text-slate-500 transition-all shadow-sm">МИН</button>
+                <button onClick={() => setBet(Number(Math.max(1, bet / 2).toFixed(2)))} className="order-1 lg:order-2 flex-1 bg-slate-50 hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 border border-slate-100 rounded-xl py-2 sm:py-2.5 text-[10px] sm:text-[11px] font-black text-slate-500 transition-all shadow-sm">/2</button>
+                <button onClick={() => setBet(Number(Math.min(user.balance, bet * 2).toFixed(2)))} className="order-2 lg:order-3 flex-1 bg-slate-50 hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 border border-slate-100 rounded-xl py-2 sm:py-2.5 text-[10px] sm:text-[11px] font-black text-slate-500 transition-all shadow-sm">X2</button>
+                <button onClick={() => setBet(Number(user.balance.toFixed(2)))} className="order-4 lg:order-4 flex-1 bg-slate-50 hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 border border-slate-100 rounded-xl py-2 sm:py-2.5 text-[10px] sm:text-[11px] font-black text-slate-500 transition-all shadow-sm">МАКС</button>
               </div>
             </div>
 
-            {/* ПАНЕЛЬ ШАНСА */}
-            <div className="bg-slate-50 p-4 sm:p-6 rounded-[1.5rem] sm:rounded-3xl border border-slate-100 focus-within:border-brand-300 transition-colors flex flex-col justify-between min-h-[140px]">
-              <div className="flex justify-between items-center mb-3 sm:mb-4">
-                <span className="text-[10px] sm:text-xs font-black uppercase text-slate-400 tracking-wider">Шанс %</span>
-                <span className="text-[10px] sm:text-xs font-black uppercase text-slate-500 tracking-widest bg-slate-200/50 px-2.5 py-1 rounded-lg hidden sm:block">
-                  x{multiplier}
-                </span>
+            {/* ПРАВАЯ КОЛОНКА: ШАНС */}
+            <div className="flex flex-col gap-2 sm:gap-3">
+              <div className="bg-slate-50 p-4 sm:p-5 rounded-[1.5rem] sm:rounded-3xl border border-slate-100 focus-within:border-brand-300 transition-colors flex flex-col justify-center h-full">
+                <div className="flex justify-between items-center mb-2 sm:mb-3">
+                  <span className="text-[10px] sm:text-xs font-black uppercase text-slate-400 tracking-wider">Шанс %</span>
+                  <span className="text-[10px] sm:text-xs font-black uppercase text-slate-500 tracking-widest bg-slate-200/50 px-2.5 py-1 rounded-lg hidden sm:block">
+                    x{multiplier}
+                  </span>
+                </div>
+                <div className="flex items-center">
+                  <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-slate-400 mr-2 shrink-0" />
+                  <input type="number" step="0.01" value={chance} onChange={e => setChance(Math.min(95, Math.max(1, Number(e.target.value))))} className="w-full bg-transparent font-black text-slate-900 text-2xl sm:text-3xl outline-none" />
+                </div>
               </div>
-              <div className="flex items-center mb-4 sm:mb-5">
-                <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-slate-400 mr-2 shrink-0" />
-                <input type="number" step="0.01" value={chance} onChange={e => setChance(Math.min(95, Math.max(1, Number(e.target.value))))} className="w-full bg-transparent font-black text-slate-900 text-2xl sm:text-3xl outline-none" />
-              </div>
-              <div className="grid grid-cols-2 lg:flex gap-1.5 sm:gap-2 h-auto lg:h-11 w-full">
-                <button onClick={() => setChance(1)} className="order-3 lg:order-1 bg-white hover:bg-brand-50 hover:text-brand-600 rounded-xl py-2 lg:py-0 text-[10px] sm:text-[11px] font-black text-slate-500 transition-all shadow-sm border border-slate-200 lg:flex-1">МИН</button>
-                <button onClick={() => setChance(Math.max(1, Number((chance / 2).toFixed(2))))} className="order-1 lg:order-2 bg-white hover:bg-brand-50 hover:text-brand-600 rounded-xl py-2 lg:py-0 text-[10px] sm:text-[11px] font-black text-slate-500 transition-all shadow-sm border border-slate-200 lg:flex-1">/2</button>
-                <button onClick={() => setChance(Math.min(95, Number((chance * 2).toFixed(2))))} className="order-2 lg:order-3 bg-white hover:bg-brand-50 hover:text-brand-600 rounded-xl py-2 lg:py-0 text-[10px] sm:text-[11px] font-black text-slate-500 transition-all shadow-sm border border-slate-200 lg:flex-1">X2</button>
-                <button onClick={() => setChance(95)} className="order-4 lg:order-4 bg-white hover:bg-brand-50 hover:text-brand-600 rounded-xl py-2 lg:py-0 text-[10px] sm:text-[11px] font-black text-slate-500 transition-all shadow-sm border border-slate-200 lg:flex-1">МАКС</button>
+              <div className="grid grid-cols-2 lg:flex gap-1.5 sm:gap-2 w-full">
+                <button onClick={() => setChance(1)} className="order-3 lg:order-1 flex-1 bg-slate-50 hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 border border-slate-100 rounded-xl py-2 sm:py-2.5 text-[10px] sm:text-[11px] font-black text-slate-500 transition-all shadow-sm">МИН</button>
+                <button onClick={() => setChance(Math.max(1, Number((chance / 2).toFixed(2))))} className="order-1 lg:order-2 flex-1 bg-slate-50 hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 border border-slate-100 rounded-xl py-2 sm:py-2.5 text-[10px] sm:text-[11px] font-black text-slate-500 transition-all shadow-sm">/2</button>
+                <button onClick={() => setChance(Math.min(95, Number((chance * 2).toFixed(2))))} className="order-2 lg:order-3 flex-1 bg-slate-50 hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 border border-slate-100 rounded-xl py-2 sm:py-2.5 text-[10px] sm:text-[11px] font-black text-slate-500 transition-all shadow-sm">X2</button>
+                <button onClick={() => setChance(95)} className="order-4 lg:order-4 flex-1 bg-slate-50 hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 border border-slate-100 rounded-xl py-2 sm:py-2.5 text-[10px] sm:text-[11px] font-black text-slate-500 transition-all shadow-sm">МАКС</button>
               </div>
             </div>
+
           </div>
 
           <div className="bg-emerald-50 py-5 px-6 sm:py-6 sm:px-8 rounded-[1.5rem] sm:rounded-[2rem] border border-emerald-100 mb-4 sm:mb-6 flex items-center justify-between">
@@ -221,7 +227,6 @@ export default function Dice({ user }: DiceProps) {
             </button>
           </div>
 
-          {/* ТАБЛИЧКА РЕЗУЛЬТАТОВ (ВЫСОТА УВЕЛИЧЕНА) */}
           <div className="h-20 sm:h-24 mt-6 flex items-center justify-center bg-slate-50/50 rounded-[1.5rem] border border-slate-100/50 overflow-hidden">
             <AnimatePresence mode="wait">
               {result !== null ? (
@@ -303,33 +308,39 @@ export default function Dice({ user }: DiceProps) {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4 mt-6">
-            <div className="bg-slate-50 p-4 rounded-3xl border border-slate-100 focus-within:border-brand-300 transition-colors flex flex-col justify-between">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-[11px] font-black uppercase text-slate-400 tracking-wider">Ставка</span>
-                <span className="text-[11px] font-black uppercase text-brand-500 tracking-widest bg-brand-100/50 px-2.5 py-0.5 rounded-lg">
-                  {user.balance.toFixed(0)}
-                </span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6 mt-6 sm:mt-8">
+            
+            {/* ЛЕВАЯ КОЛОНКА: СТАВКА */}
+            <div className="flex flex-col gap-2 sm:gap-3">
+              <div className="bg-slate-50 p-4 sm:p-5 rounded-[1.5rem] sm:rounded-3xl border border-slate-100 focus-within:border-brand-300 transition-colors flex flex-col justify-center h-full">
+                <div className="flex justify-between items-center mb-2 sm:mb-3">
+                  <span className="text-[10px] sm:text-xs font-black uppercase text-slate-400 tracking-wider">Ставка</span>
+                  <span className="text-[10px] sm:text-xs font-black uppercase text-brand-500 tracking-widest bg-brand-100/50 px-2.5 py-1 rounded-lg hidden sm:block">
+                    {user.balance.toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex items-center">
+                  <Coins className="w-5 h-5 sm:w-6 sm:h-6 text-slate-400 mr-2 shrink-0" />
+                  <input type="number" step="0.01" value={bet} onChange={e => setBet(Number(e.target.value))} className="w-full bg-transparent font-black text-slate-900 text-2xl sm:text-3xl outline-none" />
+                </div>
               </div>
-              <div className="flex items-center mb-3">
-                <Coins className="w-5 h-5 text-slate-400 mr-2 shrink-0" />
-                <input type="number" step="0.01" value={bet} onChange={e => setBet(Number(e.target.value))} className="w-full bg-transparent font-black text-slate-900 text-2xl outline-none" />
-              </div>
-              <div className="grid grid-cols-2 lg:flex gap-1 h-auto lg:h-9 w-full">
-                <button onClick={() => setBet(1)} className="order-3 lg:order-1 flex-1 bg-white hover:bg-brand-50 hover:text-brand-600 rounded-lg lg:rounded-xl py-1.5 lg:py-0 text-[10px] font-black text-slate-500 transition-all shadow-sm border border-slate-200">МИН</button>
-                <button onClick={() => setBet(Number(Math.max(1, bet / 2).toFixed(2)))} className="order-1 lg:order-2 flex-1 bg-white hover:bg-brand-50 hover:text-brand-600 rounded-lg lg:rounded-xl py-1.5 lg:py-0 text-[10px] font-black text-slate-500 transition-all shadow-sm border border-slate-200">/2</button>
-                <button onClick={() => setBet(Number(Math.min(user.balance, bet * 2).toFixed(2)))} className="order-2 lg:order-3 flex-1 bg-white hover:bg-brand-50 hover:text-brand-600 rounded-lg lg:rounded-xl py-1.5 lg:py-0 text-[10px] font-black text-slate-500 transition-all shadow-sm border border-slate-200">X2</button>
-                <button onClick={() => setBet(Number(user.balance.toFixed(2)))} className="order-4 lg:order-4 flex-1 bg-white hover:bg-brand-50 hover:text-brand-600 rounded-lg lg:rounded-xl py-1.5 lg:py-0 text-[10px] font-black text-slate-500 transition-all shadow-sm border border-slate-200">МАКС</button>
+              <div className="grid grid-cols-2 lg:flex gap-1.5 sm:gap-2 w-full">
+                <button onClick={() => setBet(1)} className="order-3 lg:order-1 flex-1 bg-slate-50 hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 border border-slate-100 rounded-xl py-2 sm:py-2.5 text-[10px] sm:text-[11px] font-black text-slate-500 transition-all shadow-sm">МИН</button>
+                <button onClick={() => setBet(Number(Math.max(1, bet / 2).toFixed(2)))} className="order-1 lg:order-2 flex-1 bg-slate-50 hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 border border-slate-100 rounded-xl py-2 sm:py-2.5 text-[10px] sm:text-[11px] font-black text-slate-500 transition-all shadow-sm">/2</button>
+                <button onClick={() => setBet(Number(Math.min(user.balance, bet * 2).toFixed(2)))} className="order-2 lg:order-3 flex-1 bg-slate-50 hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 border border-slate-100 rounded-xl py-2 sm:py-2.5 text-[10px] sm:text-[11px] font-black text-slate-500 transition-all shadow-sm">X2</button>
+                <button onClick={() => setBet(Number(user.balance.toFixed(2)))} className="order-4 lg:order-4 flex-1 bg-slate-50 hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 border border-slate-100 rounded-xl py-2 sm:py-2.5 text-[10px] sm:text-[11px] font-black text-slate-500 transition-all shadow-sm">МАКС</button>
               </div>
             </div>
 
-            <div className="bg-emerald-50 p-4 rounded-3xl border border-emerald-100 flex flex-col items-center justify-center text-center relative overflow-hidden">
+            {/* ПРАВАЯ КОЛОНКА: ВЫИГРЫШ */}
+            <div className="bg-emerald-50 p-4 sm:p-5 rounded-[1.5rem] sm:rounded-3xl border border-emerald-100 flex flex-col items-center justify-center text-center relative overflow-hidden h-full min-h-[140px]">
               <Sparkles className="absolute -right-4 -top-4 w-24 h-24 text-emerald-500/10 rotate-12" />
-              <span className="text-[11px] font-black uppercase text-emerald-600 tracking-widest mb-1 relative z-10 flex items-center gap-1">
-                Множитель <span className="text-emerald-800 bg-emerald-200/50 px-2 py-0.5 rounded-md">x{multiplier}</span>
+              <span className="text-[10px] sm:text-[11px] font-black uppercase text-emerald-600 tracking-widest mb-1 sm:mb-2 relative z-10 flex items-center gap-1 sm:gap-2">
+                Множитель <span className="text-emerald-800 bg-emerald-200/50 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-md sm:rounded-lg">x{multiplier}</span>
               </span>
-              <span className="font-black text-emerald-600 text-3xl tracking-tight relative z-10">+{potentialWin}</span>
+              <span className="font-black text-emerald-600 text-3xl sm:text-4xl tracking-tight relative z-10">+{potentialWin}</span>
             </div>
+
           </div>
 
           <button onClick={() => handlePlay('under')} disabled={loading || bet > user.balance || bet <= 0} className="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-black py-5 rounded-[1.5rem] transition-all shadow-lg shadow-brand-200 uppercase tracking-widest text-sm flex items-center justify-center gap-2 active:scale-[0.98]">
@@ -339,7 +350,7 @@ export default function Dice({ user }: DiceProps) {
       )}
 
       {/* ПЛАШКА PROVABLY FAIR (СИНИЙ ЦВЕТ) */}
-      <div className="mt-auto pt-6 flex justify-center">
+      <div className="mt-auto pt-6 flex justify-center lg:justify-start">
         <div className="flex items-center gap-2 text-brand-600 text-[10px] font-black uppercase tracking-widest bg-brand-50 px-4 py-2 rounded-xl border border-brand-100">
           <ShieldCheck className="w-4 h-4" /> <span>Provably Fair</span>
         </div>
