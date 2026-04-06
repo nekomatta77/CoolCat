@@ -1,13 +1,23 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { UserProfile } from '../types';
-import { doc, updateDoc, addDoc, collection } from 'firebase/firestore';
+import { doc, updateDoc, addDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Dice5, AlertCircle, TrendingUp, Coins, Trophy, Info, ShieldCheck, RotateCcw, Zap, ArrowRight, Sparkles } from 'lucide-react';
+import { Dice5, AlertCircle, TrendingUp, Coins, Trophy, ShieldCheck, RotateCcw, Zap, ArrowRight, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 
 interface DiceProps {
   user: UserProfile;
+}
+
+interface MutableAchievement {
+  id?: string;
+  userId: string;
+  type: string;
+  category: string;
+  progress: number;
+  completed: boolean;
+  rewarded: boolean;
 }
 
 export default function Dice({ user }: DiceProps) {
@@ -16,12 +26,19 @@ export default function Dice({ user }: DiceProps) {
   const [result, setResult] = useState<number | null>(null);
   const [win, setWin] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
+  const [unlockedAch, setUnlockedAch] = useState<string | null>(null);
+
+  // Строгая блокировка от "двойных/быстрых кликов"
+  const isRolling = useRef(false);
 
   const multiplier = (95 / chance).toFixed(2);
   const potentialWin = (bet * parseFloat(multiplier)).toFixed(2);
 
   const handlePlay = async () => {
-    if (bet > user.balance || bet <= 0) return;
+    // Если игра уже идет (блокировка включена) или проблемы с балансом — прерываем
+    if (isRolling.current || bet > user.balance || bet <= 0) return;
+    
+    isRolling.current = true; // Закрываем замок мгновенно
     setLoading(true);
     setResult(null);
     setWin(null);
@@ -31,32 +48,152 @@ export default function Dice({ user }: DiceProps) {
     const payout = isWin ? bet * parseFloat(multiplier) : 0;
     const newBalance = user.balance - bet + payout;
 
-    try {
-      await updateDoc(doc(db, 'users', user.uid), {
-        balance: newBalance,
-        xp: user.xp + bet / 10
-      });
+    const prevLossStreak = (user as any).diceLossStreak || 0;
+    const newWinStreak = isWin ? ((user as any).diceWinStreak || 0) + 1 : 0;
+    const newLossStreak = !isWin ? prevLossStreak + 1 : 0;
 
-      await addDoc(collection(db, 'gameSessions'), {
-        userId: user.uid,
-        gameType: 'dice',
-        bet,
-        multiplier: isWin ? parseFloat(multiplier) : 0,
-        payout,
-        timestamp: new Date().toISOString()
-      });
+    try {
+      const achQuery = query(collection(db, 'achievements'), where('userId', '==', user.uid), where('category', '==', 'dice'));
+      const achSnapshot = await getDocs(achQuery);
+      
+      const userAchs: MutableAchievement[] = achSnapshot.docs.map(d => ({ 
+        id: d.id, 
+        ...d.data() 
+      } as MutableAchievement));
+
+      const getAch = (type: string): MutableAchievement => {
+        const existing = userAchs.find(a => a.type === type);
+        return existing ? { ...existing } : { 
+          type, 
+          category: 'dice', 
+          progress: 0, 
+          completed: false, 
+          rewarded: false, 
+          userId: user.uid 
+        };
+      };
+
+      const updates: MutableAchievement[] = [];
+      const newAchsToCreate: MutableAchievement[] = [];
+      let newlyUnlocked: string | null = null;
+
+      const processAch = (type: string, target: number, progressFn: (a: MutableAchievement) => MutableAchievement, title: string) => {
+        let ach = getAch(type);
+        if (ach.completed) return;
+        
+        const oldProg = ach.progress;
+        ach = progressFn({ ...ach });
+        
+        if (ach.progress >= target) {
+          ach.progress = target;
+          ach.completed = true;
+          newlyUnlocked = title; 
+        }
+        
+        if (ach.progress !== oldProg || ach.completed) {
+          if (ach.id) {
+            const existingIdx = updates.findIndex(u => u.id === ach.id);
+            if (existingIdx >= 0) updates[existingIdx] = ach;
+            else updates.push(ach);
+          } else {
+            const existingIdx = newAchsToCreate.findIndex(u => u.type === ach.type);
+            if (existingIdx >= 0) newAchsToCreate[existingIdx] = ach;
+            else newAchsToCreate.push(ach);
+          }
+        }
+      };
+
+      // Проверки достижений
+      if (isWin && chance < 70 && bet >= 100) {
+        processAch('dice_fb1', 25, a => { a.progress++; return a; }, 'Первый бросок');
+        processAch('dice_fb2', 100, a => { a.progress++; return a; }, 'Первый бросок II');
+        processAch('dice_fb3', 500, a => { a.progress++; return a; }, 'Первый бросок III');
+      }
+
+      processAch('dice_cat_sense', 5, a => {
+        if (isWin && chance < 15 && bet >= 30) a.progress++;
+        else a.progress = 0; 
+        return a;
+      }, 'Кошачье чутье');
+
+      if (isWin && chance <= 1 && bet >= 15) {
+        processAch('dice_sniper', 1, a => { a.progress = 1; return a; }, 'Снайпер');
+      }
+
+      if (isWin && chance < 50 && prevLossStreak >= 8) {
+        processAch('dice_nine_lives', 1, a => { a.progress = 1; return a; }, 'Девять жизней');
+      }
+
+      if (isWin && chance >= 90 && bet >= 15000) {
+        processAch('dice_madman', 1, a => { a.progress = 1; return a; }, 'Безумец');
+      }
+
+      // Параллельная отправка данных
+      await Promise.all([
+        updateDoc(doc(db, 'users', user.uid), {
+          balance: newBalance,
+          xp: (user.xp || 0) + bet / 10,
+          diceWinStreak: newWinStreak,
+          diceLossStreak: newLossStreak
+        }),
+        addDoc(collection(db, 'gameSessions'), {
+          userId: user.uid,
+          gameType: 'dice',
+          bet,
+          multiplier: isWin ? parseFloat(multiplier) : 0,
+          payout,
+          timestamp: new Date().toISOString()
+        }),
+        ...updates.map(ach => updateDoc(doc(db, 'achievements', ach.id as string), { progress: ach.progress, completed: ach.completed })),
+        ...newAchsToCreate.map(ach => {
+          const { id, ...data } = ach;
+          return addDoc(collection(db, 'achievements'), data);
+        })
+      ]);
 
       setResult(roll);
       setWin(isWin);
+
+      if (newlyUnlocked) {
+        setUnlockedAch(newlyUnlocked);
+        setTimeout(() => setUnlockedAch(null), 4000);
+      }
+
     } catch (error) {
       console.error('Game error:', error);
     } finally {
       setLoading(false);
+      // Оставляем маленькую задержку перед снятием блокировки, 
+      // чтобы React успел получить новые данные (баланс, опыт) из Firebase
+      setTimeout(() => {
+        isRolling.current = false;
+      }, 300);
     }
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 pb-12">
+    <div className="max-w-6xl mx-auto space-y-8 pb-12 relative">
+      
+      {/* Уведомление об открытии достижения */}
+      <AnimatePresence>
+        {unlockedAch && (
+          <motion.div
+            initial={{ opacity: 0, y: -50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -50, scale: 0.9 }}
+            className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] bg-white px-6 py-4 rounded-3xl shadow-2xl border-2 border-brand-200 flex items-center gap-4 min-w-[300px]"
+          >
+            <div className="w-12 h-12 bg-brand-100 rounded-xl flex items-center justify-center shrink-0">
+              <Trophy className="w-6 h-6 text-brand-600" />
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-brand-500 mb-0.5">Достижение открыто!</p>
+              <p className="text-lg font-black text-slate-900 leading-tight">{unlockedAch}</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <header className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div className="flex items-center gap-6">
           <div className="w-16 h-16 bg-brand-600 rounded-[2rem] flex items-center justify-center shadow-2xl shadow-brand-200">

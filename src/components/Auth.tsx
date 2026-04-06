@@ -6,7 +6,7 @@ import {
   signInWithEmailAndPassword,
   updateProfile
 } from 'firebase/auth';
-import { collection, query, where, getDocs, doc, setDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -23,15 +23,9 @@ import {
 import { cn } from '../lib/utils';
 import TermsModal from './TermsModal';
 
-// Оригинальная иконка VK (адаптированная под стиль Lucide)
 function VkIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
-    <svg 
-      viewBox="0 0 24 24" 
-      fill="currentColor" 
-      xmlns="http://www.w3.org/2000/svg" 
-      {...props}
-    >
+    <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" {...props}>
       <path d="M15.073 21.053c-8.47 0-13.315-5.835-13.315-15.54h4.156c0 7.375 2.923 10.415 5.143 11.041v-11.04h3.94v6.311c2.18-.24 4.568-2.585 5.35-5.328h3.945c-.538 3.51-3.21 6.066-5.112 7.15 1.902.88 4.908 3.09 5.86 7.406h-4.3c-.71-2.924-3.13-5.188-5.683-5.504v5.504h-4.084z" />
     </svg>
   );
@@ -67,7 +61,6 @@ export default function Auth({ onSuccess }: AuthProps) {
         message = 'Вход через Google не включен в настройках Firebase.';
       }
       setError(message);
-    } finally {
       setLoading(false);
     }
   };
@@ -81,6 +74,7 @@ export default function Auth({ onSuccess }: AuthProps) {
       if (isLogin) {
         let finalEmail = loginId.trim();
 
+        // Проверка входа по никнейму
         if (!finalEmail.includes('@')) {
           const usersRef = collection(db, 'users');
           const q = query(usersRef, where('nickname', '==', finalEmail));
@@ -97,8 +91,7 @@ export default function Auth({ onSuccess }: AuthProps) {
           finalEmail = userData.email;
         }
 
-        const userCred = await signInWithEmailAndPassword(auth, finalEmail, password);
-        await setDoc(doc(db, 'users', userCred.user.uid), { password: password }, { merge: true });
+        await signInWithEmailAndPassword(auth, finalEmail, password);
 
       } else {
         if (password !== confirmPassword) {
@@ -108,6 +101,7 @@ export default function Auth({ onSuccess }: AuthProps) {
           throw new Error('Пожалуйста, введите никнейм');
         }
         
+        // Проверка уникальности никнейма
         const usersRef = collection(db, 'users');
         const q = query(usersRef, where('nickname', '==', nickname.trim()));
         const querySnapshot = await getDocs(q);
@@ -117,11 +111,10 @@ export default function Auth({ onSuccess }: AuthProps) {
 
         const userCredential = await createUserWithEmailAndPassword(auth, loginId.trim(), password);
         
+        // Обновляем профиль Firebase Auth
         await updateProfile(userCredential.user, {
           displayName: nickname.trim()
         });
-        
-        await setDoc(doc(db, 'users', userCredential.user.uid), { password: password }, { merge: true });
       }
       onSuccess();
     } catch (err: any) {
@@ -131,7 +124,9 @@ export default function Auth({ onSuccess }: AuthProps) {
       if (
         message === 'Пользователь с таким никнеймом не найден' || 
         message === 'Этот никнейм уже занят другим игроком' ||
-        message === 'К этому никнейму не привязан Email. Войдите по Email.'
+        message === 'К этому никнейму не привязан Email. Войдите по Email.' ||
+        message === 'Пароли не совпадают' ||
+        message === 'Пожалуйста, введите никнейм'
       ) {
          // Оставляем текст как есть
       } else {
@@ -139,7 +134,7 @@ export default function Auth({ onSuccess }: AuthProps) {
         if (err.code === 'auth/weak-password') message = 'Пароль слишком слабый (минимум 6 символов)';
         if (err.code === 'auth/invalid-email') message = 'Некорректный формат email';
         if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
-          message = 'Неверный email или пароль';
+          message = 'Неверный логин или пароль';
         }
         if (err.code === 'auth/operation-not-allowed') {
           message = 'Авторизация по почте отключена в Firebase Console.';
@@ -313,7 +308,6 @@ export default function Auth({ onSuccess }: AuthProps) {
               <Chrome className="w-6 h-6 text-slate-400 group-hover:text-indigo-600 transition-colors" />
             </button>
 
-            {/* Кнопка VK, адаптированная под общую стилистику */}
             <button 
               onClick={() => handleSocialPlaceholder('VK')}
               disabled={loading}

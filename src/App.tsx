@@ -54,45 +54,46 @@ export default function App() {
           const userSnap = await getDoc(userRef);
 
           if (userSnap.exists()) {
-            let userData = userSnap.data() as UserProfile;
+            let dbData = userSnap.data() as Partial<UserProfile>;
             let needsDbUpdate = false;
 
+            // ИЗМЕНЕНИЕ: Жесткая защита от отсутствующих полей (чтобы не было сброса)
+            if (!dbData.cardStyle) {
+              dbData.cardStyle = { background: '#ffffff', border: '#6366f1', color: '#1e293b', pattern: 'none' };
+              needsDbUpdate = true;
+            }
+            if (!dbData.unlockedAvatars) {
+              dbData.unlockedAvatars = ['/assets/avatars/ava1.webp', '/assets/avatars/ava2.webp', '/assets/avatars/ava3.webp'];
+              needsDbUpdate = true;
+            }
+            if (!dbData.avatar) {
+              dbData.avatar = currentUser.photoURL || '/assets/avatars/ava1.webp';
+              needsDbUpdate = true;
+            }
+
             // 1. Обновляем никнейм, если нужно
-            if (currentUser.displayName && userData.nickname.startsWith('Cat') && userData.nickname !== currentUser.displayName) {
-              userData.nickname = currentUser.displayName;
+            if (currentUser.displayName && dbData.nickname?.startsWith('Cat') && dbData.nickname !== currentUser.displayName) {
+              dbData.nickname = currentUser.displayName;
               needsDbUpdate = true;
             }
 
-            // =========================================================
-            // 🛠 АВТО-ФИКС СТАРЫХ АККАУНТОВ С ОШИБКОЙ DICEBEAR
-            // =========================================================
-            // Если у пользователя старая аватарка из dicebear, меняем на локальную
-            if (userData.avatar && userData.avatar.includes('api.dicebear.com')) {
-              userData.avatar = '/assets/avatars/ava1.webp';
+            // 2. Авто-фикс старых аватарок dicebear
+            if (dbData.avatar && dbData.avatar.includes('api.dicebear.com')) {
+              dbData.avatar = '/assets/avatars/ava1.webp';
               needsDbUpdate = true;
             }
-
-            // Если у старого пользователя нет массива разблокированных аватарок, выдаем базовые
-            if (!userData.unlockedAvatars) {
-              userData.unlockedAvatars = [
-                '/assets/avatars/ava1.webp',
-                '/assets/avatars/ava2.webp',
-                '/assets/avatars/ava3.webp'
-              ];
-              needsDbUpdate = true;
-            }
-            // =========================================================
 
             // Сохраняем изменения в базу, если они были
             if (needsDbUpdate) {
               await updateDoc(userRef, { 
-                nickname: userData.nickname,
-                avatar: userData.avatar,
-                unlockedAvatars: userData.unlockedAvatars
+                nickname: dbData.nickname,
+                avatar: dbData.avatar,
+                unlockedAvatars: dbData.unlockedAvatars,
+                cardStyle: dbData.cardStyle
               });
             }
 
-            setUser(userData);
+            setUser(dbData as UserProfile);
             setLoading(false);
 
             unsubscribeUser = onSnapshot(userRef, (doc) => {
@@ -103,6 +104,7 @@ export default function App() {
               console.error("User snapshot error:", error);
             });
           } else {
+            // Если документ не найден вообще - создаем полноценный профиль
             const newUser: UserProfile = {
               uid: currentUser.uid,
               email: currentUser.email || undefined,

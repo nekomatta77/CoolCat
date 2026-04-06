@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { UserProfile } from '../types';
-import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '../firebase';
+import { doc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { db, auth } from '../firebase';
+import { updateProfile } from 'firebase/auth';
 import { User, Settings, Shield, LogOut, Camera, Palette, CheckCircle2, Trophy, Wallet, Lock } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -34,10 +35,28 @@ export default function Profile({ user, onLogout }: ProfileProps) {
   const [loading, setLoading] = useState(false);
 
   const handleSave = async () => {
+    if (!nickname.trim()) {
+      alert('Никнейм не может быть пустым');
+      return;
+    }
+
     setLoading(true);
     try {
+      // ИЗМЕНЕНИЕ: Проверка на занятость ника, если пользователь его меняет
+      if (nickname.trim() !== user.nickname) {
+        const usersRef = collection(db, 'users');
+        const q = query(usersRef, where('nickname', '==', nickname.trim()));
+        const querySnapshot = await getDocs(q);
+        
+        if (!querySnapshot.empty) {
+          alert('Этот никнейм уже занят другим игроком!');
+          setLoading(false);
+          return;
+        }
+      }
+
       await updateDoc(doc(db, 'users', user.uid), {
-        nickname,
+        nickname: nickname.trim(),
         avatar,
         cardStyle: {
           ...user.cardStyle,
@@ -46,8 +65,16 @@ export default function Profile({ user, onLogout }: ProfileProps) {
           color: cardColor
         }
       });
+      
+      // Синхронизируем имя в Firebase Auth
+      if (auth.currentUser) {
+        await updateProfile(auth.currentUser, { displayName: nickname.trim() });
+      }
+      
+      alert('Профиль успешно обновлен!');
     } catch (error) {
       console.error('Save profile error:', error);
+      alert('Ошибка при сохранении профиля');
     } finally {
       setLoading(false);
     }
@@ -89,7 +116,6 @@ export default function Profile({ user, onLogout }: ProfileProps) {
             <h1 className="text-4xl lg:text-5xl font-black text-slate-900 tracking-tighter truncate">{nickname}</h1>
           </div>
           
-          {/* Измененный блок Отыгрыша */}
           <div className="flex flex-col sm:flex-row items-stretch justify-center md:justify-start gap-4 w-full">
             <div className="bg-slate-50 px-6 py-4 sm:py-3 rounded-2xl border border-slate-100 w-full sm:w-auto flex flex-col items-center sm:items-start transition-all">
               <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-0.5">Отыгрыш</p>

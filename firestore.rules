@@ -1,23 +1,6 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // ===============================================================
-    // Assumed Data Model
-    // ===============================================================
-    // Collection: users
-    // Fields: uid, nickname, balance, rank, xp, level, avatar, cardStyle, socialLinks, banned, password, totalDeposits, totalWithdrawals, wagerRequirement
-    //
-    // Collection: promoCodes
-    // Fields: code, amount, maxActivations, activations, wager, createdAt
-    //
-    // Collection: gameSessions
-    // Fields: userId, gameType, bet, multiplier, payout, timestamp
-    //
-    // Collection: achievements
-    // Fields: userId, type, category, progress, completed, rewarded
-    // ===============================================================
-
-    // Helper Functions
     function isAuthenticated() {
       return request.auth != null;
     }
@@ -34,7 +17,7 @@ service cloud.firestore {
 
     // Users collection
     match /users/{userId} {
-      allow read: if isOwner(userId) || isAdmin();
+      allow read: if true; // ИЗМЕНЕНИЕ: Разрешено чтение всем для проверки никнеймов и логина
       allow create: if isAuthenticated() && request.auth.uid == userId;
       allow update: if (isOwner(userId) && request.resource.data.rank == resource.data.rank) || isAdmin();
     }

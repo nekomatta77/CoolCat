@@ -21,13 +21,9 @@ export default function Admin({ user }: AdminProps) {
   const [loading, setLoading] = useState(false);
   const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
 
-  // Универсальное модальное окно для действий с пользователем
   const [userActionModal, setUserActionModal] = useState<{ userTarget: UserProfile, action: UserActionType } | null>(null);
-
-  // ID только что созданного промокода для анимации
   const [newPromoId, setNewPromoId] = useState<string | null>(null);
 
-  // Форма промокодов
   const [promoName, setPromoName] = useState('');
   const [promoAmount, setPromoAmount] = useState(100);
   const [promoActivations, setPromoActivations] = useState(10);
@@ -43,17 +39,25 @@ export default function Admin({ user }: AdminProps) {
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      const userSnap = await getDocs(collection(db, 'users'));
-      setUsers(userSnap.docs.map(doc => doc.data() as UserProfile));
       
+      // ИСПРАВЛЕНИЕ: Гарантируем наличие uid, забирая его из doc.id
+      const userSnap = await getDocs(collection(db, 'users'));
+      setUsers(userSnap.docs.map(doc => ({ ...doc.data(), uid: doc.id } as UserProfile)));
+      
+      // Аналогично для промокодов
       const promoSnap = await getDocs(query(collection(db, 'promoCodes'), orderBy('createdAt', 'desc')));
-      setPromoCodes(promoSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as PromoCode));
+      setPromoCodes(promoSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as PromoCode)));
+      
       setLoading(false);
     };
     fetchData();
   }, [activeTab]);
 
   const handleUpdateUser = async (uid: string, data: Partial<UserProfile>) => {
+    if (!uid) {
+      setNotification({ message: 'Критическая ошибка: UID отсутствует', type: 'error' });
+      return;
+    }
     try {
       await updateDoc(doc(db, 'users', uid), data);
       setUsers(users.map(u => u.uid === uid ? { ...u, ...data } : u));
@@ -67,6 +71,13 @@ export default function Admin({ user }: AdminProps) {
     if (!userActionModal) return;
     const { userTarget, action } = userActionModal;
     const targetName = userTarget.nickname || 'Без имени';
+
+    // ИСПРАВЛЕНИЕ: Дополнительная защита
+    if (!userTarget.uid) {
+      setNotification({ message: 'Ошибка: Невозможно выполнить действие, отсутствует UID пользователя', type: 'error' });
+      setUserActionModal(null);
+      return;
+    }
 
     try {
       if (action === 'block' || action === 'unblock') {
@@ -140,10 +151,8 @@ export default function Admin({ user }: AdminProps) {
     setNotification({ message: `Промокод ${text} скопирован!`, type: 'success' });
   };
 
-  // ИСПРАВЛЕНИЕ: Добавлена проверка на наличие nickname (fallback к пустой строке)
   const filteredUsers = users.filter(u => (u.nickname || '').toLowerCase().includes((search || '').toLowerCase()));
 
-  // Вспомогательная функция для рендера содержимого модалки
   const getModalContent = () => {
     if (!userActionModal) return null;
     const { action, userTarget } = userActionModal;
@@ -205,7 +214,6 @@ export default function Admin({ user }: AdminProps) {
   return (
     <div className="max-w-7xl mx-auto space-y-6 md:space-y-8 pb-12 relative px-2 md:px-0">
       
-      {/* Модальное окно действий с пользователем */}
       <AnimatePresence>
         {userActionModal && (
           <motion.div 
@@ -308,7 +316,6 @@ export default function Admin({ user }: AdminProps) {
               {filteredUsers.map((u) => (
                 <div key={u.uid} className="bg-white p-5 md:p-6 rounded-[2rem] md:rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-xl shadow-slate-200/40 transition-all flex flex-col gap-5 md:gap-6 group relative overflow-hidden">
                   
-                  {/* Шапка карточки: Профиль + Быстрые действия */}
                   <div className="flex flex-col md:flex-row md:items-center justify-between w-full gap-4 pb-5 border-b border-slate-100">
                     <div className="flex items-center gap-4 min-w-0">
                       <div className="relative shrink-0">
@@ -320,7 +327,6 @@ export default function Admin({ user }: AdminProps) {
                         )}
                       </div>
                       <div className="min-w-0">
-                        {/* ИСПРАВЛЕНИЕ: Выводим fallback, если нет никнейма */}
                         <p className="font-black text-slate-900 text-lg md:text-xl truncate">{u.nickname || 'Без имени'}</p>
                         <p className={cn("text-xs font-black uppercase tracking-widest mt-0.5", u.rank === 'admin' ? "text-brand-500" : "text-slate-400")}>
                           {u.rank || 'user'} • LVL {u.level || 1}
@@ -328,7 +334,6 @@ export default function Admin({ user }: AdminProps) {
                       </div>
                     </div>
                     
-                    {/* Кнопки действий (Сброс отыгрыша, Блок, Удаление) */}
                     <div className="flex items-center gap-2 md:gap-3 self-end md:self-auto w-full md:w-auto">
                       <button
                         onClick={() => setUserActionModal({ userTarget: u, action: 'reset_wager' })}
@@ -362,9 +367,7 @@ export default function Admin({ user }: AdminProps) {
                     </div>
                   </div>
                   
-                  {/* Контент карточки: Поля редактирования и стата */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-                    {/* БАЛАНС */}
                     <div className="space-y-2">
                       <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400 pl-1">Баланс (CAT)</p>
                       <input
@@ -375,19 +378,17 @@ export default function Admin({ user }: AdminProps) {
                       />
                     </div>
 
-                    {/* ОТЫГРЫШ */}
                     <div className="space-y-2">
                       <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400 pl-1 text-brand-500">Отыгрыш</p>
                       <input
                         type="number"
-                        key={`wager-${u.uid}-${u.wagerRequirement}`} // Force re-render if it changes via reset
+                        key={`wager-${u.uid}-${u.wagerRequirement}`}
                         defaultValue={u.wagerRequirement || 0}
                         onBlur={(e) => handleUpdateUser(u.uid, { wagerRequirement: Number(e.target.value) })}
                         className="w-full bg-brand-50/50 hover:bg-brand-50 focus:bg-white border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-3 font-black text-brand-700 text-sm md:text-base outline-none transition-all shadow-inner"
                       />
                     </div>
 
-                    {/* ПАРОЛЬ */}
                     <div className="space-y-2">
                       <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400 pl-1">Пароль</p>
                       <input
@@ -398,7 +399,6 @@ export default function Admin({ user }: AdminProps) {
                       />
                     </div>
 
-                    {/* СТАТИСТИКА */}
                     <div className="space-y-2 col-span-2 md:col-span-1">
                       <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400 pl-1">Статистика</p>
                       <div className="flex flex-row items-center gap-4 text-xs md:text-sm font-black text-slate-500 bg-slate-50 border border-slate-100 px-4 py-3 rounded-xl w-full h-[46px] md:h-[52px]">
