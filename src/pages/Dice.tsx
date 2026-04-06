@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { UserProfile } from '../types';
 import { doc, updateDoc, addDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Dice5, AlertCircle, TrendingUp, Coins, Trophy, ShieldCheck, RotateCcw, Zap, ArrowRight, Sparkles } from 'lucide-react';
+import { Dice5, Trophy, ShieldCheck, Zap, Sparkles, ArrowDownCircle, ArrowUpCircle, Coins, TrendingUp, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 
@@ -27,26 +27,28 @@ export default function Dice({ user }: DiceProps) {
   const [win, setWin] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
   const [unlockedAch, setUnlockedAch] = useState<string | null>(null);
+  const [diceMode, setDiceMode] = useState<'classic' | 'switch'>('classic');
+  const [rollId, setRollId] = useState(0);
 
-  // Строгая блокировка от "двойных/быстрых кликов"
   const isRolling = useRef(false);
 
-  const multiplier = (95 / chance).toFixed(2);
+  const multiplier = (100 / chance).toFixed(2);
   const potentialWin = (bet * parseFloat(multiplier)).toFixed(2);
 
-  const handlePlay = async () => {
-    // Если игра уже идет (блокировка включена) или проблемы с балансом — прерываем
+  const handlePlay = async (type: 'under' | 'over' = 'under') => {
     if (isRolling.current || bet > user.balance || bet <= 0) return;
     
-    isRolling.current = true; // Закрываем замок мгновенно
+    isRolling.current = true;
     setLoading(true);
-    setResult(null);
-    setWin(null);
 
     const roll = Math.random() * 100;
-    const isWin = roll <= chance;
-    const payout = isWin ? bet * parseFloat(multiplier) : 0;
-    const newBalance = user.balance - bet + payout;
+    const isWin = type === 'under' ? roll <= chance : roll >= (100 - chance);
+    const payout = isWin ? Number((bet * parseFloat(multiplier)).toFixed(2)) : 0;
+    const newBalance = Number((user.balance - bet + payout).toFixed(2));
+
+    setResult(roll);
+    setWin(isWin);
+    setRollId(Date.now()); 
 
     const prevLossStreak = (user as any).diceLossStreak || 0;
     const newWinStreak = isWin ? ((user as any).diceWinStreak || 0) + 1 : 0;
@@ -56,40 +58,26 @@ export default function Dice({ user }: DiceProps) {
       const achQuery = query(collection(db, 'achievements'), where('userId', '==', user.uid), where('category', '==', 'dice'));
       const achSnapshot = await getDocs(achQuery);
       
-      const userAchs: MutableAchievement[] = achSnapshot.docs.map(d => ({ 
-        id: d.id, 
-        ...d.data() 
-      } as MutableAchievement));
-
-      const getAch = (type: string): MutableAchievement => {
-        const existing = userAchs.find(a => a.type === type);
-        return existing ? { ...existing } : { 
-          type, 
-          category: 'dice', 
-          progress: 0, 
-          completed: false, 
-          rewarded: false, 
-          userId: user.uid 
-        };
+      const userAchs: MutableAchievement[] = achSnapshot.docs.map(d => ({ id: d.id, ...d.data() } as MutableAchievement));
+      const getAch = (achType: string): MutableAchievement => {
+        const existing = userAchs.find(a => a.type === achType);
+        return existing ? { ...existing } : { type: achType, category: 'dice', progress: 0, completed: false, rewarded: false, userId: user.uid };
       };
 
       const updates: MutableAchievement[] = [];
       const newAchsToCreate: MutableAchievement[] = [];
       let newlyUnlocked: string | null = null;
 
-      const processAch = (type: string, target: number, progressFn: (a: MutableAchievement) => MutableAchievement, title: string) => {
-        let ach = getAch(type);
+      const processAch = (achType: string, target: number, progressFn: (a: MutableAchievement) => MutableAchievement, title: string) => {
+        let ach = getAch(achType);
         if (ach.completed) return;
-        
         const oldProg = ach.progress;
         ach = progressFn({ ...ach });
-        
         if (ach.progress >= target) {
           ach.progress = target;
           ach.completed = true;
           newlyUnlocked = title; 
         }
-        
         if (ach.progress !== oldProg || ach.completed) {
           if (ach.id) {
             const existingIdx = updates.findIndex(u => u.id === ach.id);
@@ -103,284 +91,257 @@ export default function Dice({ user }: DiceProps) {
         }
       };
 
-      // Проверки достижений
       if (isWin && chance < 70 && bet >= 100) {
         processAch('dice_fb1', 25, a => { a.progress++; return a; }, 'Первый бросок');
         processAch('dice_fb2', 100, a => { a.progress++; return a; }, 'Первый бросок II');
         processAch('dice_fb3', 500, a => { a.progress++; return a; }, 'Первый бросок III');
       }
-
       processAch('dice_cat_sense', 5, a => {
-        if (isWin && chance < 15 && bet >= 30) a.progress++;
-        else a.progress = 0; 
+        if (isWin && chance < 15 && bet >= 30) a.progress++; else a.progress = 0; 
         return a;
       }, 'Кошачье чутье');
 
-      if (isWin && chance <= 1 && bet >= 15) {
-        processAch('dice_sniper', 1, a => { a.progress = 1; return a; }, 'Снайпер');
-      }
-
-      if (isWin && chance < 50 && prevLossStreak >= 8) {
-        processAch('dice_nine_lives', 1, a => { a.progress = 1; return a; }, 'Девять жизней');
-      }
-
-      if (isWin && chance >= 90 && bet >= 15000) {
-        processAch('dice_madman', 1, a => { a.progress = 1; return a; }, 'Безумец');
-      }
-
-      // Параллельная отправка данных
       await Promise.all([
-        updateDoc(doc(db, 'users', user.uid), {
-          balance: newBalance,
-          xp: (user.xp || 0) + bet / 10,
-          diceWinStreak: newWinStreak,
-          diceLossStreak: newLossStreak
-        }),
-        addDoc(collection(db, 'gameSessions'), {
-          userId: user.uid,
-          gameType: 'dice',
-          bet,
-          multiplier: isWin ? parseFloat(multiplier) : 0,
-          payout,
-          timestamp: new Date().toISOString()
-        }),
+        updateDoc(doc(db, 'users', user.uid), { balance: newBalance, xp: Number(((user.xp || 0) + bet / 10).toFixed(2)), diceWinStreak: newWinStreak, diceLossStreak: newLossStreak }),
+        addDoc(collection(db, 'gameSessions'), { userId: user.uid, gameType: 'dice', bet: Number(bet.toFixed(2)), multiplier: isWin ? parseFloat(multiplier) : 0, payout, timestamp: new Date().toISOString() }),
         ...updates.map(ach => updateDoc(doc(db, 'achievements', ach.id as string), { progress: ach.progress, completed: ach.completed })),
-        ...newAchsToCreate.map(ach => {
-          const { id, ...data } = ach;
-          return addDoc(collection(db, 'achievements'), data);
-        })
+        ...newAchsToCreate.map(ach => { const { id, ...data } = ach; return addDoc(collection(db, 'achievements'), data); })
       ]);
-
-      setResult(roll);
-      setWin(isWin);
 
       if (newlyUnlocked) {
         setUnlockedAch(newlyUnlocked);
         setTimeout(() => setUnlockedAch(null), 4000);
       }
-
     } catch (error) {
       console.error('Game error:', error);
     } finally {
       setLoading(false);
-      // Оставляем маленькую задержку перед снятием блокировки, 
-      // чтобы React успел получить новые данные (баланс, опыт) из Firebase
-      setTimeout(() => {
-        isRolling.current = false;
-      }, 300);
+      isRolling.current = false; 
     }
   };
 
+  const maxNumber = 9999.99;
+  const underTarget = Math.floor(chance * maxNumber);
+  const overTarget = Math.ceil((100 - chance) * maxNumber);
+
   return (
-    <div className="max-w-6xl mx-auto space-y-8 pb-12 relative">
+    <div className="max-w-4xl mx-auto space-y-6 pb-12 relative flex flex-col min-h-[calc(100vh-120px)]">
       
-      {/* Уведомление об открытии достижения */}
       <AnimatePresence>
         {unlockedAch && (
-          <motion.div
-            initial={{ opacity: 0, y: -50, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -50, scale: 0.9 }}
-            className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] bg-white px-6 py-4 rounded-3xl shadow-2xl border-2 border-brand-200 flex items-center gap-4 min-w-[300px]"
-          >
+          <motion.div initial={{ opacity: 0, y: -50, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -50, scale: 0.9 }} className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] bg-white px-6 py-4 rounded-3xl shadow-2xl border-2 border-brand-200 flex items-center gap-4 min-w-[300px]">
             <div className="w-12 h-12 bg-brand-100 rounded-xl flex items-center justify-center shrink-0">
               <Trophy className="w-6 h-6 text-brand-600" />
             </div>
             <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-brand-500 mb-0.5">Достижение открыто!</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-brand-500 mb-0.5">Достижение!</p>
               <p className="text-lg font-black text-slate-900 leading-tight">{unlockedAch}</p>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <header className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-        <div className="flex items-center gap-6">
-          <div className="w-16 h-16 bg-brand-600 rounded-[2rem] flex items-center justify-center shadow-2xl shadow-brand-200">
-            <Dice5 className="w-8 h-8 text-white" />
+      <header className="flex flex-col gap-4">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 bg-brand-600 rounded-[1.2rem] flex items-center justify-center shadow-lg shadow-brand-200 shrink-0">
+            <Dice5 className="w-6 h-6 text-white" />
           </div>
-          <div>
-            <h1 className="text-4xl font-black text-slate-900 tracking-tighter">Dice</h1>
-            <p className="text-slate-400 font-medium">Установи шанс и испытай удачу!</p>
-          </div>
+          <h1 className="text-3xl font-black text-slate-900 tracking-tighter">Dice</h1>
         </div>
-        
-        <div className="flex items-center gap-4 bg-white p-4 rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/50">
-          <div className="flex items-center gap-2 text-emerald-600 text-sm font-black uppercase tracking-widest">
-            <ShieldCheck className="w-4 h-4" />
-            <span>Provably Fair</span>
-          </div>
+        <div className="flex bg-white p-1 rounded-xl w-fit border border-slate-100 shadow-sm">
+          <button onClick={() => setDiceMode('classic')} className={cn("px-5 py-2 rounded-lg text-xs font-black transition-all uppercase tracking-wider", diceMode === 'classic' ? "bg-brand-50 shadow-sm text-brand-600" : "text-slate-400 hover:text-slate-600")}>Classic</button>
+          <button onClick={() => setDiceMode('switch')} className={cn("px-5 py-2 rounded-lg text-xs font-black transition-all uppercase tracking-wider", diceMode === 'switch' ? "bg-brand-50 shadow-sm text-brand-600" : "text-slate-400 hover:text-slate-600")}>Switch</button>
         </div>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Controls */}
-        <div className="lg:col-span-4 bg-white p-8 rounded-[3rem] border border-slate-100 shadow-2xl shadow-slate-200/50 space-y-8">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 flex items-center gap-2">
-                <Coins className="w-3 h-3" /> Сумма ставки
-              </label>
-              <span className="text-[10px] font-black text-brand-500 uppercase tracking-widest bg-brand-50 px-3 py-1 rounded-full">
-                Баланс: {user.balance.toFixed(2)}
-              </span>
-            </div>
-            <div className="relative group">
-              <input
-                type="number"
-                value={bet}
-                onChange={(e) => setBet(Number(e.target.value))}
-                className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-6 py-5 font-black text-slate-900 focus:border-brand-500 outline-none transition-all text-xl"
-              />
-              <div className="absolute right-3 top-3 flex gap-2">
-                <button 
-                  onClick={() => setBet(Math.max(1, bet / 2))} 
-                  className="bg-white hover:bg-brand-600 hover:text-white px-4 py-2 rounded-xl text-[10px] font-black text-slate-400 transition-all shadow-sm border border-slate-100"
-                >
-                  /2
-                </button>
-                <button 
-                  onClick={() => setBet(Math.min(user.balance, bet * 2))} 
-                  className="bg-white hover:bg-brand-600 hover:text-white px-4 py-2 rounded-xl text-[10px] font-black text-slate-400 transition-all shadow-sm border border-slate-100"
-                >
-                  x2
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 flex items-center gap-2">
-                <TrendingUp className="w-3 h-3" /> Шанс выигрыша
-              </label>
-              <div className="flex items-center gap-2">
-                <Zap className="w-3 h-3 text-brand-500" />
-                <span className="text-xl font-black text-brand-600">{chance}%</span>
-              </div>
-            </div>
-            <div className="relative pt-4">
-              <input
-                type="range"
-                min="1"
-                max="95"
-                value={chance}
-                onChange={(e) => setChance(Number(e.target.value))}
-                className="w-full h-3 bg-slate-100 rounded-full appearance-none cursor-pointer accent-brand-600"
-              />
-              <div className="flex justify-between mt-4 text-[10px] font-black text-slate-300 uppercase tracking-widest">
-                <span>1%</span>
-                <span>50%</span>
-                <span>95%</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="p-5 bg-slate-50 rounded-[2rem] border border-slate-100 text-center group hover:border-brand-200 transition-colors">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">Множитель</p>
-              <p className="text-2xl font-black text-slate-900">x{multiplier}</p>
-            </div>
-            <div className="p-5 bg-brand-50 rounded-[2rem] border border-brand-100 text-center group hover:border-brand-300 transition-colors">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-400 mb-2">Выигрыш</p>
-              <p className="text-2xl font-black text-brand-600">{potentialWin}</p>
-            </div>
-          </div>
-
-          <button
-            onClick={handlePlay}
-            disabled={loading || bet > user.balance || bet <= 0}
-            className="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-black py-6 rounded-2xl transition-all shadow-2xl shadow-brand-200 uppercase tracking-[0.2em] text-sm flex items-center justify-center gap-3 group"
-          >
-            {loading ? (
-              <div className="w-6 h-6 border-3 border-white/30 border-t-white rounded-full animate-spin" />
-            ) : (
-              <>
-                Сделать ставку 
-                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </>
-            )}
-          </button>
-        </div>
-
-        {/* Game Board */}
-        <div className="lg:col-span-8 bg-white rounded-[3.5rem] border border-slate-100 shadow-2xl shadow-slate-200/50 flex flex-col items-center justify-center p-8 lg:p-20 relative overflow-hidden min-h-[500px]">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-brand-50/50 via-transparent to-transparent opacity-50" />
+      {/* =========================================
+          РЕЖИМ CLASSIC (УВЕЛИЧЕННАЯ ВЫСОТА И ОТСТУПЫ)
+          ========================================= */}
+      {diceMode === 'classic' && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white p-5 sm:p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 w-full">
           
-          <AnimatePresence mode="wait">
-            {result !== null ? (
-              <motion.div
-                key="result"
-                initial={{ scale: 0.8, opacity: 0, y: 40 }}
-                animate={{ scale: 1, opacity: 1, y: 0 }}
-                exit={{ scale: 0.8, opacity: 0, y: -40 }}
-                className="text-center relative z-10"
-              >
-                <motion.div 
-                  initial={{ rotate: -10 }}
-                  animate={{ rotate: 0 }}
+          <div className="grid grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6">
+            {/* ПАНЕЛЬ СТАВКИ */}
+            <div className="bg-slate-50 p-4 sm:p-6 rounded-[1.5rem] sm:rounded-3xl border border-slate-100 focus-within:border-brand-300 transition-colors flex flex-col justify-between min-h-[140px]">
+              <div className="flex justify-between items-center mb-3 sm:mb-4">
+                <span className="text-[10px] sm:text-xs font-black uppercase text-slate-400 tracking-wider">Ставка</span>
+                <span className="text-[10px] sm:text-xs font-black uppercase text-brand-500 tracking-widest bg-brand-100/50 px-2.5 py-1 rounded-lg hidden sm:block">
+                  {user.balance.toFixed(2)}
+                </span>
+              </div>
+              <div className="flex items-center mb-4 sm:mb-5">
+                <Coins className="w-5 h-5 sm:w-6 sm:h-6 text-slate-400 mr-2 shrink-0" />
+                <input type="number" step="0.01" value={bet} onChange={e => setBet(Number(e.target.value))} className="w-full bg-transparent font-black text-slate-900 text-2xl sm:text-3xl outline-none" />
+              </div>
+              <div className="grid grid-cols-2 lg:flex gap-1.5 sm:gap-2 h-auto lg:h-11 w-full">
+                <button onClick={() => setBet(1)} className="order-3 lg:order-1 bg-white hover:bg-brand-50 hover:text-brand-600 rounded-xl py-2 lg:py-0 text-[10px] sm:text-[11px] font-black text-slate-500 transition-all shadow-sm border border-slate-200 lg:flex-1">МИН</button>
+                <button onClick={() => setBet(Number(Math.max(1, bet / 2).toFixed(2)))} className="order-1 lg:order-2 bg-white hover:bg-brand-50 hover:text-brand-600 rounded-xl py-2 lg:py-0 text-[10px] sm:text-[11px] font-black text-slate-500 transition-all shadow-sm border border-slate-200 lg:flex-1">/2</button>
+                <button onClick={() => setBet(Number(Math.min(user.balance, bet * 2).toFixed(2)))} className="order-2 lg:order-3 bg-white hover:bg-brand-50 hover:text-brand-600 rounded-xl py-2 lg:py-0 text-[10px] sm:text-[11px] font-black text-slate-500 transition-all shadow-sm border border-slate-200 lg:flex-1">X2</button>
+                <button onClick={() => setBet(Number(user.balance.toFixed(2)))} className="order-4 lg:order-4 bg-white hover:bg-brand-50 hover:text-brand-600 rounded-xl py-2 lg:py-0 text-[10px] sm:text-[11px] font-black text-slate-500 transition-all shadow-sm border border-slate-200 lg:flex-1">МАКС</button>
+              </div>
+            </div>
+
+            {/* ПАНЕЛЬ ШАНСА */}
+            <div className="bg-slate-50 p-4 sm:p-6 rounded-[1.5rem] sm:rounded-3xl border border-slate-100 focus-within:border-brand-300 transition-colors flex flex-col justify-between min-h-[140px]">
+              <div className="flex justify-between items-center mb-3 sm:mb-4">
+                <span className="text-[10px] sm:text-xs font-black uppercase text-slate-400 tracking-wider">Шанс %</span>
+                <span className="text-[10px] sm:text-xs font-black uppercase text-slate-500 tracking-widest bg-slate-200/50 px-2.5 py-1 rounded-lg hidden sm:block">
+                  x{multiplier}
+                </span>
+              </div>
+              <div className="flex items-center mb-4 sm:mb-5">
+                <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-slate-400 mr-2 shrink-0" />
+                <input type="number" step="0.01" value={chance} onChange={e => setChance(Math.min(95, Math.max(1, Number(e.target.value))))} className="w-full bg-transparent font-black text-slate-900 text-2xl sm:text-3xl outline-none" />
+              </div>
+              <div className="grid grid-cols-2 lg:flex gap-1.5 sm:gap-2 h-auto lg:h-11 w-full">
+                <button onClick={() => setChance(1)} className="order-3 lg:order-1 bg-white hover:bg-brand-50 hover:text-brand-600 rounded-xl py-2 lg:py-0 text-[10px] sm:text-[11px] font-black text-slate-500 transition-all shadow-sm border border-slate-200 lg:flex-1">МИН</button>
+                <button onClick={() => setChance(Math.max(1, Number((chance / 2).toFixed(2))))} className="order-1 lg:order-2 bg-white hover:bg-brand-50 hover:text-brand-600 rounded-xl py-2 lg:py-0 text-[10px] sm:text-[11px] font-black text-slate-500 transition-all shadow-sm border border-slate-200 lg:flex-1">/2</button>
+                <button onClick={() => setChance(Math.min(95, Number((chance * 2).toFixed(2))))} className="order-2 lg:order-3 bg-white hover:bg-brand-50 hover:text-brand-600 rounded-xl py-2 lg:py-0 text-[10px] sm:text-[11px] font-black text-slate-500 transition-all shadow-sm border border-slate-200 lg:flex-1">X2</button>
+                <button onClick={() => setChance(95)} className="order-4 lg:order-4 bg-white hover:bg-brand-50 hover:text-brand-600 rounded-xl py-2 lg:py-0 text-[10px] sm:text-[11px] font-black text-slate-500 transition-all shadow-sm border border-slate-200 lg:flex-1">МАКС</button>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-emerald-50 py-5 px-6 sm:py-6 sm:px-8 rounded-[1.5rem] sm:rounded-[2rem] border border-emerald-100 mb-4 sm:mb-6 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-500" />
+              <span className="text-[11px] sm:text-xs font-black uppercase text-emerald-600 tracking-widest">Возможный выигрыш</span>
+            </div>
+            <span className="font-black text-emerald-600 text-2xl sm:text-3xl tracking-tight">+{potentialWin}</span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 sm:gap-6">
+            <button onClick={() => handlePlay('under')} disabled={loading || bet > user.balance || bet <= 0} className="relative overflow-hidden bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white p-4 rounded-3xl transition-all shadow-lg shadow-brand-200 active:scale-[0.98] group flex flex-col items-center justify-center gap-2 h-24 sm:h-28">
+              <div className="flex items-center gap-2 text-sm sm:text-base font-black uppercase tracking-widest"><ArrowDownCircle className="w-5 h-5 opacity-80" />Меньше</div>
+              <div className="bg-black/10 px-3 sm:px-4 py-1.5 rounded-xl text-[10px] sm:text-xs font-bold tracking-widest">0 - {underTarget}</div>
+            </button>
+            <button onClick={() => handlePlay('over')} disabled={loading || bet > user.balance || bet <= 0} className="relative overflow-hidden bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white p-4 rounded-3xl transition-all shadow-lg shadow-slate-300 active:scale-[0.98] group flex flex-col items-center justify-center gap-2 h-24 sm:h-28">
+              <div className="flex items-center gap-2 text-sm sm:text-base font-black uppercase tracking-widest"><ArrowUpCircle className="w-5 h-5 opacity-80" />Больше</div>
+              <div className="bg-white/10 px-3 sm:px-4 py-1.5 rounded-xl text-[10px] sm:text-xs font-bold tracking-widest">{overTarget} - 999999</div>
+            </button>
+          </div>
+
+          {/* ТАБЛИЧКА РЕЗУЛЬТАТОВ (ВЫСОТА УВЕЛИЧЕНА) */}
+          <div className="h-20 sm:h-24 mt-6 flex items-center justify-center bg-slate-50/50 rounded-[1.5rem] border border-slate-100/50 overflow-hidden">
+            <AnimatePresence mode="wait">
+              {result !== null ? (
+                <motion.div
+                  key={rollId} 
+                  initial={{ opacity: 0, scale: 0.9, y: 5 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.9, y: -5 }}
+                  transition={{ duration: 0.15 }}
                   className={cn(
-                    "text-[10rem] lg:text-[12rem] font-black mb-8 tracking-tighter leading-none",
-                    win ? 'text-emerald-500 drop-shadow-[0_0_40px_rgba(16,185,129,0.3)]' : 'text-rose-500 drop-shadow-[0_0_40px_rgba(244,63,94,0.3)]'
+                    "px-8 py-3 rounded-2xl font-black uppercase tracking-widest text-sm sm:text-base flex items-center gap-3 shadow-sm border",
+                    win ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-rose-50 text-rose-500 border-rose-100"
                   )}
                 >
-                  {result.toFixed(2)}
-                </motion.div>
-                <div className={cn(
-                  "inline-flex items-center gap-3 px-10 py-5 rounded-full font-black uppercase tracking-[0.2em] text-sm border-2 shadow-xl",
-                  win ? 'bg-emerald-50 text-emerald-600 border-emerald-100 shadow-emerald-100/50' : 'bg-rose-50 text-rose-600 border-rose-100 shadow-rose-100/50'
-                )}>
                   {win ? (
-                    <><Sparkles className="w-5 h-5" /> Победа! +{potentialWin} CAT</>
+                    <><Sparkles className="w-5 h-5" /> Выигрыш: +{potentialWin}</>
                   ) : (
-                    <><AlertCircle className="w-5 h-5" /> Проигрыш</>
+                    <><AlertCircle className="w-5 h-5" /> Проигрыш: {Math.floor(result * maxNumber).toString().padStart(6, '0')}</>
                   )}
-                </div>
-              </motion.div>
-            ) : (
-              <motion.div 
-                key="idle"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="text-center relative z-10"
-              >
-                <div className="w-56 h-56 bg-slate-50 rounded-[3rem] flex items-center justify-center mb-10 mx-auto border-4 border-dashed border-slate-200 animate-spin-slow relative group">
-                  <div className="absolute inset-0 bg-brand-500/5 rounded-[3rem] group-hover:bg-brand-500/10 transition-colors" />
-                  <Dice5 className="w-24 h-24 text-slate-200 group-hover:text-brand-200 transition-colors" />
-                </div>
-                <div className="space-y-2">
-                  <p className="text-slate-900 font-black text-2xl tracking-tight">Готовы к игре?</p>
-                  <p className="text-slate-400 font-bold">Сделайте ставку, чтобы начать раунд</p>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                </motion.div>
+              ) : (
+                 <motion.div key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-slate-300 font-bold uppercase tracking-widest text-xs sm:text-sm">
+                   Ожидание ставки
+                 </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </motion.div>
+      )}
 
-          <div className="mt-20 w-full max-w-2xl h-8 bg-slate-100 rounded-full relative overflow-hidden border-4 border-white shadow-inner p-1">
-            <div
-              className="h-full bg-brand-500/20 rounded-full transition-all duration-700 ease-out"
-              style={{ width: `${chance}%` }}
-            />
-            {result !== null && (
-              <motion.div
-                initial={{ left: 0 }}
-                animate={{ left: `${result}%` }}
-                transition={{ type: "spring", stiffness: 100, damping: 15 }}
-                className={cn(
-                  "absolute top-0 bottom-0 w-2 z-20 rounded-full shadow-2xl",
-                  win ? 'bg-emerald-500 shadow-emerald-500/50' : 'bg-rose-500 shadow-rose-500/50'
-                )}
-              />
-            )}
+      {/* =========================================
+          РЕЖИМ SWITCH 
+          ========================================= */}
+      {diceMode === 'switch' && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white p-4 sm:p-8 rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/50 w-full">
+          
+          <div className="flex flex-col items-center justify-center min-h-[100px] mb-8 relative">
+              <motion.div className={cn("text-[4rem] sm:text-[6rem] font-black tracking-tighter leading-none transition-colors", win === true ? 'text-emerald-500 drop-shadow-[0_0_20px_rgba(16,185,129,0.2)]' : win === false ? 'text-rose-500 drop-shadow-[0_0_20px_rgba(244,63,94,0.2)]' : 'text-slate-300')}>
+                {result !== null ? result.toFixed(2) : '00.00'}
+              </motion.div>
           </div>
-          <div className="mt-6 w-full max-w-2xl flex justify-between text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">
-            <span>0.00</span>
-            <div className="flex items-center gap-2 text-brand-400">
-              <RotateCcw className="w-3 h-3" />
-              <span>{chance.toFixed(2)}% TARGET</span>
+
+          <div className="relative pt-12 pb-12 w-full max-w-2xl mx-auto mt-4">
+            <div 
+              className="absolute top-1 -translate-y-full px-3 py-1 bg-slate-800 text-white font-black text-xs rounded-xl shadow-lg transition-all duration-300 ease-out pointer-events-none z-20 flex items-center justify-center"
+              style={{ left: `calc(${chance}% - 22px)` }}
+            >
+              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-slate-800 rotate-45" />
+              <span className="relative z-10">{chance}%</span>
             </div>
-            <span>100.00</span>
+
+            <div className="h-3 bg-rose-500 rounded-full relative w-full overflow-hidden shadow-inner">
+              <div className="absolute left-0 top-0 bottom-0 bg-emerald-500 transition-all duration-300 ease-out" style={{ width: `${chance}%` }} />
+            </div>
+            <input type="range" min="1" max="95" value={chance} onChange={(e) => setChance(Number(e.target.value))} className="absolute inset-x-0 top-12 w-full h-3 opacity-0 cursor-pointer z-20" />
+            
+            <div className="absolute top-[48px] -translate-y-1/2 w-8 h-8 bg-white border-[4px] border-slate-900 rounded-full shadow-lg pointer-events-none transition-all duration-300 ease-out z-10 flex items-center justify-center" style={{ left: `calc(${chance}% - 16px)` }}>
+              <div className="w-1.5 h-1.5 bg-slate-900 rounded-full" />
+            </div>
+
+            <motion.div
+              initial={false}
+              animate={{
+                top: "48px",
+                opacity: result !== null ? 1 : 0,
+                left: result !== null ? `calc(${result}% - 10px)` : '50%'
+              }}
+              transition={{ type: "spring", stiffness: 100, damping: 15 }}
+              className={cn(
+                "absolute -translate-y-1/2 w-5 h-5 border-[3px] border-white rounded-full shadow-md z-30 pointer-events-none flex items-center justify-center transition-colors duration-300",
+                win === true ? 'bg-emerald-500' : (win === false ? 'bg-rose-500' : 'bg-slate-400')
+              )}
+            >
+              <div className="w-1 h-1 bg-white rounded-full" />
+            </motion.div>
+
+            <div className="absolute w-full bottom-2 flex justify-between px-1 text-[10px] font-black text-slate-300 uppercase">
+              <span>0</span> <span>50</span> <span>100</span>
+            </div>
           </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4 mt-6">
+            <div className="bg-slate-50 p-4 rounded-3xl border border-slate-100 focus-within:border-brand-300 transition-colors flex flex-col justify-between">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-[11px] font-black uppercase text-slate-400 tracking-wider">Ставка</span>
+                <span className="text-[11px] font-black uppercase text-brand-500 tracking-widest bg-brand-100/50 px-2.5 py-0.5 rounded-lg">
+                  {user.balance.toFixed(0)}
+                </span>
+              </div>
+              <div className="flex items-center mb-3">
+                <Coins className="w-5 h-5 text-slate-400 mr-2 shrink-0" />
+                <input type="number" step="0.01" value={bet} onChange={e => setBet(Number(e.target.value))} className="w-full bg-transparent font-black text-slate-900 text-2xl outline-none" />
+              </div>
+              <div className="grid grid-cols-2 lg:flex gap-1 h-auto lg:h-9 w-full">
+                <button onClick={() => setBet(1)} className="order-3 lg:order-1 flex-1 bg-white hover:bg-brand-50 hover:text-brand-600 rounded-lg lg:rounded-xl py-1.5 lg:py-0 text-[10px] font-black text-slate-500 transition-all shadow-sm border border-slate-200">МИН</button>
+                <button onClick={() => setBet(Number(Math.max(1, bet / 2).toFixed(2)))} className="order-1 lg:order-2 flex-1 bg-white hover:bg-brand-50 hover:text-brand-600 rounded-lg lg:rounded-xl py-1.5 lg:py-0 text-[10px] font-black text-slate-500 transition-all shadow-sm border border-slate-200">/2</button>
+                <button onClick={() => setBet(Number(Math.min(user.balance, bet * 2).toFixed(2)))} className="order-2 lg:order-3 flex-1 bg-white hover:bg-brand-50 hover:text-brand-600 rounded-lg lg:rounded-xl py-1.5 lg:py-0 text-[10px] font-black text-slate-500 transition-all shadow-sm border border-slate-200">X2</button>
+                <button onClick={() => setBet(Number(user.balance.toFixed(2)))} className="order-4 lg:order-4 flex-1 bg-white hover:bg-brand-50 hover:text-brand-600 rounded-lg lg:rounded-xl py-1.5 lg:py-0 text-[10px] font-black text-slate-500 transition-all shadow-sm border border-slate-200">МАКС</button>
+              </div>
+            </div>
+
+            <div className="bg-emerald-50 p-4 rounded-3xl border border-emerald-100 flex flex-col items-center justify-center text-center relative overflow-hidden">
+              <Sparkles className="absolute -right-4 -top-4 w-24 h-24 text-emerald-500/10 rotate-12" />
+              <span className="text-[11px] font-black uppercase text-emerald-600 tracking-widest mb-1 relative z-10 flex items-center gap-1">
+                Множитель <span className="text-emerald-800 bg-emerald-200/50 px-2 py-0.5 rounded-md">x{multiplier}</span>
+              </span>
+              <span className="font-black text-emerald-600 text-3xl tracking-tight relative z-10">+{potentialWin}</span>
+            </div>
+          </div>
+
+          <button onClick={() => handlePlay('under')} disabled={loading || bet > user.balance || bet <= 0} className="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-black py-5 rounded-[1.5rem] transition-all shadow-lg shadow-brand-200 uppercase tracking-widest text-sm flex items-center justify-center gap-2 active:scale-[0.98]">
+            СДЕЛАТЬ СТАВКУ
+          </button>
+        </motion.div>
+      )}
+
+      {/* ПЛАШКА PROVABLY FAIR (СИНИЙ ЦВЕТ) */}
+      <div className="mt-auto pt-6 flex justify-center">
+        <div className="flex items-center gap-2 text-brand-600 text-[10px] font-black uppercase tracking-widest bg-brand-50 px-4 py-2 rounded-xl border border-brand-100">
+          <ShieldCheck className="w-4 h-4" /> <span>Provably Fair</span>
         </div>
       </div>
     </div>
