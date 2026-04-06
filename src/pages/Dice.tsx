@@ -184,7 +184,7 @@ export default function Dice({ user }: DiceProps) {
               </div>
             </div>
 
-            {/* ПРАВАЯ КОЛОНКА: ШАНС */}
+            {/* ПРАВАЯ КОЛОНКА: ШАНС % */}
             <div className="flex flex-col gap-2 sm:gap-3">
               <div className="bg-slate-50 p-4 sm:p-5 rounded-[1.5rem] sm:rounded-3xl border border-slate-100 focus-within:border-brand-300 transition-colors flex flex-col justify-center h-full">
                 <div className="flex justify-between items-center mb-2 sm:mb-3">
@@ -208,7 +208,6 @@ export default function Dice({ user }: DiceProps) {
 
           </div>
 
-          {/* ИЗМЕНЕНА ОБВОДКА: border-2 border-emerald-600 */}
           <div className="bg-emerald-50 py-5 px-6 sm:py-6 sm:px-8 rounded-[1.5rem] sm:rounded-[2rem] border-2 border-emerald-600 mb-4 sm:mb-6 flex items-center justify-between shadow-lg shadow-emerald-500/10">
             <div className="flex items-center gap-3">
               <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-500" />
@@ -218,11 +217,12 @@ export default function Dice({ user }: DiceProps) {
           </div>
 
           <div className="grid grid-cols-2 gap-4 sm:gap-6">
-            <button onClick={() => handlePlay('under')} disabled={loading || bet > user.balance || bet <= 0} className="relative overflow-hidden bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white p-4 rounded-3xl transition-all shadow-lg shadow-brand-200 active:scale-[0.98] group flex flex-col items-center justify-center gap-2 h-24 sm:h-28">
+            {/* Кнопки Меньше/Больше: высота изменена на h-20 sm:h-28 */}
+            <button onClick={() => handlePlay('under')} disabled={loading || bet > user.balance || bet <= 0} className="relative overflow-hidden bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white p-3 sm:p-4 rounded-3xl transition-all shadow-lg shadow-brand-200 active:scale-[0.98] group flex flex-col items-center justify-center gap-1 sm:gap-2 h-20 sm:h-28">
               <div className="flex items-center gap-2 text-sm sm:text-base font-black uppercase tracking-widest"><ArrowDownCircle className="w-5 h-5 opacity-80" />Меньше</div>
               <div className="bg-black/10 px-3 sm:px-4 py-1.5 rounded-xl text-[10px] sm:text-xs font-bold tracking-widest">0 - {underTarget}</div>
             </button>
-            <button onClick={() => handlePlay('over')} disabled={loading || bet > user.balance || bet <= 0} className="relative overflow-hidden bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white p-4 rounded-3xl transition-all shadow-lg shadow-slate-300 active:scale-[0.98] group flex flex-col items-center justify-center gap-2 h-24 sm:h-28">
+            <button onClick={() => handlePlay('over')} disabled={loading || bet > user.balance || bet <= 0} className="relative overflow-hidden bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white p-3 sm:p-4 rounded-3xl transition-all shadow-lg shadow-slate-300 active:scale-[0.98] group flex flex-col items-center justify-center gap-1 sm:gap-2 h-20 sm:h-28">
               <div className="flex items-center gap-2 text-sm sm:text-base font-black uppercase tracking-widest"><ArrowUpCircle className="w-5 h-5 opacity-80" />Больше</div>
               <div className="bg-white/10 px-3 sm:px-4 py-1.5 rounded-xl text-[10px] sm:text-xs font-bold tracking-widest">{overTarget} - 999999</div>
             </button>
@@ -335,7 +335,7 @@ export default function Dice({ user }: DiceProps) {
               </div>
             </div>
 
-            {/* ПРАВАЯ КОЛОНКА: ВЫИГРЫШ (ИЗМЕНЕНА ДЛЯ МОБИЛЬНЫХ: min-h-[70px] sm:min-h-[140px] и отступы p-3 sm:p-5) */}
+            {/* ПРАВАЯ КОЛОНКА: ВЫИГРЫШ */}
             <div className="bg-emerald-50 p-3 sm:p-5 rounded-[1.5rem] sm:rounded-3xl border border-emerald-100 flex flex-col items-center justify-center text-center relative overflow-hidden h-full min-h-[70px] sm:min-h-[140px]">
               <Sparkles className="absolute -right-4 -top-4 w-24 h-24 text-emerald-500/10 rotate-12" />
               <span className="text-[10px] sm:text-[11px] font-black uppercase text-emerald-600 tracking-widest mb-1 sm:mb-2 relative z-10 flex items-center gap-1 sm:gap-2">
@@ -352,7 +352,7 @@ export default function Dice({ user }: DiceProps) {
         </motion.div>
       )}
 
-      {/* ПЛАШКА PROVABLY FAIR (СИНИЙ ЦВЕТ) */}
+      {/* ПЛАШКА PROVABLY FAIR */}
       <div className="mt-auto pt-6 flex justify-center lg:justify-start">
         <div className="flex items-center gap-2 text-brand-600 text-[10px] font-black uppercase tracking-widest bg-brand-50 px-4 py-2 rounded-xl border border-brand-100">
           <ShieldCheck className="w-4 h-4" /> <span>Provably Fair</span>
