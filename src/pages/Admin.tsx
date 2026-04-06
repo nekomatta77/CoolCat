@@ -66,24 +66,25 @@ export default function Admin({ user }: AdminProps) {
   const confirmUserAction = async () => {
     if (!userActionModal) return;
     const { userTarget, action } = userActionModal;
+    const targetName = userTarget.nickname || 'Без имени';
 
     try {
       if (action === 'block' || action === 'unblock') {
         const isBanning = action === 'block';
         await handleUpdateUser(userTarget.uid, { banned: isBanning });
         setNotification({ 
-          message: `Игрок ${userTarget.nickname} успешно ${isBanning ? 'заблокирован' : 'разблокирован'}!`, 
+          message: `Игрок ${targetName} успешно ${isBanning ? 'заблокирован' : 'разблокирован'}!`, 
           type: 'success' 
         });
       } 
       else if (action === 'delete') {
         await deleteDoc(doc(db, 'users', userTarget.uid));
         setUsers(users.filter(u => u.uid !== userTarget.uid));
-        setNotification({ message: `Аккаунт ${userTarget.nickname} удален!`, type: 'success' });
+        setNotification({ message: `Аккаунт ${targetName} удален!`, type: 'success' });
       }
       else if (action === 'reset_wager') {
         await handleUpdateUser(userTarget.uid, { wagerRequirement: 0 });
-        setNotification({ message: `Отыгрыш игрока ${userTarget.nickname} обнулен!`, type: 'success' });
+        setNotification({ message: `Отыгрыш игрока ${targetName} обнулен!`, type: 'success' });
       }
     } catch (error) {
       console.error('Action error:', error);
@@ -139,12 +140,14 @@ export default function Admin({ user }: AdminProps) {
     setNotification({ message: `Промокод ${text} скопирован!`, type: 'success' });
   };
 
-  const filteredUsers = users.filter(u => u.nickname.toLowerCase().includes(search.toLowerCase()));
+  // ИСПРАВЛЕНИЕ: Добавлена проверка на наличие nickname (fallback к пустой строке)
+  const filteredUsers = users.filter(u => (u.nickname || '').toLowerCase().includes((search || '').toLowerCase()));
 
   // Вспомогательная функция для рендера содержимого модалки
   const getModalContent = () => {
     if (!userActionModal) return null;
     const { action, userTarget } = userActionModal;
+    const targetName = userTarget.nickname || 'Без имени';
 
     const config = {
       block: { title: 'Блокировка аккаунта', color: 'red', icon: ShieldAlert, text: 'заблокировать' },
@@ -171,7 +174,7 @@ export default function Admin({ user }: AdminProps) {
           <h3 className="text-xl md:text-2xl font-black text-slate-900">{cfg.title}</h3>
           <p className="text-slate-500 font-medium text-sm md:text-base leading-relaxed">
             Вы уверены, что хотите {cfg.text} пользователя <br/>
-            <span className="font-black text-slate-900 truncate block max-w-xs mx-auto">"{userTarget.nickname}"</span>?
+            <span className="font-black text-slate-900 truncate block max-w-xs mx-auto">"{targetName}"</span>?
             {action === 'delete' && <span className="block mt-2 text-xs text-red-500 font-bold">Это действие необратимо!</span>}
           </p>
         </div>
@@ -309,7 +312,7 @@ export default function Admin({ user }: AdminProps) {
                   <div className="flex flex-col md:flex-row md:items-center justify-between w-full gap-4 pb-5 border-b border-slate-100">
                     <div className="flex items-center gap-4 min-w-0">
                       <div className="relative shrink-0">
-                        <img src={u.avatar} className="w-14 h-14 md:w-16 md:h-16 rounded-2xl object-cover border-2 border-slate-100 shadow-sm" alt="" />
+                        <img src={u.avatar || '/assets/avatars/ava1.webp'} className="w-14 h-14 md:w-16 md:h-16 rounded-2xl object-cover border-2 border-slate-100 shadow-sm" alt="" />
                         {u.banned && (
                           <div className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center border-2 border-white shadow-sm">
                             <Ban className="w-3.5 h-3.5 text-white" />
@@ -317,9 +320,10 @@ export default function Admin({ user }: AdminProps) {
                         )}
                       </div>
                       <div className="min-w-0">
-                        <p className="font-black text-slate-900 text-lg md:text-xl truncate">{u.nickname}</p>
+                        {/* ИСПРАВЛЕНИЕ: Выводим fallback, если нет никнейма */}
+                        <p className="font-black text-slate-900 text-lg md:text-xl truncate">{u.nickname || 'Без имени'}</p>
                         <p className={cn("text-xs font-black uppercase tracking-widest mt-0.5", u.rank === 'admin' ? "text-brand-500" : "text-slate-400")}>
-                          {u.rank} • LVL {u.level}
+                          {u.rank || 'user'} • LVL {u.level || 1}
                         </p>
                       </div>
                     </div>
@@ -365,7 +369,7 @@ export default function Admin({ user }: AdminProps) {
                       <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400 pl-1">Баланс (CAT)</p>
                       <input
                         type="number"
-                        defaultValue={u.balance}
+                        defaultValue={u.balance || 0}
                         onBlur={(e) => handleUpdateUser(u.uid, { balance: Number(e.target.value) })}
                         className="w-full bg-slate-50 hover:bg-slate-100 focus:bg-white border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-3 font-black text-slate-900 text-sm md:text-base outline-none transition-all shadow-inner"
                       />
@@ -398,9 +402,9 @@ export default function Admin({ user }: AdminProps) {
                     <div className="space-y-2 col-span-2 md:col-span-1">
                       <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400 pl-1">Статистика</p>
                       <div className="flex flex-row items-center gap-4 text-xs md:text-sm font-black text-slate-500 bg-slate-50 border border-slate-100 px-4 py-3 rounded-xl w-full h-[46px] md:h-[52px]">
-                        <span className="text-emerald-500 flex items-center gap-1">+ {u.totalDeposits}</span>
+                        <span className="text-emerald-500 flex items-center gap-1">+ {u.totalDeposits || 0}</span>
                         <span className="text-slate-300">|</span>
-                        <span className="text-red-400 flex items-center gap-1">- {u.totalWithdrawals}</span>
+                        <span className="text-red-400 flex items-center gap-1">- {u.totalWithdrawals || 0}</span>
                       </div>
                     </div>
                   </div>
