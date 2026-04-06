@@ -84,9 +84,9 @@ export default function Achievements({ user }: AchievementsProps) {
     { id: 'jackpot_big_catch', category: 'jackpot', title: 'Большой куш', desc: 'Выиграть за раз более 10,000 CAT', target: 1, rewardCat: 1000, rewardXp: 1500 },
     
     // --- GENERAL ---
-    { id: 'gen_first_step', category: 'general', title: 'Первые шаги', desc: 'Сумма депозитов более 100 CAT', target: 100, rewardCat: 500, rewardXp: 100 },
-    { id: 'gen_investor', category: 'general', title: 'Инвестор', desc: 'Сумма депозитов более 10,000 CAT', target: 10000, rewardCat: 2000, rewardXp: 1000 },
-    { id: 'gen_crypto_cat', category: 'general', title: 'Крипто-Кот', desc: 'Сумма депозитов более 100,000 CAT', target: 100000, rewardCat: 15000, rewardXp: 5000, bonus: 'Фон "CRYPTO"' },
+    { id: 'gen_first_step', category: 'general', title: 'Первые шаги', desc: 'Сумма депозитов более 1000 CAT', target: 1000, rewardCat: 100, rewardXp: 100 },
+    { id: 'gen_investor', category: 'general', title: 'Инвестор', desc: 'Сумма депозитов более 10,000 CAT', target: 10000, rewardCat: 500, rewardXp: 1000 },
+    { id: 'gen_crypto_cat', category: 'general', title: 'Крипто-Кот', desc: 'Сумма депозитов более 100,000 CAT', target: 100000, rewardCat: 1000, rewardXp: 5000, bonus: 'Фон "CRYPTO"' },
   ];
 
   useEffect(() => {
