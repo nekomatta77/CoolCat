@@ -2,10 +2,11 @@ import { ReactNode, useState } from 'react';
 import Header from './Header';
 import Sidebar from './Sidebar';
 import { UserProfile } from '../types';
-import { Home, Gamepad2, Gift, TrendingUp, Trophy, User } from 'lucide-react';
+import { Home, Gift, Trophy, User, Plus } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import DepositModal from './DepositModal';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -20,11 +21,15 @@ interface LayoutProps {
 export default function Layout({ children, user, onLogout }: LayoutProps) {
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
 
-  const mobileNavItems = [
+  // Разделяем кнопки, чтобы освободить центр
+  const mobileNavLeft = [
     { icon: Home, path: '/' },
     { icon: Gift, path: '/bonuses' },
-    { icon: TrendingUp, path: '/level' },
+  ];
+  
+  const mobileNavRight = [
     { icon: Trophy, path: '/achievements' },
     { icon: User, path: '/profile' },
   ];
@@ -65,24 +70,49 @@ export default function Layout({ children, user, onLogout }: LayoutProps) {
         </main>
       </div>
 
-      {/* Mobile Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-slate-100 px-6 py-3 flex items-center justify-between lg:hidden z-50">
-        {mobileNavItems.map((item) => {
+      {/* BOTTOM NAVIGATION */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-slate-100 px-6 py-2 flex items-center justify-between lg:hidden z-50">
+        
+        {/* Левые кнопки */}
+        {mobileNavLeft.map((item) => {
           const isActive = location.pathname === item.path;
           return (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={cn(
-                "p-2 rounded-xl transition-all",
-                isActive ? "bg-brand-500 text-white shadow-lg shadow-brand-200" : "text-slate-400"
-              )}
-            >
+            <Link key={item.path} to={item.path} className={cn("p-2 rounded-xl transition-all", isActive ? "bg-brand-50 text-brand-600" : "text-slate-400")}>
+              <item.icon className="w-6 h-6" />
+            </Link>
+          );
+        })}
+
+        {/* 🌟 ВЫПИРАЮЩАЯ КНОПКА ПОПОЛНЕНИЯ ПО ЦЕНТРУ */}
+        <div className="relative -mt-8 flex justify-center">
+          {/* Свечение под кнопкой */}
+          <div className="absolute inset-0 bg-brand-500 rounded-full blur-xl opacity-40" />
+          
+          <button 
+            onClick={() => setIsDepositModalOpen(true)}
+            className="relative bg-gradient-to-tr from-brand-600 to-brand-400 text-white p-4 rounded-full border-[6px] border-slate-50 shadow-lg transform transition-all active:scale-95 hover:-translate-y-1"
+          >
+            {/* Уменьшили размер до w-6 h-6 и сделали линию чуть толще (stroke-[3]) */}
+            <Plus className="w-6 h-6 stroke-[3]" />
+          </button>
+        </div>
+
+        {/* Правые кнопки */}
+        {mobileNavRight.map((item) => {
+          const isActive = location.pathname === item.path;
+          return (
+            <Link key={item.path} to={item.path} className={cn("p-2 rounded-xl transition-all", isActive ? "bg-brand-50 text-brand-600" : "text-slate-400")}>
               <item.icon className="w-6 h-6" />
             </Link>
           );
         })}
       </nav>
+
+      {/* МОДАЛКА */}
+      <DepositModal 
+        isOpen={isDepositModalOpen} 
+        onClose={() => setIsDepositModalOpen(false)} 
+      />
     </div>
   );
 }

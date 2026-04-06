@@ -4,6 +4,7 @@ import { UserProfile } from '../types';
 import { Home, HelpCircle, Gift, TrendingUp, Trophy, Settings, Phone, ShieldAlert } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import OnlineCounter from './OnlineCounter'; // 👈 ИМПОРТИРУЕМ НАШ СЧЕТЧИК
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -71,9 +72,7 @@ export default function Sidebar({ user, onClose }: SidebarProps) {
       <div className="p-8 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-3 group outline-none" onClick={onClose}>
           
-          {/* ОБЩИЙ КОНТЕЙНЕР АНИМАЦИИ: Делает красивый синхронный эффект при наведении */}
           <div className="relative flex items-center transition-all duration-300 md:group-hover:scale-[1.02] md:group-hover:-translate-y-0.5 md:group-hover:opacity-90">
-            
             <div 
               className="flex items-center justify-center origin-center"
               style={{ 
@@ -88,7 +87,6 @@ export default function Sidebar({ user, onClose }: SidebarProps) {
                 className="w-full h-full object-contain drop-shadow-lg" 
               />
             </div>
-
             <span 
               className="text-2xl font-black text-slate-900 tracking-tighter origin-left block"
               style={{
@@ -97,7 +95,6 @@ export default function Sidebar({ user, onClose }: SidebarProps) {
             >
               CoolCat
             </span>
-
           </div>
 
         </Link>
@@ -130,7 +127,12 @@ export default function Sidebar({ user, onClose }: SidebarProps) {
         })}
       </nav>
 
-      <div className="p-6">
+      {/* 🛠 ИЗМЕНЕННАЯ ЧАСТЬ: Добавлен gap-4 для отступа между счетчиком и рангом */}
+      <div className="p-6 flex flex-col gap-4">
+        
+        {/* 👈 ВСТАВЛЯЕМ СЧЕТЧИК ОНЛАЙНА */}
+        <OnlineCounter />
+
         <div className="bg-slate-50 rounded-3xl p-4 border border-slate-100 relative overflow-hidden group">
           <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-brand-200/30 rounded-full blur-2xl group-hover:scale-150 transition-transform" />
           <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Ваш Ранг</p>
