@@ -12,6 +12,15 @@ const HEADER_AVATAR_CONFIG = {
 };
 // ============================================================================
 
+// Функция для форматирования баланса (отсекаем тысячные и добавляем пробелы тысяч)
+const formatBalance = (val: number) => {
+  const truncated = Math.floor(val * 100) / 100; // Отсекаем все, что дальше сотых (без округления вверх)
+  const fixed = truncated.toFixed(2);
+  const [intPart, decPart] = fixed.split('.');
+  const formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  return `${formattedInt}.${decPart}`;
+};
+
 interface HeaderProps {
   user: UserProfile;
   onLogout: () => void;
@@ -35,7 +44,7 @@ export default function Header({ user, onLogout, onMenuClick }: HeaderProps) {
         <div className="bg-slate-50 px-4 py-2 rounded-2xl flex items-center gap-2 border border-slate-100 shadow-sm">
           <Wallet className="w-5 h-5 text-brand-600" />
           <span className="font-bold text-slate-900 tracking-tight">
-            {user.balance.toLocaleString('ru-RU')} <span className="text-slate-400 text-sm">CAT</span>
+            {formatBalance(user.balance)} <span className="text-slate-400 text-sm">CAT</span>
           </span>
         </div>
       </div>
