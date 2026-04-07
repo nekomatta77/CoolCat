@@ -16,7 +16,6 @@ interface WheelXProps {
   user: UserProfile;
 }
 
-// === КОНФИГУРАЦИЯ 32 СЕКТОРОВ ===
 const WHEEL_PATTERN = [
   { type: 'orange', mult: 30, color: '#f97316' }, { type: 'black', mult: 2, color: '#1e293b' },
   { type: 'blue', mult: 3, color: '#3b82f6' }, { type: 'black', mult: 2, color: '#1e293b' },
@@ -43,56 +42,49 @@ export default function WheelX({ user }: WheelXProps) {
   const [myBets, setMyBets] = useState({ black: 0, blue: 0, pink: 0, orange: 0 });
   const [history, setHistory] = useState<number[]>([]);
   
-  // Состояния, приходящие с сервера
   const [gameState, setGameState] = useState<'betting' | 'spinning'>('betting');
   const [timeLeft, setTimeLeft] = useState(30);
   const [rotation, setRotation] = useState(0);
   const [lastWinInfo, setLastWinInfo] = useState<{ mult: number, payout: number } | null>(null);
 
-  // Ссылка на актуальные ставки (чтобы внутри setTimeout был доступ к свежим данным)
   const myBetsRef = useRef(myBets);
   useEffect(() => {
     myBetsRef.current = myBets;
   }, [myBets]);
 
-  // Предотвращение двойного вращения за один раунд
   const hasSpunRef = useRef(false);
 
-  // === ПОДКЛЮЧЕНИЕ К БЕКЕНДУ FIREBASE ===
   useEffect(() => {
-    // Слушаем документ 'live/wheelx' в реальном времени
     const unsubscribe = onSnapshot(doc(db, 'live', 'wheelx'), (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.data();
         
-        // Синхронизируем таймер и статус
         setGameState(data.gameState);
         setTimeLeft(data.timeLeft || 0);
 
+        // Синхронизируем историю с сервером!
+        if (data.history) {
+          setHistory(data.history);
+        }
+
         if (data.gameState === 'betting') {
-          // Сброс флагов и попапов в начале нового раунда
           hasSpunRef.current = false;
           setLastWinInfo(null);
         } 
         else if (data.gameState === 'spinning' && !hasSpunRef.current && data.winningIndex !== undefined) {
-          // Сервер сказал крутить колесо!
           hasSpunRef.current = true;
           
           const winningIndex = data.winningIndex;
           const winningSlice = WHEEL_PATTERN[winningIndex];
           
           const segmentAngle = 360 / 32;
-          // Добавляем 10 полных оборотов + угол нужного сектора
           const targetRotation = (360 * 10) + (winningIndex * segmentAngle);
           setRotation(prev => prev + targetRotation);
 
-          // Ждем 5 секунд пока колесо крутится, затем выдаем награду
           setTimeout(() => {
             handlePayout(winningSlice);
-            setHistory(prev => [winningSlice.mult, ...prev].slice(0, 10)); // Обновляем историю
+            // Удалено: setHistory(prev => ...) -> теперь это делает сервер
             
-            // Очищаем локальные ставки спустя 3 секунды после показа выигрыша,
-            // перед началом нового раунда
             setTimeout(() => {
               setMyBets({ black: 0, blue: 0, pink: 0, orange: 0 });
             }, 3000);
@@ -101,12 +93,10 @@ export default function WheelX({ user }: WheelXProps) {
       }
     });
 
-    return () => unsubscribe(); // Отписываемся при размонтировании компонента
+    return () => unsubscribe();
   }, []);
-  // ======================================
 
   const handlePayout = async (winningSlice: typeof WHEEL_PATTERN[0]) => {
-    // Используем myBetsRef.current, так как это актуальное состояние ставок
     const betPlaced = myBetsRef.current[winningSlice.type as keyof typeof myBetsRef.current];
     
     if (betPlaced > 0) {
@@ -169,8 +159,6 @@ export default function WheelX({ user }: WheelXProps) {
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        
-        {/* === БЛОК 1: КОЛЕСО (32 СЕКТОРА) === */}
         <div className="lg:col-span-7 bg-white rounded-[3.5rem] border border-slate-100 shadow-2xl shadow-slate-200/50 p-6 sm:p-10 flex flex-col items-center justify-center relative overflow-hidden min-h-[500px] lg:min-h-[600px] order-1">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-slate-50/50 via-transparent to-transparent opacity-70" />
           
@@ -273,7 +261,6 @@ export default function WheelX({ user }: WheelXProps) {
           </div>
         </div>
 
-        {/* === БЛОК 2: ПАНЕЛЬ СТАВОК === */}
         <div className="lg:col-span-5 space-y-6 order-2">
           
           <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 space-y-4">
