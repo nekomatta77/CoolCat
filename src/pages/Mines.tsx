@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { UserProfile } from '../types';
 import { doc, updateDoc, addDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Grid3X3, Bomb, Gem, Trophy, Coins, Settings, ArrowRight, ShieldCheck, Play, Sparkles } from 'lucide-react';
+import { Grid3X3, Bomb, Gem, Trophy, Coins, Settings, ArrowRight, ShieldCheck, Play } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 
@@ -30,7 +30,6 @@ export default function Mines({ user }: MinesProps) {
   const [loading, setLoading] = useState(false);
   const [unlockedAch, setUnlockedAch] = useState<string | null>(null);
 
-  // Блокировка от спам-кликов
   const isProcessing = useRef(false);
 
   const calculateMultiplier = (revealedCount: number) => {
@@ -139,10 +138,8 @@ export default function Mines({ user }: MinesProps) {
         }
       };
 
-      // Расчет открытых безопасных ячеек
       const revealedCount = revealed.filter((r, i) => r && !grid[i]).length;
 
-      // Проверки достижений Mines
       if (bet >= 100) {
         processAch('mines_sapper1', 25, a => { a.progress++; return a; }, 'Кот-сапер');
         processAch('mines_sapper2', 50, a => { a.progress++; return a; }, 'Кот-сапер II');
@@ -169,7 +166,6 @@ export default function Mines({ user }: MinesProps) {
         processAch('mines_kitty4', 1, a => { a.progress = 1; return a; }, 'В поисках кисы IV');
       }
 
-      // Открытие всех выигрышных ячеек
       if (minesCount === 2 && revealedCount === 23) {
         processAch('mines_infinity1', 1, a => { a.progress = 1; return a; }, 'Бесконечность не предел');
       }
@@ -254,7 +250,6 @@ export default function Mines({ user }: MinesProps) {
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Controls */}
         <div className="lg:col-span-4 bg-white p-8 rounded-[3rem] border border-slate-100 shadow-2xl shadow-slate-200/50 space-y-8">
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -342,29 +337,31 @@ export default function Mines({ user }: MinesProps) {
             )}
           </AnimatePresence>
 
+          {/* === Плашки результата (Mines) без иконок, выровнены по центру === */}
           <AnimatePresence>
             {gameState === 'won' && (
               <motion.div 
                 initial={{ scale: 0.9, opacity: 0, y: 10 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
-                className="p-5 bg-gradient-to-b from-emerald-400 to-emerald-500 border border-emerald-400/50 rounded-[2rem] text-white font-black text-center flex items-center justify-center gap-3 shadow-xl shadow-emerald-500/40"
+                className="p-4 sm:p-5 bg-white border-2 border-emerald-500 rounded-2xl flex flex-col items-center justify-center text-center shadow-[0_8px_20px_rgba(16,185,129,0.15)] w-full"
               >
-                <Sparkles className="w-5 h-5" /> Победа! +{(bet * multiplier).toFixed(2)} CAT
+                <p className="text-[10px] sm:text-[11px] uppercase tracking-widest font-black text-emerald-600 mb-1">Победа!</p>
+                <p className="text-xl sm:text-2xl font-black text-slate-800 leading-none">+{(bet * multiplier).toFixed(2)} CAT</p>
               </motion.div>
             )}
             {gameState === 'lost' && (
               <motion.div 
                 initial={{ scale: 0.9, opacity: 0, y: 10 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
-                className="p-5 bg-gradient-to-b from-rose-400 to-rose-500 border border-rose-400/50 rounded-[2rem] text-white font-black text-center flex items-center justify-center gap-3 shadow-xl shadow-rose-500/40"
+                className="p-4 sm:p-5 bg-white border-2 border-rose-500 rounded-2xl flex flex-col items-center justify-center text-center shadow-[0_8px_20px_rgba(244,63,94,0.15)] w-full"
               >
-                <Bomb className="w-5 h-5" /> Бум! Проигрыш
+                <p className="text-[10px] sm:text-[11px] uppercase tracking-widest font-black text-rose-600 mb-1">Бум!</p>
+                <p className="text-xl sm:text-2xl font-black text-slate-800 leading-none">Проигрыш</p>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
 
-        {/* Game Board */}
         <div className="lg:col-span-8 bg-white rounded-[3.5rem] border border-slate-100 shadow-2xl shadow-slate-200/50 p-6 lg:p-16 flex items-center justify-center relative overflow-hidden">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-brand-50/30 via-transparent to-transparent opacity-50" />
           

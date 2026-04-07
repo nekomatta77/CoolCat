@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { UserProfile } from '../types';
 import { doc, updateDoc, addDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Dice5, Trophy, ShieldCheck, Zap, Sparkles, ArrowDownCircle, ArrowUpCircle, Coins, TrendingUp, AlertCircle } from 'lucide-react';
+import { Dice5, Trophy, ShieldCheck, ArrowDownCircle, ArrowUpCircle, Coins, TrendingUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 
@@ -162,7 +162,6 @@ export default function Dice({ user }: DiceProps) {
           
           <div className="grid grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6">
             
-            {/* ЛЕВАЯ КОЛОНКА: СТАВКА */}
             <div className="flex flex-col gap-2 sm:gap-3">
               <div className="bg-slate-50 p-4 sm:p-5 rounded-[1.5rem] sm:rounded-3xl border border-slate-100 focus-within:border-brand-300 transition-colors flex flex-col justify-center h-full">
                 <div className="flex justify-between items-center mb-2 sm:mb-3">
@@ -184,7 +183,6 @@ export default function Dice({ user }: DiceProps) {
               </div>
             </div>
 
-            {/* ПРАВАЯ КОЛОНКА: ШАНС % */}
             <div className="flex flex-col gap-2 sm:gap-3">
               <div className="bg-slate-50 p-4 sm:p-5 rounded-[1.5rem] sm:rounded-3xl border border-slate-100 focus-within:border-brand-300 transition-colors flex flex-col justify-center h-full">
                 <div className="flex justify-between items-center mb-2 sm:mb-3">
@@ -208,16 +206,15 @@ export default function Dice({ user }: DiceProps) {
 
           </div>
 
+          {/* === Убрана иконка Sparkles === */}
           <div className="bg-emerald-50 py-5 px-6 sm:py-6 sm:px-8 rounded-[1.5rem] sm:rounded-[2rem] border-2 border-emerald-600 mb-4 sm:mb-6 flex items-center justify-between shadow-lg shadow-emerald-500/10">
             <div className="flex items-center gap-3">
-              <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-500" />
               <span className="text-[11px] sm:text-xs font-black uppercase text-emerald-600 tracking-widest">Возможный выигрыш</span>
             </div>
             <span className="font-black text-emerald-600 text-2xl sm:text-3xl tracking-tight">+{potentialWin}</span>
           </div>
 
           <div className="grid grid-cols-2 gap-4 sm:gap-6">
-            {/* Кнопки Меньше/Больше: высота изменена на h-20 sm:h-28 */}
             <button onClick={() => handlePlay('under')} disabled={loading || bet > user.balance || bet <= 0} className="relative overflow-hidden bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white p-3 sm:p-4 rounded-3xl transition-all shadow-lg shadow-brand-200 active:scale-[0.98] group flex flex-col items-center justify-center gap-1 sm:gap-2 h-20 sm:h-28">
               <div className="flex items-center gap-2 text-sm sm:text-base font-black uppercase tracking-widest"><ArrowDownCircle className="w-5 h-5 opacity-80" />Меньше</div>
               <div className="bg-black/10 px-3 sm:px-4 py-1.5 rounded-xl text-[10px] sm:text-xs font-bold tracking-widest">0 - {underTarget}</div>
@@ -228,7 +225,8 @@ export default function Dice({ user }: DiceProps) {
             </button>
           </div>
 
-          <div className="h-20 sm:h-24 mt-6 flex items-center justify-center bg-slate-50/50 rounded-[1.5rem] border border-slate-100/50 overflow-hidden">
+          {/* === Плашка результата (Classic) без иконок, выровнено по центру === */}
+          <div className="h-20 sm:h-24 mt-6 flex items-center justify-center bg-slate-50/50 rounded-[1.5rem] border border-slate-100/50 overflow-hidden px-4">
             <AnimatePresence mode="wait">
               {result !== null ? (
                 <motion.div
@@ -238,17 +236,18 @@ export default function Dice({ user }: DiceProps) {
                   exit={{ opacity: 0, scale: 0.9, y: -5 }}
                   transition={{ duration: 0.15 }}
                   className={cn(
-                    "px-8 py-3 rounded-2xl font-black uppercase tracking-widest text-sm sm:text-base flex items-center gap-3 border",
+                    "w-full sm:w-auto px-6 py-3 sm:px-10 sm:py-4 rounded-2xl flex flex-col items-center justify-center text-center transition-all bg-white border-2",
                     win 
-                      ? "bg-gradient-to-b from-emerald-400 to-emerald-500 text-white border-emerald-400/50 shadow-lg shadow-emerald-500/40" 
-                      : "bg-gradient-to-b from-rose-400 to-rose-500 text-white border-rose-400/50 shadow-lg shadow-rose-500/40"
+                      ? "border-emerald-500 shadow-[0_8px_20px_rgba(16,185,129,0.15)]" 
+                      : "border-rose-500 shadow-[0_8px_20px_rgba(244,63,94,0.15)]"
                   )}
                 >
-                  {win ? (
-                    <><Sparkles className="w-5 h-5" /> Выигрыш: +{potentialWin}</>
-                  ) : (
-                    <><AlertCircle className="w-5 h-5" /> Проигрыш: {Math.floor(result * maxNumber).toString().padStart(6, '0')}</>
-                  )}
+                  <p className={cn("text-[10px] sm:text-[11px] uppercase tracking-widest font-black mb-1", win ? "text-emerald-600" : "text-rose-600")}>
+                    {win ? "Выигрыш" : "Проигрыш"}
+                  </p>
+                  <p className="text-xl sm:text-2xl font-black text-slate-800 leading-none">
+                    {win ? `+${potentialWin}` : Math.floor(result * maxNumber).toString().padStart(6, '0')}
+                  </p>
                 </motion.div>
               ) : (
                  <motion.div key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-slate-300 font-bold uppercase tracking-widest text-xs sm:text-sm">
@@ -267,7 +266,7 @@ export default function Dice({ user }: DiceProps) {
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white p-4 sm:p-8 rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/50 w-full">
           
           <div className="flex flex-col items-center justify-center min-h-[100px] mb-8 relative">
-              <motion.div className={cn("text-[4rem] sm:text-[6rem] font-black tracking-tighter leading-none transition-colors", win === true ? 'text-emerald-500 drop-shadow-[0_0_30px_rgba(16,185,129,0.5)]' : win === false ? 'text-rose-500 drop-shadow-[0_0_30px_rgba(244,63,94,0.5)]' : 'text-slate-300')}>
+              <motion.div className={cn("text-[4rem] sm:text-[6rem] font-black tracking-tighter leading-none transition-colors", win === true ? 'text-emerald-500 drop-shadow-md' : win === false ? 'text-rose-500 drop-shadow-md' : 'text-slate-300')}>
                 {result !== null ? result.toFixed(2) : '00.00'}
               </motion.div>
           </div>
@@ -312,8 +311,6 @@ export default function Dice({ user }: DiceProps) {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6 mt-6 sm:mt-8">
-            
-            {/* ЛЕВАЯ КОЛОНКА: СТАВКА */}
             <div className="flex flex-col gap-2 sm:gap-3">
               <div className="bg-slate-50 p-4 sm:p-5 rounded-[1.5rem] sm:rounded-3xl border border-slate-100 focus-within:border-brand-300 transition-colors flex flex-col justify-center h-full">
                 <div className="flex justify-between items-center mb-2 sm:mb-3">
@@ -335,9 +332,8 @@ export default function Dice({ user }: DiceProps) {
               </div>
             </div>
 
-            {/* ПРАВАЯ КОЛОНКА: ВЫИГРЫШ */}
+            {/* === Убрана фоновая полупрозрачная иконка Sparkles === */}
             <div className="bg-emerald-50 p-3 sm:p-5 rounded-[1.5rem] sm:rounded-3xl border border-emerald-100 flex flex-col items-center justify-center text-center relative overflow-hidden h-full min-h-[70px] sm:min-h-[140px]">
-              <Sparkles className="absolute -right-4 -top-4 w-24 h-24 text-emerald-500/10 rotate-12" />
               <span className="text-[10px] sm:text-[11px] font-black uppercase text-emerald-600 tracking-widest mb-1 sm:mb-2 relative z-10 flex items-center gap-1 sm:gap-2">
                 Множитель <span className="text-emerald-800 bg-emerald-200/50 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-md sm:rounded-lg">x{multiplier}</span>
               </span>
@@ -352,7 +348,6 @@ export default function Dice({ user }: DiceProps) {
         </motion.div>
       )}
 
-      {/* ПЛАШКА PROVABLY FAIR */}
       <div className="mt-auto pt-6 flex justify-center lg:justify-start">
         <div className="flex items-center gap-2 text-brand-600 text-[10px] font-black uppercase tracking-widest bg-brand-50 px-4 py-2 rounded-xl border border-brand-100">
           <ShieldCheck className="w-4 h-4" /> <span>Provably Fair</span>
