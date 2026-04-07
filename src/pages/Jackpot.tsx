@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { UserProfile } from '../types';
-import { doc, updateDoc, addDoc, collection, onSnapshot, query, orderBy, limit, getDocs, where } from 'firebase/firestore';
+import { doc, updateDoc, addDoc, collection, onSnapshot, query, orderBy, limit, getDocs, where, increment } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Trophy, Coins, History, Sparkles, Star, Zap, ShieldCheck, Play, RotateCcw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -26,7 +26,10 @@ interface MutableAchievement {
 }
 
 export default function Jackpot({ user }: JackpotProps) {
-  const [bet, setBet] = useState(10);
+  // === ГЛОБАЛЬНАЯ МЕХАНИКА ВВОДА СТАВКИ ===
+  const [betInput, setBetInput] = useState('10');
+  const bet = parseFloat(betInput.replace(',', '.')) || 0;
+
   const [history, setHistory] = useState<any[]>([]);
   const [spinning, setSpinning] = useState(false);
   const [result, setResult] = useState<any>(null);
@@ -44,9 +47,32 @@ export default function Jackpot({ user }: JackpotProps) {
     return () => unsubscribe();
   }, []);
 
+  const handleHalfBet = () => {
+    if (spinning) return;
+    const current = parseFloat(betInput.replace(',', '.')) || 0;
+    setBetInput(Math.max(1, Number((current / 2).toFixed(2))).toString());
+  };
+
+  const handleDoubleBet = () => {
+    if (spinning) return;
+    const current = parseFloat(betInput.replace(',', '.')) || 0;
+    setBetInput(Number((current * 2).toFixed(2)).toString());
+  };
+
   const handleSpin = async () => {
     if (bet > user.balance || bet <= 0 || spinning || isProcessing.current) return;
     isProcessing.current = true;
+
+    // Моментальное списание ставки
+    try {
+      await updateDoc(doc(db, 'users', user.uid), {
+        balance: increment(-bet)
+      });
+    } catch (e) {
+      isProcessing.current = false;
+      return;
+    }
+
     setLoading(true);
     setSpinning(true);
     setResult(null);
@@ -78,7 +104,6 @@ export default function Jackpot({ user }: JackpotProps) {
     setRotation(prev => prev + targetRotation);
 
     const payout = bet * multiplier;
-    const newBalance = user.balance - bet + payout;
 
     const isWin = multiplier > 1; // 1.2x, 2x, 10x, etc.
     const prevStreak = (user as any).jackpotWinStreak || 0;
@@ -136,11 +161,11 @@ export default function Jackpot({ user }: JackpotProps) {
 
       await Promise.all([
         updateDoc(doc(db, 'users', user.uid), { 
-          balance: newBalance, 
-          xp: (user.xp || 0) + bet / 10,
+          balance: increment(payout), 
+          xp: increment(bet / 10),
           jackpotWinStreak: newStreak 
         }),
-        addDoc(collection(db, 'gameSessions'), { userId: user.uid, gameType: 'jackpot', bet, multiplier, payout, timestamp: new Date().toISOString(), nickname: user.nickname, avatar: user.avatar }),
+        addDoc(collection(db, 'gameSessions'), { userId: user.uid, gameType: 'jackpot', bet: Number(bet.toFixed(2)), multiplier, payout, timestamp: new Date().toISOString(), nickname: user.nickname, avatar: user.avatar }),
         ...updates.map(ach => updateDoc(doc(db, 'achievements', ach.id as string), { progress: ach.progress, completed: ach.completed })),
         ...newAchsToCreate.map(ach => { const { id, ...data } = ach; return addDoc(collection(db, 'achievements'), data); })
       ]);
@@ -214,24 +239,35 @@ export default function Jackpot({ user }: JackpotProps) {
                 </span>
               </div>
               <input
-                type="number"
-                value={bet}
+                type="text"
+                inputMode="decimal"
+                value={betInput}
                 disabled={spinning}
-                onChange={(e) => setBet(Number(e.target.value))}
-                className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-6 py-5 font-black text-slate-900 focus:border-brand-500 outline-none transition-all disabled:opacity-50 text-xl"
+                onChange={(e) => {
+                  const val = e.target.value.replace(',', '.');
+                  if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                    setBetInput(val);
+                  }
+                }}
+                onBlur={() => {
+                  const val = parseFloat(betInput.replace(',', '.'));
+                  if (isNaN(val) || val <= 0) setBetInput('1');
+                  else setBetInput(val.toString());
+                }}
+                className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-6 py-5 font-black text-slate-900 focus:border-brand-500 outline-none transition-all disabled:opacity-50 text-xl min-w-0"
               />
               <div className="grid grid-cols-2 gap-2">
                 <button 
-                  onClick={() => setBet(Math.max(1, bet / 2))}
+                  onClick={handleHalfBet}
                   disabled={spinning}
-                  className="py-3 bg-slate-50 hover:bg-slate-100 rounded-xl text-xs font-black text-slate-400 transition-all border-2 border-slate-100 hover:border-brand-200"
+                  className="py-3 bg-slate-50 hover:bg-slate-100 rounded-xl text-xs font-black text-slate-400 transition-all border-2 border-slate-100 hover:border-brand-200 disabled:opacity-50"
                 >
                   / 2
                 </button>
                 <button 
-                  onClick={() => setBet(Math.min(user.balance, bet * 2))}
+                  onClick={handleDoubleBet}
                   disabled={spinning}
-                  className="py-3 bg-slate-50 hover:bg-slate-100 rounded-xl text-xs font-black text-slate-400 transition-all border-2 border-slate-100 hover:border-brand-200"
+                  className="py-3 bg-slate-50 hover:bg-slate-100 rounded-xl text-xs font-black text-slate-400 transition-all border-2 border-slate-100 hover:border-brand-200 disabled:opacity-50"
                 >
                   x 2
                 </button>
@@ -241,7 +277,7 @@ export default function Jackpot({ user }: JackpotProps) {
             <button
               onClick={handleSpin}
               disabled={loading || bet > user.balance || bet <= 0 || spinning}
-              className="w-full bg-brand-600 hover:bg-brand-700 text-white font-black py-6 rounded-2xl transition-all shadow-2xl shadow-brand-200 uppercase tracking-[0.2em] text-sm flex items-center justify-center gap-3 group"
+              className="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-black py-6 rounded-2xl transition-all shadow-2xl shadow-brand-200 uppercase tracking-[0.2em] text-sm flex items-center justify-center gap-3 group"
             >
               {spinning ? (
                 <div className="w-6 h-6 border-3 border-white/30 border-t-white rounded-full animate-spin" />

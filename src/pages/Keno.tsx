@@ -1,27 +1,20 @@
 import { useState, useRef } from 'react';
 import { UserProfile } from '../types';
-import { doc, updateDoc, addDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import { doc, updateDoc, addDoc, collection, getDocs, query, where, increment } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Layers, Coins, ShieldCheck, ArrowRight, RotateCcw, Zap, Trophy, Play, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 
-// ============================================================================
-// 🛠️ РЕДАКТОР ЛАПОК В ЛЕНТЕ МНОЖИТЕЛЕЙ
-// ============================================================================
 const PAW_RIBBON_CONFIG = {
-  width: 24,        // Ширина картинки (px)
-  height: 24,       // Высота картинки (px)
-  offsetX: 0,       // Сдвиг по оси X (влево/вправо)
-  offsetY: 0,       // Сдвиг по оси Y (вверх/вниз)
-  scale: 1,         // Базовый размер неактивной лапки (1 = 100%)
-  activeScale: 1.3, // Размер активной (выигравшей) лапки (1.3 = 130%)
+  width: 24,
+  height: 24,
+  offsetX: 0,
+  offsetY: 0,
+  scale: 1,
+  activeScale: 1.3,
 };
 
-// ============================================================================
-// 📊 ТАБЛИЦЫ МНОЖИТЕЛЕЙ ПО СЛОЖНОСТЯМ
-// Первая цифра (0) - множитель при нуле совпадений (она скрыта визуально)
-// ============================================================================
 const MULTIPLIERS = {
   easy: {
     1: [0, 3.96],
@@ -83,7 +76,9 @@ const formatBalance = (val: number) => {
 };
 
 export default function Keno({ user }: KenoProps) {
-  const [bet, setBet] = useState(10);
+  const [betInput, setBetInput] = useState('10');
+  const bet = parseFloat(betInput.replace(',', '.')) || 0;
+
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('easy');
   const [selected, setSelected] = useState<number[]>([]);
   const [drawn, setDrawn] = useState<number[]>([]);
@@ -137,17 +132,29 @@ export default function Keno({ user }: KenoProps) {
 
   const handleHalfBet = () => {
     if (gameState === 'drawing') return;
-    setBet(prev => Math.max(1, Number((prev / 2).toFixed(2))));
+    const current = parseFloat(betInput.replace(',', '.')) || 0;
+    setBetInput(Math.max(1, Number((current / 2).toFixed(2))).toString());
   };
 
   const handleDoubleBet = () => {
     if (gameState === 'drawing') return;
-    setBet(prev => Number((prev * 2).toFixed(2)));
+    const current = parseFloat(betInput.replace(',', '.')) || 0;
+    setBetInput(Number((current * 2).toFixed(2)).toString());
   };
 
   const handlePlay = async () => {
     if (bet > user.balance || bet <= 0 || selected.length === 0 || isProcessing.current) return;
     isProcessing.current = true;
+    
+    try {
+      await updateDoc(doc(db, 'users', user.uid), {
+        balance: increment(-bet)
+      });
+    } catch (e) {
+      isProcessing.current = false;
+      return;
+    }
+
     setLoading(true);
     setGameState('drawing');
     setShowResultModal(false);
@@ -175,7 +182,6 @@ export default function Keno({ user }: KenoProps) {
     const mult = multTable[matches]; 
     
     const winAmount = bet * mult;
-    const newBalance = user.balance - bet + winAmount;
 
     const isOneNumWin = selected.length === 1 && matches === 1;
     const prevOneNumStreak = (user as any).kenoWinStreakOneNum || 0;
@@ -235,8 +241,8 @@ export default function Keno({ user }: KenoProps) {
 
       await Promise.all([
         updateDoc(doc(db, 'users', user.uid), { 
-          balance: newBalance, 
-          xp: (user.xp || 0) + bet / 10,
+          balance: increment(winAmount),
+          xp: increment(bet / 10),
           kenoWinStreakOneNum: newOneNumStreak
         }),
         addDoc(collection(db, 'gameSessions'), { userId: user.uid, gameType: 'keno', bet, multiplier: mult, payout: winAmount, timestamp: new Date().toISOString() }),
@@ -263,7 +269,7 @@ export default function Keno({ user }: KenoProps) {
   const currentMatchesCount = selected.filter(n => drawn.includes(n)).length;
 
   return (
-    <div className="max-w-6xl mx-auto space-y-4 sm:space-y-8 pb-12 relative min-h-[calc(100vh-120px)] flex flex-col">
+    <div className="max-w-6xl mx-auto space-y-4 sm:space-y-8 pb-0 sm:pb-12 relative min-h-[calc(100vh-120px)] flex flex-col">
       <AnimatePresence>
         {unlockedAch && (
           <motion.div
@@ -283,10 +289,9 @@ export default function Keno({ user }: KenoProps) {
         )}
       </AnimatePresence>
 
-      {/* HEADER */}
-      <header className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 lg:gap-6 shrink-0">
+      <header className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 lg:gap-6 shrink-0 pt-4 sm:pt-0 px-4 sm:px-0">
         <div className="flex items-center gap-4 lg:gap-6">
-          <div className="w-12 h-12 lg:w-16 lg:h-16 bg-brand-500 rounded-[1.2rem] lg:rounded-3xl flex items-center justify-center shadow-lg shadow-brand-200">
+          <div className="w-12 h-12 lg:w-16 lg:h-16 bg-brand-500 rounded-[1.2rem] lg:rounded-3xl flex items-center justify-center shadow-lg shadow-brand-200 shrink-0">
             <Layers className="w-6 h-6 lg:w-8 lg:h-8 text-white" />
           </div>
           <div>
@@ -302,9 +307,8 @@ export default function Keno({ user }: KenoProps) {
 
       <div className="flex flex-col lg:grid lg:grid-cols-12 gap-4 lg:gap-8 flex-1">
         
-        <div className="order-1 lg:order-2 lg:col-span-8 bg-white rounded-[2rem] sm:rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/50 p-4 sm:p-6 lg:p-10 flex flex-col items-center justify-between relative overflow-hidden min-h-[350px] sm:min-h-[450px]">
+        <div className="order-1 lg:order-2 lg:col-span-8 bg-white sm:rounded-[3rem] sm:border border-slate-100 sm:shadow-xl sm:shadow-slate-200/50 p-4 sm:p-6 lg:p-10 flex flex-col items-center justify-between relative overflow-hidden min-h-[350px] sm:min-h-[450px]">
           
-          {/* МОДАЛКА ВЫПЛАТЫ */}
           <AnimatePresence>
             {showResultModal && gameState === 'finished' && (
               <motion.div
@@ -402,7 +406,6 @@ export default function Keno({ user }: KenoProps) {
             })}
           </div>
 
-          {/* ЛЕНТА МНОЖИТЕЛЕЙ */}
           {selected.length > 0 && (
             <div className="w-full mt-4 pt-3 border-t border-slate-100 relative z-20">
               <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto justify-start sm:justify-center pb-2 px-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -446,16 +449,17 @@ export default function Keno({ user }: KenoProps) {
 
         </div>
 
-        <div className="order-2 lg:order-1 lg:col-span-4 bg-white rounded-[2rem] sm:rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/50 p-4 sm:p-6 lg:p-8 flex flex-col gap-4 lg:gap-6 justify-between">
+        {/* ПАНЕЛЬ СТАВОК (ЛИПКАЯ СНИЗУ НА МОБИЛКАХ) */}
+        <div className="order-2 lg:order-1 lg:col-span-4 bg-white sm:bg-white/100 rounded-t-[2rem] sm:rounded-[3rem] border-t sm:border border-slate-200 sm:border-slate-100 shadow-[0_-15px_40px_-15px_rgba(0,0,0,0.15)] sm:shadow-xl sm:shadow-slate-200/50 p-4 sm:p-6 lg:p-8 flex flex-col gap-4 sm:gap-6 justify-between sticky bottom-0 z-50 max-h-[60vh] sm:max-h-none overflow-y-auto sm:overflow-visible transition-all [scrollbar-width:none]">
           
           <div className="space-y-4 lg:space-y-6">
             
-            <div className="flex flex-col gap-1.5 lg:gap-2">
+            <div className="flex flex-col gap-2">
               <div className="flex justify-between items-center px-1">
                 <label className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
                   <Coins className="w-3 h-3" /> Ставка
                 </label>
-                <span className="text-[10px] font-black text-brand-500 uppercase bg-brand-50 px-2 py-0.5 rounded-md">
+                <span className="text-[10px] font-black text-brand-500 uppercase bg-brand-50 px-2 py-0.5 rounded-md hidden sm:block">
                   Баланс: {formatBalance(user.balance)}
                 </span>
               </div>
@@ -463,10 +467,21 @@ export default function Keno({ user }: KenoProps) {
               <div className="flex gap-2 lg:gap-3 items-stretch">
                 <div className="flex-1 bg-slate-50 border-2 border-slate-100 rounded-[1.2rem] sm:rounded-[1.5rem] p-1.5 sm:p-2 flex items-center focus-within:border-brand-300 transition-colors">
                   <input
-                    type="number"
-                    value={bet}
+                    type="text"
+                    inputMode="decimal"
+                    value={betInput}
                     disabled={gameState === 'drawing'}
-                    onChange={(e) => setBet(Number(e.target.value))}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(',', '.');
+                      if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                        setBetInput(val);
+                      }
+                    }}
+                    onBlur={() => {
+                      const val = parseFloat(betInput.replace(',', '.'));
+                      if (isNaN(val) || val <= 0) setBetInput('1');
+                      else setBetInput(val.toString());
+                    }}
                     className="w-full bg-transparent font-black text-slate-900 text-lg sm:text-xl outline-none disabled:opacity-50 px-2 sm:px-3 min-w-0"
                   />
                   <div className="flex items-center gap-1.5 shrink-0 px-1">
@@ -566,7 +581,7 @@ export default function Keno({ user }: KenoProps) {
             <button
               onClick={handlePlay}
               disabled={loading || bet > user.balance || bet <= 0 || selected.length === 0 || gameState === 'drawing'}
-              className="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-black rounded-[1.2rem] sm:rounded-[1.5rem] transition-all shadow-xl shadow-brand-200 uppercase tracking-widest text-sm sm:text-base flex items-center justify-center gap-2 py-4 sm:py-5 active:scale-[0.98]"
+              className="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-black rounded-[1.2rem] sm:rounded-[1.5rem] transition-all shadow-xl shadow-brand-200 uppercase tracking-widest text-sm sm:text-base flex items-center justify-center gap-2 py-3.5 sm:py-5 active:scale-[0.98]"
             >
               {gameState === 'drawing' ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -574,12 +589,6 @@ export default function Keno({ user }: KenoProps) {
                 <>{gameState === 'finished' ? 'Играть снова' : 'Играть'} <Play className="w-4 h-4 sm:w-5 sm:h-5 fill-current" /></>
               )}
             </button>
-
-            <div className="flex lg:hidden justify-center mt-1">
-              <div className="flex items-center gap-2 bg-brand-50 px-4 py-2 rounded-xl border border-brand-100 text-[10px] font-black uppercase text-brand-600 tracking-widest w-fit">
-                <ShieldCheck className="w-4 h-4" /> <span>Provably Fair</span>
-              </div>
-            </div>
           </div>
 
         </div>
