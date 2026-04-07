@@ -73,6 +73,17 @@ export default function Mines({ user }: MinesProps) {
     }
   };
 
+  // ФУНКЦИИ ДЛЯ КНОПОК СТАВКИ
+  const handleHalfBet = () => {
+    if (gameState === 'playing') return;
+    setBet(prev => Math.max(1, Number((prev / 2).toFixed(2))));
+  };
+
+  const handleDoubleBet = () => {
+    if (gameState === 'playing') return;
+    setBet(prev => Number((prev * 2).toFixed(2)));
+  };
+
   const startGame = () => {
     if (bet > user.balance || bet <= 0) return;
     const newGrid = Array(25).fill(false);
@@ -372,15 +383,35 @@ export default function Mines({ user }: MinesProps) {
                   Баланс: {user.balance.toFixed(2)}
                 </span>
               </div>
-              <div className="bg-slate-50 border-2 border-slate-100 rounded-[1.2rem] sm:rounded-[1.5rem] p-4 flex items-center focus-within:border-brand-300 transition-colors">
-                <Coins className="w-5 h-5 sm:w-6 sm:h-6 text-slate-400 mr-2 shrink-0" />
-                <input
-                  type="number"
-                  value={bet}
-                  disabled={gameState === 'playing'}
-                  onChange={(e) => setBet(Number(e.target.value))}
-                  className="w-full bg-transparent font-black text-slate-900 text-xl sm:text-2xl outline-none disabled:opacity-50"
-                />
+              
+              {/* ОБНОВЛЕННЫЙ БЛОК СТАВКИ С КНОПКАМИ */}
+              <div className="flex gap-2 lg:gap-3 items-stretch">
+                <div className="flex-1 bg-slate-50 border-2 border-slate-100 rounded-[1.2rem] sm:rounded-[1.5rem] p-1.5 sm:p-2 flex items-center focus-within:border-brand-300 transition-colors">
+                  <Coins className="w-5 h-5 sm:w-6 sm:h-6 text-slate-400 mx-2 shrink-0 hidden sm:block" />
+                  <input
+                    type="number"
+                    value={bet}
+                    disabled={gameState === 'playing'}
+                    onChange={(e) => setBet(Number(e.target.value))}
+                    className="w-full bg-transparent font-black text-slate-900 text-lg sm:text-xl outline-none disabled:opacity-50 px-2 sm:px-1 min-w-0"
+                  />
+                  <div className="flex items-center gap-1.5 shrink-0 px-1">
+                    <button
+                      onClick={handleHalfBet}
+                      disabled={gameState === 'playing'}
+                      className="w-10 h-10 sm:w-11 sm:h-11 bg-white rounded-xl border border-slate-200 text-slate-500 font-black text-xs sm:text-sm hover:bg-slate-100 hover:text-slate-700 active:scale-95 transition-all flex items-center justify-center shadow-sm disabled:opacity-50"
+                    >
+                      /2
+                    </button>
+                    <button
+                      onClick={handleDoubleBet}
+                      disabled={gameState === 'playing'}
+                      className="w-10 h-10 sm:w-11 sm:h-11 bg-white rounded-xl border border-slate-200 text-slate-500 font-black text-xs sm:text-sm hover:bg-slate-100 hover:text-slate-700 active:scale-95 transition-all flex items-center justify-center shadow-sm disabled:opacity-50"
+                    >
+                      X2
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -452,19 +483,35 @@ export default function Mines({ user }: MinesProps) {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  className="flex flex-col gap-2 sm:gap-3"
+                  className="flex flex-col gap-3 sm:gap-4"
                 >
-                  {/* ПЛАШКИ РЕЗУЛЬТАТА (Над кнопкой) */}
+                  {/* ОБНОВЛЕННЫЕ ПЛАШКИ РЕЗУЛЬТАТА */}
                   {gameState === 'won' && (
-                    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-row sm:flex-col items-center justify-between sm:justify-center py-2 px-4 sm:p-4 bg-emerald-50 border-2 border-emerald-500 rounded-xl sm:rounded-2xl shadow-sm text-center">
-                      <p className="text-[10px] sm:text-xs uppercase font-black tracking-widest text-emerald-600 sm:mb-1">Победа!</p>
-                      <p className="text-base sm:text-2xl font-black text-slate-800 leading-none">+{(bet * multiplier).toFixed(2)} CAT</p>
+                    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-row items-center justify-between py-3 px-4 sm:px-6 bg-emerald-50/80 border-2 border-emerald-400 rounded-xl sm:rounded-2xl shadow-[0_4px_20px_-5px_rgba(16,185,129,0.3)]">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-emerald-500 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-inner shrink-0">
+                          <Gem className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                        </div>
+                        <div className="text-left">
+                          <p className="text-[10px] sm:text-[11px] uppercase font-black tracking-widest text-emerald-600/80 mb-0.5">Победа!</p>
+                          <p className="text-xs sm:text-sm font-bold text-emerald-700">Множитель: x{multiplier.toFixed(2)}</p>
+                        </div>
+                      </div>
+                      <p className="text-xl sm:text-2xl font-black text-emerald-500 drop-shadow-sm ml-2">+{(bet * multiplier).toFixed(2)}</p>
                     </motion.div>
                   )}
                   {gameState === 'lost' && (
-                    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-row sm:flex-col items-center justify-between sm:justify-center py-2 px-4 sm:p-4 bg-rose-50 border-2 border-rose-500 rounded-xl sm:rounded-2xl shadow-sm text-center">
-                      <p className="text-[10px] sm:text-xs uppercase font-black tracking-widest text-rose-600 sm:mb-1">Бум!</p>
-                      <p className="text-base sm:text-2xl font-black text-slate-800 leading-none">Проигрыш</p>
+                    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-row items-center justify-between py-3 px-4 sm:px-6 bg-rose-50/80 border-2 border-rose-400 rounded-xl sm:rounded-2xl shadow-[0_4px_20px_-5px_rgba(244,63,94,0.3)]">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-rose-500 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-inner shrink-0">
+                          <Bomb className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                        </div>
+                        <div className="text-left">
+                          <p className="text-[10px] sm:text-[11px] uppercase font-black tracking-widest text-rose-600/80 mb-0.5">Бум!</p>
+                          <p className="text-xs sm:text-sm font-bold text-rose-700">Множитель: x0.00</p>
+                        </div>
+                      </div>
+                      <p className="text-xl sm:text-2xl font-black text-rose-500 drop-shadow-sm ml-2">0.00</p>
                     </motion.div>
                   )}
 

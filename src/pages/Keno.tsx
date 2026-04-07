@@ -161,11 +161,9 @@ export default function Keno({ user }: KenoProps) {
     }
 
     if (fastMode) {
-      // Режим Турбо (почти моментально)
       setDrawn(newDrawn);
-      await new Promise(r => setTimeout(r, 150)); // Минимальная задержка, чтобы успело отрисоваться
+      await new Promise(r => setTimeout(r, 150)); 
     } else {
-      // Обычный режим (с анимацией)
       for (let i = 1; i <= 10; i++) {
         await new Promise(r => setTimeout(r, 150));
         setDrawn(newDrawn.slice(0, i));
@@ -306,7 +304,7 @@ export default function Keno({ user }: KenoProps) {
         
         <div className="order-1 lg:order-2 lg:col-span-8 bg-white rounded-[2rem] sm:rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/50 p-4 sm:p-6 lg:p-10 flex flex-col items-center justify-between relative overflow-hidden min-h-[350px] sm:min-h-[450px]">
           
-          {/* МОДАЛКА ВЫПЛАТЫ (Без анимации в турбо-режиме) */}
+          {/* МОДАЛКА ВЫПЛАТЫ */}
           <AnimatePresence>
             {showResultModal && gameState === 'finished' && (
               <motion.div
@@ -404,7 +402,7 @@ export default function Keno({ user }: KenoProps) {
             })}
           </div>
 
-          {/* ЛЕНТА МНОЖИТЕЛЕЙ (Отключение анимации в турбо-режиме) */}
+          {/* ЛЕНТА МНОЖИТЕЛЕЙ */}
           {selected.length > 0 && (
             <div className="w-full mt-4 pt-3 border-t border-slate-100 relative z-20">
               <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto justify-start sm:justify-center pb-2 px-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -527,16 +525,16 @@ export default function Keno({ user }: KenoProps) {
                 <button
                   onClick={autoPick}
                   disabled={gameState === 'drawing'}
-                  className="flex-1 bg-brand-50 hover:bg-brand-100 text-brand-600 rounded-xl text-[10px] sm:text-xs font-black transition-all border border-brand-100 flex items-center justify-center gap-1.5 active:scale-[0.98] disabled:opacity-50"
+                  className="flex-1 py-2 sm:py-0 bg-brand-50 hover:bg-brand-100 text-brand-600 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wide transition-all border border-brand-100 flex items-center justify-center gap-1.5 active:scale-[0.98] disabled:opacity-50"
                 >
-                  <Zap className="w-3 h-3 sm:w-4 sm:h-4" /> Авто
+                  <Zap className="w-4 h-4" /> Авто
                 </button>
                 <button
                   onClick={clearSelection}
                   disabled={gameState === 'drawing'}
-                  className="flex-1 bg-rose-50 hover:bg-rose-100 text-rose-500 rounded-xl text-[10px] sm:text-xs font-black transition-all border border-rose-100 flex items-center justify-center gap-1.5 active:scale-[0.98] disabled:opacity-50"
+                  className="flex-1 py-2 sm:py-0 bg-rose-50 hover:bg-rose-100 text-rose-500 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wide transition-all border border-rose-100 flex items-center justify-center gap-1.5 active:scale-[0.98] disabled:opacity-50"
                 >
-                  <RotateCcw className="w-3 h-3 sm:w-4 sm:h-4" /> Сброс
+                  <RotateCcw className="w-4 h-4" /> Сброс
                 </button>
               </div>
             </div>
