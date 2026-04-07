@@ -20,7 +20,7 @@ export default function Home({ user }: HomeProps) {
   const isMobile = useIsMobile();
   const trophyCfg = isMobile ? TROPHY_CONFIG.mobile : TROPHY_CONFIG.pc;
 
-  // Массив игр: удален лишний параметр desc
+  // Массив игр: обновили ссылку, название и id для WheelX
   const games = [
     { 
       id: 'dice', 
@@ -53,10 +53,10 @@ export default function Home({ user }: HomeProps) {
       }
     },
     { 
-      id: 'jackpot', 
-      name: 'Jackpot', 
+      id: 'wheelx',          // Изменили id с jackpot на wheelx
+      name: 'WheelX',        // Изменили отображаемое имя
       image: '/assets/jackpot_cat_original.webp', 
-      path: '/jackpot',
+      path: '/wheelx',       // 👈 ИСПРАВЛЕНА ССЫЛКА НА НОВЫЙ РОУТ
       config: { 
         pc: { x: 0, y: -15, scale: 1.3 },
         mobile: { x: 0, y: -10, scale: 1.35 }
@@ -156,7 +156,6 @@ export default function Home({ user }: HomeProps) {
                   </div>
                 </div>
 
-                {/* Удалили тег <p>, отображавший desc, так как он больше не нужен */}
                 <h3 className="text-xl lg:text-3xl font-black text-slate-900 mb-6 lg:mb-8 tracking-tight leading-none mt-2">{game.name}</h3>
                 
                 <div className="mt-auto w-full py-3 lg:py-5 bg-slate-50 rounded-xl lg:rounded-2xl text-slate-600 font-black text-[10px] lg:text-xs uppercase tracking-[0.2em] group-hover:bg-brand-600 group-hover:text-white transition-all flex items-center justify-center gap-1 lg:gap-2">

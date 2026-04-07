@@ -1,3 +1,4 @@
+// src/App.tsx
 import { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
@@ -11,7 +12,7 @@ import Home from './pages/Home';
 import Dice from './pages/Dice';
 import Mines from './pages/Mines';
 import Keno from './pages/Keno';
-import Jackpot from './pages/Jackpot';
+import WheelX from './pages/WheelX'; // <-- Изменен импорт
 import FAQ from './pages/FAQ';
 import Bonuses from './pages/Bonuses';
 import Level from './pages/Level';
@@ -241,7 +242,7 @@ export default function App() {
           <Route path="/dice" element={<Dice user={user} />} />
           <Route path="/mines" element={<Mines user={user} />} />
           <Route path="/keno" element={<Keno user={user} />} />
-          <Route path="/jackpot" element={<Jackpot user={user} />} />
+          <Route path="/wheelx" element={<WheelX user={user} />} /> {/* <-- Изменен путь */}
           <Route path="/faq" element={<FAQ />} />
           <Route path="/bonuses" element={<Bonuses user={user} />} />
           <Route path="/level" element={<Level user={user} />} />

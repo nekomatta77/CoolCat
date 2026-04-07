@@ -1,3 +1,4 @@
+// src/types.ts
 export interface UserProfile {
   uid: string;
   email?: string;
@@ -23,7 +24,7 @@ export interface UserProfile {
   totalWithdrawals: number;
   wagerRequirement: number;
   lastDailyBonus?: string;
-  unlockedAvatars?: string[]; // <-- Добавлено поле для хранения разблокированных аватарок
+  unlockedAvatars?: string[];
 }
 
 export interface PromoCode {
@@ -39,7 +40,7 @@ export interface PromoCode {
 export interface GameSession {
   id: string;
   userId: string;
-  gameType: 'dice' | 'mines' | 'keno' | 'jackpot';
+  gameType: 'dice' | 'mines' | 'keno' | 'wheelx'; // <-- изменено jackpot на wheelx
   bet: number;
   multiplier: number;
   payout: number;
@@ -50,7 +51,7 @@ export interface Achievement {
   id: string;
   userId: string;
   type: string;
-  category: 'dice' | 'mines' | 'keno' | 'jackpot' | 'general';
+  category: 'dice' | 'mines' | 'keno' | 'wheelx' | 'general'; // <-- изменено jackpot на wheelx
   progress: number;
   completed: boolean;
   rewarded: boolean;
