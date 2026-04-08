@@ -29,7 +29,7 @@ export default function Home({ user }: HomeProps) {
       path: '/dice',
       config: { 
         pc: { x: 0, y: 0, scale: 2 },
-        mobile: { x: 0, y: 0, scale: 2.4 }
+        mobile: { x: 0, y: 18, scale: 2.6 }
       }
     },
     { 
@@ -39,7 +39,7 @@ export default function Home({ user }: HomeProps) {
       path: '/mines',
       config: { 
         pc: { x: 0, y: 0, scale: 2 },
-        mobile: { x: 0, y: -5, scale: 2.4 }
+        mobile: { x: -7, y: 10, scale: 2.7 }
       }
     },
     { 
@@ -49,17 +49,17 @@ export default function Home({ user }: HomeProps) {
       path: '/keno',
       config: { 
         pc: { x: 0, y: 0, scale: 2.2 },
-        mobile: { x: 0, y: 0, scale: 2.4 }
+        mobile: { x: 0, y: 16, scale: 2.6 }
       }
     },
     { 
       id: 'wheelx',          // Изменили id с jackpot на wheelx
       name: 'WheelX',        // Изменили отображаемое имя
-      image: '/assets/jackpot_cat_original.webp', 
+      image: '/assets/wheel_cat_original.webp', // 👈 ИЗМЕНЕНО ИЗОБРАЖЕНИЕ: обновлен путь
       path: '/wheelx',       // 👈 ИСПРАВЛЕНА ССЫЛКА НА НОВЫЙ РОУТ
       config: { 
-        pc: { x: 0, y: -15, scale: 1.3 },
-        mobile: { x: 0, y: -10, scale: 1.35 }
+        pc: { x: 0, y: 5, scale: 1.4 },
+        mobile: { x: 0, y: 10, scale: 1.6 }
       }
     },
   ];
