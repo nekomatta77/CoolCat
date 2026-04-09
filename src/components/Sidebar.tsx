@@ -60,7 +60,7 @@ export default function Sidebar({ user, onClose }: SidebarProps) {
     { icon: Home, label: 'Главная', path: '/' },
     { icon: HelpCircle, label: 'FAQ', path: '/faq' },
     { icon: Gift, label: 'Бонусы', path: '/bonuses' },
-    { icon: TrendingUp, label: 'Lvl Котика', path: '/level' },
+    { icon: TrendingUp, label: 'LvL Котика', path: '/level' }, // Переименовано здесь
     { icon: Trophy, label: 'Достижения', path: '/achievements' },
     { icon: Settings, label: 'Настройки', path: '/profile' },
     { icon: Phone, label: 'Контакты', path: '/contacts' },

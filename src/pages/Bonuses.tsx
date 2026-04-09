@@ -2,14 +2,34 @@ import { useState } from 'react';
 import { UserProfile, PromoCode } from '../types';
 import { doc, updateDoc, getDocs, query, collection, where, limit } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Gift, Zap, Coins, MessageCircle, Send, CheckCircle2, Sparkles, AlertCircle, ArrowRight, TrendingUp, X } from 'lucide-react';
+import { Gift, Zap, Coins, MessageCircle, Send, CheckCircle2, Sparkles, AlertCircle, ArrowRight, TrendingUp, X, HelpCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { Turnstile } from '@marsidev/react-turnstile'; // Компонент капчи
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
+
+// Данные рангов для расчета % кешбека и рейкбека
+const RANKS = [
+  { id: 1, points: 0, minDeposit: 100, cashback: 1, rakeback: 0.05 },
+  { id: 2, points: 100, minDeposit: 1000, cashback: 2, rakeback: 0.06 },
+  { id: 3, points: 500, minDeposit: 2500, cashback: 3, rakeback: 0.07 },
+  { id: 4, points: 1500, minDeposit: 5000, cashback: 4, rakeback: 0.08 },
+  { id: 5, points: 3000, minDeposit: 10000, cashback: 5, rakeback: 0.09 },
+  { id: 6, points: 5000, minDeposit: 25000, cashback: 6, rakeback: 0.10 },
+  { id: 7, points: 10000, minDeposit: 50000, cashback: 7, rakeback: 0.10 },
+  { id: 8, points: 25000, minDeposit: 100000, cashback: 8, rakeback: 0.11 },
+  { id: 9, points: 50000, minDeposit: 250000, cashback: 9, rakeback: 0.11 },
+  { id: 10, points: 100000, minDeposit: 500000, cashback: 10, rakeback: 0.11 },
+  { id: 11, points: 250000, minDeposit: 1000000, cashback: 11, rakeback: 0.12 },
+  { id: 12, points: 500000, minDeposit: 2500000, cashback: 12, rakeback: 0.12 },
+  { id: 13, points: 1000000, minDeposit: 5000000, cashback: 13, rakeback: 0.13 },
+  { id: 14, points: 2500000, minDeposit: 10000000, cashback: 14, rakeback: 0.13 },
+  { id: 15, points: 5000000, minDeposit: 25000000, cashback: 15, rakeback: 0.14 },
+];
 
 // Оригинальная иконка VK (адаптированная под стиль Lucide)
 function VkIcon(props: React.SVGProps<SVGSVGElement>) {
@@ -30,40 +50,38 @@ interface BonusesProps {
 }
 
 const giftConfig = {
-  mobile: {
-    size: '140px',
-    x: '0px',
-    y: '-10px',
-    scale: 1,
-  },
-  desktop: {
-    size: '180px',
-    x: '0px',
-    y: '-20px',
-    scale: 1.1,
-  }
+  mobile: { size: '140px', x: '0px', y: '-10px', scale: 1 },
+  desktop: { size: '180px', x: '0px', y: '-20px', scale: 1.1 }
 };
 
 export default function Bonuses({ user }: BonusesProps) {
   const [promoCode, setPromoCode] = useState('');
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [dailyMessage, setDailyMessage] = useState<string | null>(null); // Уведомление внутри карточки
   
   const [showModal, setShowModal] = useState(false);
   const [claimedAmount, setClaimedAmount] = useState(0);
 
+  // Вычисляем текущие проценты Кешбэка и Рейкбека
+  const userExp = user?.xp || 0;
+  const userDeposits = (user as any)?.totalDeposits || 0;
+  let unlockedRank = RANKS[0];
+  for (let i = RANKS.length - 1; i >= 0; i--) {
+    if (userExp >= RANKS[i].points && userDeposits >= RANKS[i].minDeposit) {
+      unlockedRank = RANKS[i];
+      break;
+    }
+  }
+
   const getRandomBonus = () => {
     const rand = Math.random() * 100;
-
-    if (rand < 85) {
-      return Math.floor(Math.random() * (10 - 1 + 1)) + 1;
-    } else if (rand < 98) {
-      return Math.floor(Math.random() * (15 - 11 + 1)) + 11;
-    } else if (rand < 99.5) {
-      return Math.floor(Math.random() * (50 - 16 + 1)) + 16;
-    } else {
-      return Math.floor(Math.random() * (100 - 51 + 1)) + 51;
-    }
+    if (rand < 85) return Math.floor(Math.random() * (10 - 1 + 1)) + 1;
+    else if (rand < 98) return Math.floor(Math.random() * (15 - 11 + 1)) + 11;
+    else if (rand < 99.5) return Math.floor(Math.random() * (50 - 16 + 1)) + 16;
+    else return Math.floor(Math.random() * (100 - 51 + 1)) + 51;
   };
 
   const handleClaimDaily = async () => {
@@ -71,12 +89,13 @@ export default function Bonuses({ user }: BonusesProps) {
     const lastClaimed = user.lastDailyBonus ? new Date(user.lastDailyBonus) : null;
     
     if (lastClaimed && now.getTime() - lastClaimed.getTime() < 24 * 60 * 60 * 1000) {
-      setMessage({ text: 'Вы уже получили бонус сегодня!', type: 'error' });
+      setDailyMessage('Вы уже получили бонус сегодня!');
+      setTimeout(() => setDailyMessage(null), 3000); // Скроется само через 3 секунды
       return;
     }
 
     setLoading(true);
-    setMessage(null); 
+    setDailyMessage(null); 
     
     const bonusAmount = getRandomBonus(); 
     
@@ -91,7 +110,7 @@ export default function Bonuses({ user }: BonusesProps) {
       
     } catch (error) {
       console.error('Daily bonus error:', error);
-      setMessage({ text: 'Произошла ошибка при получении бонуса', type: 'error' });
+      setDailyMessage('Произошла ошибка при получении бонуса');
     } finally {
       setLoading(false);
     }
@@ -99,6 +118,12 @@ export default function Bonuses({ user }: BonusesProps) {
 
   const handleActivatePromo = async () => {
     if (!promoCode) return;
+    
+    if (!captchaToken) {
+      setMessage({ text: 'Пожалуйста, пройдите проверку на робота', type: 'error' });
+      return;
+    }
+
     setLoading(true);
     setMessage(null);
 
@@ -132,8 +157,8 @@ export default function Bonuses({ user }: BonusesProps) {
 
   const bonusCards = [
     { title: 'Ежедневный бонус', desc: 'Заходите каждый день и получайте бесплатные монеты!', icon: Gift, action: handleClaimDaily, color: 'bg-brand-500' },
-    { title: 'Кешбек', desc: 'Возвращаем часть проигранных средств каждую неделю.', icon: Zap, action: () => {}, color: 'bg-brand-400' },
-    { title: 'Рейкбек', desc: 'Получайте процент от каждой вашей ставки.', icon: TrendingUp, action: () => {}, color: 'bg-brand-300' },
+    { title: 'Кешбэк', desc: 'Возвращаем часть проигранных средств каждую неделю.', icon: Zap, action: () => {}, color: 'bg-brand-400', tooltip: `Ваш текущий кешбэк: ${unlockedRank.cashback}%` },
+    { title: 'Рейкбек', desc: 'Получайте процент от каждой вашей ставки.', icon: TrendingUp, action: () => {}, color: 'bg-brand-300', tooltip: `Ваш текущий рейкбек: ${unlockedRank.rakeback}%` },
     { title: 'ВКонтакте', desc: 'Подпишитесь на нашу группу и получите 100 CAT.', icon: VkIcon, action: () => {}, color: 'bg-[#2787f5]' },
     { title: 'Telegram', desc: 'Подпишитесь на наш канал и получите 100 CAT.', icon: Send, action: () => {}, color: 'bg-sky-500' },
   ];
@@ -152,7 +177,7 @@ export default function Bonuses({ user }: BonusesProps) {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div className="lg:col-span-4 space-y-8">
-          <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 space-y-8 sticky top-24">
+          <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 space-y-6 sticky top-24">
             <div className="space-y-4">
               <h3 className="text-xl font-black text-slate-900 flex items-center gap-3">
                 <MessageCircle className="w-6 h-6 text-brand-600" /> Промокод
@@ -168,6 +193,18 @@ export default function Bonuses({ user }: BonusesProps) {
                   />
                   <Sparkles className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-brand-200" />
                 </div>
+                
+                {/* Капча Cloudflare Turnstile */}
+                <div className="flex justify-center w-full overflow-hidden rounded-xl">
+                  <Turnstile 
+                    siteKey="1x00000000000000000000AA" // Тестовый ключ (пропускает всех). Замените на реальный ключ Cloudflare
+                    onSuccess={(token) => setCaptchaToken(token)}
+                    onError={() => setCaptchaToken(null)}
+                    onExpire={() => setCaptchaToken(null)}
+                    options={{ theme: 'light' }}
+                  />
+                </div>
+
                 <button
                   onClick={handleActivatePromo}
                   disabled={loading || !promoCode}
@@ -212,9 +249,9 @@ export default function Bonuses({ user }: BonusesProps) {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: i * 0.1 }}
-              className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 flex flex-col justify-between group hover:border-brand-200 transition-all"
+              className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 flex flex-col justify-between group hover:border-brand-200 transition-all relative overflow-visible"
             >
-              <div className="space-y-6">
+              <div className="space-y-6 flex-1">
                 <div className={cn(
                   "w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg transition-transform group-hover:scale-110 group-hover:rotate-3",
                   card.color,
@@ -222,15 +259,48 @@ export default function Bonuses({ user }: BonusesProps) {
                 )}>
                   <card.icon className="w-8 h-8 text-white" />
                 </div>
-                <div className="space-y-2">
-                  <h3 className="text-2xl font-black text-slate-900 group-hover:text-brand-600 transition-colors">{card.title}</h3>
+                <div className="space-y-2 relative">
+                  
+                  <h3 className="text-2xl font-black text-slate-900 group-hover:text-brand-600 transition-colors flex items-center gap-2">
+                    {card.title}
+                    {card.tooltip && (
+                      <div className="relative group/tooltip flex items-center">
+                        <HelpCircle className="w-5 h-5 text-slate-300 hover:text-brand-500 cursor-help transition-colors" />
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max bg-slate-800 text-white text-xs font-bold py-1.5 px-3 rounded-lg opacity-0 group-hover/tooltip:opacity-100 transition-opacity pointer-events-none z-20">
+                          {card.tooltip}
+                          <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-800"></div>
+                        </div>
+                      </div>
+                    )}
+                  </h3>
+
                   <p className="text-slate-400 text-sm font-bold leading-relaxed">{card.desc}</p>
                 </div>
+
+                {/* Выпадающее уведомление для ежедневного бонуса */}
+                {card.title === 'Ежедневный бонус' && (
+                  <AnimatePresence>
+                    {dailyMessage && (
+                      <motion.div 
+                        initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                        animate={{ opacity: 1, height: 'auto', marginTop: '1rem' }}
+                        exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="bg-rose-50 border border-rose-100 text-rose-600 text-xs font-bold py-2.5 px-3 rounded-xl text-center shadow-sm flex items-center justify-center gap-2">
+                          <AlertCircle className="w-4 h-4" />
+                          {dailyMessage}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                )}
               </div>
+
               <button
                 onClick={card.action}
                 disabled={loading && card.title === 'Ежедневный бонус'}
-                className="mt-8 w-full py-4 bg-slate-50 rounded-2xl text-slate-600 font-black text-xs uppercase tracking-widest hover:bg-brand-600 hover:text-white transition-all border border-slate-100 flex items-center justify-center gap-2 group/btn disabled:opacity-50 disabled:cursor-not-allowed"
+                className="mt-6 w-full py-4 bg-slate-50 rounded-2xl text-slate-600 font-black text-xs uppercase tracking-widest hover:bg-brand-600 hover:text-white transition-all border border-slate-100 flex items-center justify-center gap-2 group/btn disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Получить <ArrowRight className="w-4 h-4 opacity-0 group-hover/btn:opacity-100 transition-all -translate-x-2 group-hover/btn:translate-x-0" />
               </button>
