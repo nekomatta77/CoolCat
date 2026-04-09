@@ -12,13 +12,22 @@ const HEADER_AVATAR_CONFIG = {
 };
 // ============================================================================
 
-// Функция для форматирования баланса (отсекаем тысячные и добавляем пробелы тысяч)
+// Функция для форматирования баланса (отсекаем лишние копейки, убираем .00 у целых)
 const formatBalance = (val: number) => {
-  const truncated = Math.floor(val * 100) / 100; // Отсекаем все, что дальше сотых (без округления вверх)
-  const fixed = truncated.toFixed(2);
-  const [intPart, decPart] = fixed.split('.');
-  const formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-  return `${formattedInt}.${decPart}`;
+  // 1. Округляем до сотых (отсекаем все, что дальше)
+  const truncated = Math.floor(val * 100) / 100; 
+  
+  // 2. Проверяем, является ли число круглым
+  const isInteger = truncated === Math.floor(truncated);
+  
+  // 3. Если круглое — переводим в строку без копеек, если нет — оставляем 2 знака
+  const fixed = isInteger ? truncated.toString() : truncated.toFixed(2);
+  const parts = fixed.split('.');
+  
+  // Добавляем пробелы между тысячами
+  const formattedInt = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  
+  return parts.length > 1 ? `${formattedInt}.${parts[1]}` : formattedInt;
 };
 
 interface HeaderProps {

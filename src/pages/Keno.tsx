@@ -68,11 +68,14 @@ interface MutableAchievement {
   rewarded: boolean;
 }
 
+// 🛠 НОВАЯ ФУНКЦИЯ ФОРМАТИРОВАНИЯ (Отсекает копейки > 2 знаков, убирает .00)
 const formatBalance = (val: number) => {
-  const fixed = val.toFixed(2);
-  const [intPart, decPart] = fixed.split('.');
-  const formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-  return `${formattedInt}.${decPart}`;
+  const truncated = Math.floor(val * 100) / 100; 
+  const isInteger = truncated === Math.floor(truncated);
+  const fixed = isInteger ? truncated.toString() : truncated.toFixed(2);
+  const parts = fixed.split('.');
+  const formattedInt = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  return parts.length > 1 ? `${formattedInt}.${parts[1]}` : formattedInt;
 };
 
 export default function Keno({ user }: KenoProps) {
@@ -307,7 +310,8 @@ export default function Keno({ user }: KenoProps) {
 
       <div className="flex flex-col lg:grid lg:grid-cols-12 gap-4 lg:gap-8 flex-1">
         
-        <div className="order-1 lg:order-2 lg:col-span-8 bg-white sm:rounded-[3rem] sm:border border-slate-100 sm:shadow-xl sm:shadow-slate-200/50 p-4 sm:p-6 lg:p-10 flex flex-col items-center justify-between relative overflow-hidden min-h-[350px] sm:min-h-[450px]">
+        {/* ИЗМЕНЕНО: убрал min-h, убрал justify-between */}
+        <div className="order-1 lg:order-2 lg:col-span-8 bg-white sm:rounded-[3rem] sm:border border-slate-100 sm:shadow-xl sm:shadow-slate-200/50 p-4 sm:p-6 lg:p-10 flex flex-col items-center relative overflow-hidden h-fit">
           
           <AnimatePresence>
             {showResultModal && gameState === 'finished' && (
@@ -367,6 +371,49 @@ export default function Keno({ user }: KenoProps) {
             )}
           </AnimatePresence>
 
+          {/* ИЗМЕНЕНО: Лента лапок перенесена НАВЕРХ */}
+          <div className="w-full min-h-[70px] sm:min-h-[80px] mb-4 sm:mb-6 border-b border-slate-100 pb-2 sm:pb-3 flex flex-col justify-end relative z-20">
+            {selected.length > 0 && (
+              <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto justify-start sm:justify-center px-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {MULTIPLIERS[difficulty][selected.length as keyof typeof MULTIPLIERS['medium']].slice(1).map((mult, idx) => {
+                  const matchTarget = idx + 1; 
+                  const isCompleted = (gameState === 'drawing' || gameState === 'finished') && matchTarget <= currentMatchesCount;
+                  const isCurrent = (gameState === 'drawing' || gameState === 'finished') && matchTarget === currentMatchesCount;
+                  
+                  return (
+                    <div key={matchTarget} className="flex flex-col items-center justify-end min-w-[36px] sm:min-w-[44px]">
+                      <div className="flex items-center justify-center h-[36px] mb-1">
+                        <img 
+                          src={isCompleted ? "/assets/keno/keno_paw.webp" : "/assets/keno/grey_paw_keno.webp"} 
+                          alt="multiplier paw" 
+                          className={cn("drop-shadow-sm", fastMode ? "" : "transition-all duration-300")}
+                          style={{
+                            width: `${PAW_RIBBON_CONFIG.width}px`,
+                            height: `${PAW_RIBBON_CONFIG.height}px`,
+                            transform: `translate(${PAW_RIBBON_CONFIG.offsetX}px, ${PAW_RIBBON_CONFIG.offsetY}px) scale(${isCurrent ? PAW_RIBBON_CONFIG.activeScale : PAW_RIBBON_CONFIG.scale})`,
+                            opacity: isCompleted ? 0.9 : 0.5
+                          }}
+                        />
+                      </div>
+                      <span className={cn(
+                        "text-[9px] sm:text-[10px] font-black rounded-md px-1.5 py-0.5", 
+                        fastMode ? "" : "transition-all duration-300",
+                        isCompleted 
+                          ? (isCurrent 
+                              ? "bg-brand-500/30 text-brand-600 border border-brand-500/20 backdrop-blur-sm" 
+                              : "bg-brand-100/60 text-brand-600 backdrop-blur-sm") 
+                          : "text-slate-400 bg-slate-100/60 backdrop-blur-sm"
+                      )}>
+                        x{mult}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Игровое поле */}
           <div className="grid grid-cols-8 lg:grid-cols-10 gap-1.5 sm:gap-2 lg:gap-3 w-full relative z-10">
             {Array.from({ length: 40 }, (_, i) => i + 1).map((num) => {
               const isSelected = selected.includes(num);
@@ -405,47 +452,6 @@ export default function Keno({ user }: KenoProps) {
               );
             })}
           </div>
-
-          {selected.length > 0 && (
-            <div className="w-full mt-4 pt-3 border-t border-slate-100 relative z-20">
-              <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto justify-start sm:justify-center pb-2 px-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                {MULTIPLIERS[difficulty][selected.length as keyof typeof MULTIPLIERS['medium']].slice(1).map((mult, idx) => {
-                  const matchTarget = idx + 1; 
-                  const isCompleted = (gameState === 'drawing' || gameState === 'finished') && matchTarget <= currentMatchesCount;
-                  const isCurrent = (gameState === 'drawing' || gameState === 'finished') && matchTarget === currentMatchesCount;
-                  
-                  return (
-                    <div key={matchTarget} className="flex flex-col items-center justify-end min-w-[36px] sm:min-w-[44px]">
-                      <div className="flex items-center justify-center h-[36px] mb-1">
-                        <img 
-                          src={isCompleted ? "/assets/keno/keno_paw.webp" : "/assets/keno/grey_paw_keno.webp"} 
-                          alt="multiplier paw" 
-                          className={cn("drop-shadow-sm", fastMode ? "" : "transition-all duration-300")}
-                          style={{
-                            width: `${PAW_RIBBON_CONFIG.width}px`,
-                            height: `${PAW_RIBBON_CONFIG.height}px`,
-                            transform: `translate(${PAW_RIBBON_CONFIG.offsetX}px, ${PAW_RIBBON_CONFIG.offsetY}px) scale(${isCurrent ? PAW_RIBBON_CONFIG.activeScale : PAW_RIBBON_CONFIG.scale})`,
-                            opacity: isCompleted ? 0.9 : 0.5
-                          }}
-                        />
-                      </div>
-                      <span className={cn(
-                        "text-[9px] sm:text-[10px] font-black rounded-md px-1.5 py-0.5", 
-                        fastMode ? "" : "transition-all duration-300",
-                        isCompleted 
-                          ? (isCurrent 
-                              ? "bg-brand-500/30 text-brand-600 border border-brand-500/20 backdrop-blur-sm" 
-                              : "bg-brand-100/60 text-brand-600 backdrop-blur-sm") 
-                          : "text-slate-400 bg-slate-100/60 backdrop-blur-sm"
-                      )}>
-                        x{mult}
-                      </span>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
 
         </div>
 

@@ -20,17 +20,30 @@ interface MutableAchievement {
   rewarded: boolean;
 }
 
-// Генератор случайного хэша для визуализации Provably Fair
+// Генератор случайного хэша
 const generateMockHash = () => {
   return Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
 };
 
+// 🛠 Функция умного форматирования: отсекает длинные копейки и убирает .00 у круглых сумм
+const formatBalance = (val: number) => {
+  const truncated = Math.floor(val * 100) / 100; 
+  const isInteger = truncated === Math.floor(truncated);
+  const fixed = isInteger ? truncated.toString() : truncated.toFixed(2);
+  const parts = fixed.split('.');
+  const formattedInt = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  return parts.length > 1 ? `${formattedInt}.${parts[1]}` : formattedInt;
+};
+
 export default function Dice({ user }: DiceProps) {
-  // === ГЛОБАЛЬНАЯ МЕХАНИКА ВВОДА СТАВКИ ===
+  // === ГЛОБАЛЬНАЯ МЕХАНИКА ВВОДА ===
   const [betInput, setBetInput] = useState('10');
   const bet = parseFloat(betInput.replace(',', '.')) || 0;
 
-  const [chance, setChance] = useState(50);
+  const [chance, setChance] = useState<number | string>(50);
+  const parsedChance = parseFloat(String(chance).replace(',', '.')) || 50;
+  const activeChance = Math.min(95, Math.max(1, parsedChance));
+
   const [result, setResult] = useState<number | null>(null);
   const [win, setWin] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
@@ -38,18 +51,16 @@ export default function Dice({ user }: DiceProps) {
   const [diceMode, setDiceMode] = useState<'classic' | 'switch'>('classic');
   const [rollId, setRollId] = useState(0);
   
-  // Состояние для отображения текущего хэша игры
   const [gameHash, setGameHash] = useState(generateMockHash());
-
   const isRolling = useRef(false);
 
-  const multiplier = (100 / chance).toFixed(2);
-  const potentialWin = (bet * parseFloat(multiplier)).toFixed(2);
+  const multiplier = (100 / activeChance).toFixed(2);
+  const potentialWinAmount = bet * parseFloat(multiplier);
 
   const handleHalfBet = () => {
     if (loading) return;
     const current = parseFloat(betInput.replace(',', '.')) || 0;
-    setBetInput(Math.max(1, Number((current / 2).toFixed(2))).toString());
+    setBetInput(Number((current / 2).toFixed(2)).toString());
   };
 
   const handleDoubleBet = () => {
@@ -62,7 +73,6 @@ export default function Dice({ user }: DiceProps) {
     if (isRolling.current || bet > user.balance || bet <= 0) return;
     isRolling.current = true;
     
-    // Моментальное списание ставки
     try {
       await updateDoc(doc(db, 'users', user.uid), {
         balance: increment(-bet)
@@ -75,14 +85,13 @@ export default function Dice({ user }: DiceProps) {
     setLoading(true);
 
     const roll = Math.random() * 100;
-    const isWin = type === 'under' ? roll <= chance : roll >= (100 - chance);
+    const isWin = type === 'under' ? roll <= activeChance : roll >= (100 - activeChance);
     const payout = isWin ? Number((bet * parseFloat(multiplier)).toFixed(2)) : 0;
 
     setResult(roll);
     setWin(isWin);
     setRollId(Date.now());
     
-    // Генерируем новый хэш после броска
     setGameHash(generateMockHash());
 
     const prevLossStreak = (user as any).diceLossStreak || 0;
@@ -126,13 +135,13 @@ export default function Dice({ user }: DiceProps) {
         }
       };
 
-      if (isWin && chance < 70 && bet >= 100) {
+      if (isWin && activeChance < 70 && bet >= 100) {
         processAch('dice_fb1', 25, a => { a.progress++; return a; }, 'Первый бросок');
         processAch('dice_fb2', 100, a => { a.progress++; return a; }, 'Первый бросок II');
         processAch('dice_fb3', 500, a => { a.progress++; return a; }, 'Первый бросок III');
       }
       processAch('dice_cat_sense', 5, a => {
-        if (isWin && chance < 15 && bet >= 30) a.progress++; else a.progress = 0; 
+        if (isWin && activeChance < 15 && bet >= 30) a.progress++; else a.progress = 0; 
         return a;
       }, 'Кошачье чутье');
 
@@ -161,10 +170,9 @@ export default function Dice({ user }: DiceProps) {
   };
 
   const maxNumber = 9999.99;
-  const underTarget = Math.floor(chance * maxNumber);
-  const overTarget = Math.ceil((100 - chance) * maxNumber);
+  const underTarget = Math.floor(activeChance * maxNumber);
+  const overTarget = Math.ceil((100 - activeChance) * maxNumber);
 
-  // Выносим блок Хэша в переменную, чтобы использовать его в разных местах (ПК и Мобайл)
   const hashBlock = (
     <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex flex-col gap-2">
       <div className="flex items-center justify-between">
@@ -217,7 +225,7 @@ export default function Dice({ user }: DiceProps) {
           
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
             
-            {/* ЛЕВАЯ КОЛОНКА (Ставка, Шанс, Хэш) */}
+            {/* ЛЕВАЯ КОЛОНКА */}
             <div className="lg:col-span-5 flex flex-col gap-5">
               
               <div className="grid grid-cols-2 lg:grid-cols-1 gap-3 sm:gap-5">
@@ -228,7 +236,7 @@ export default function Dice({ user }: DiceProps) {
                     <div className="flex justify-between items-center mb-2 sm:mb-3">
                       <span className="text-[9px] sm:text-xs font-black uppercase text-slate-400 tracking-wider">Ставка</span>
                       <span className="text-[9px] sm:text-xs font-black uppercase text-brand-500 tracking-widest bg-brand-100/50 px-2 sm:px-2.5 py-1 rounded-md sm:rounded-lg hidden sm:block">
-                        {user.balance.toFixed(2)}
+                        {formatBalance(user.balance)}
                       </span>
                     </div>
                     <div className="flex items-center">
@@ -245,8 +253,9 @@ export default function Dice({ user }: DiceProps) {
                           }
                         }}
                         onBlur={() => {
+                          if (betInput === '') return;
                           const val = parseFloat(betInput.replace(',', '.'));
-                          if (isNaN(val) || val <= 0) setBetInput('1');
+                          if (isNaN(val) || val < 0) setBetInput('');
                           else setBetInput(val.toString());
                         }}
                         className="w-full bg-transparent font-black text-slate-900 text-lg sm:text-2xl outline-none disabled:opacity-50 min-w-0"
@@ -272,12 +281,30 @@ export default function Dice({ user }: DiceProps) {
                     </div>
                     <div className="flex items-center">
                       <TrendingUp className="w-4 h-4 sm:w-6 sm:h-6 text-slate-400 mr-1 sm:mr-2 shrink-0 hidden sm:block" />
-                      <input type="number" step="0.01" value={chance} disabled={loading} onChange={e => setChance(Math.min(95, Math.max(1, Number(e.target.value))))} className="w-full bg-transparent font-black text-slate-900 text-lg sm:text-2xl outline-none disabled:opacity-50 min-w-0" />
+                      <input 
+                        type="text" 
+                        inputMode="decimal"
+                        value={chance} 
+                        disabled={loading} 
+                        onChange={e => {
+                          const val = e.target.value.replace(',', '.');
+                          if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                            setChance(val);
+                          }
+                        }}
+                        onBlur={() => {
+                          if (chance === '') return;
+                          const val = parseFloat(String(chance).replace(',', '.'));
+                          if (isNaN(val)) setChance(50);
+                          else setChance(Math.min(95, Math.max(1, val)));
+                        }}
+                        className="w-full bg-transparent font-black text-slate-900 text-lg sm:text-2xl outline-none disabled:opacity-50 min-w-0" 
+                      />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-1.5 w-full">
-                    <button onClick={() => setChance(Math.max(1, Number((chance / 2).toFixed(2))))} disabled={loading} className="bg-slate-50 hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 border border-slate-100 rounded-xl py-2 text-[10px] font-black text-slate-500 transition-all shadow-sm disabled:opacity-50">/2</button>
-                    <button onClick={() => setChance(Math.min(95, Number((chance * 2).toFixed(2))))} disabled={loading} className="bg-slate-50 hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 border border-slate-100 rounded-xl py-2 text-[10px] font-black text-slate-500 transition-all shadow-sm disabled:opacity-50">X2</button>
+                    <button onClick={() => setChance(Math.max(1, Number((activeChance / 2).toFixed(2))))} disabled={loading} className="bg-slate-50 hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 border border-slate-100 rounded-xl py-2 text-[10px] font-black text-slate-500 transition-all shadow-sm disabled:opacity-50">/2</button>
+                    <button onClick={() => setChance(Math.min(95, Number((activeChance * 2).toFixed(2))))} disabled={loading} className="bg-slate-50 hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 border border-slate-100 rounded-xl py-2 text-[10px] font-black text-slate-500 transition-all shadow-sm disabled:opacity-50">X2</button>
                     <button onClick={() => setChance(1)} disabled={loading} className="bg-slate-50 hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 border border-slate-100 rounded-xl py-2 text-[10px] font-black text-slate-500 transition-all shadow-sm disabled:opacity-50">МИН</button>
                     <button onClick={() => setChance(95)} disabled={loading} className="bg-slate-50 hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 border border-slate-100 rounded-xl py-2 text-[10px] font-black text-slate-500 transition-all shadow-sm disabled:opacity-50">МАКС</button>
                   </div>
@@ -285,25 +312,23 @@ export default function Dice({ user }: DiceProps) {
 
               </div>
 
-              {/* Хэш и Provably Fair (Только для ПК, на мобильном он будет под табличкой результатов) */}
               <div className="hidden lg:block mt-auto pt-2">
                 {hashBlock}
               </div>
 
             </div>
 
-            {/* ПРАВАЯ КОЛОНКА (Выигрыш и Кнопки игры) */}
+            {/* ПРАВАЯ КОЛОНКА */}
             <div className="lg:col-span-7 flex flex-col gap-5">
               
-              {/* Блок возможного выигрыша */}
+              {/* Блок возможного выигрыша с красивым форматированием */}
               <div className="flex flex-col items-center justify-center py-6 sm:py-10 flex-1 relative group">
                 <span className="font-black text-slate-900 text-5xl sm:text-7xl tracking-tighter z-10 transition-all duration-300 group-hover:scale-105">
-                  +{potentialWin}
+                  +{formatBalance(potentialWinAmount)}
                 </span>
                 <span className="text-xs sm:text-sm font-black uppercase text-slate-400 tracking-widest mt-2 sm:mt-4 z-10">Возможный выигрыш</span>
               </div>
 
-              {/* Кнопки Меньше / Больше (Тонкие и аккуратные) */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-2">
                   <div className="text-center text-xs sm:text-sm font-bold text-slate-400 pb-1">
@@ -326,7 +351,6 @@ export default function Dice({ user }: DiceProps) {
                 </div>
               </div>
 
-              {/* ТАБЛИЧКА ПОБЕДА / ПОРАЖЕНИЕ (Стиль как у кнопки "Забрать") */}
               <div className="w-full min-h-[50px] sm:min-h-[60px]">
                 <AnimatePresence mode="wait">
                   {result !== null && (
@@ -347,7 +371,6 @@ export default function Dice({ user }: DiceProps) {
                 </AnimatePresence>
               </div>
 
-              {/* Хэш и Provably Fair (Только для мобильных, отображается под табличкой) */}
               <div className="block lg:hidden mt-2">
                 {hashBlock}
               </div>
@@ -364,9 +387,8 @@ export default function Dice({ user }: DiceProps) {
       {diceMode === 'switch' && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white p-4 sm:p-8 rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/50 w-full flex flex-col">
           
-          {/* ВЫИГРЫШ И МНОЖИТЕЛЬ СВЕРХУ */}
           <div className="flex flex-col items-center justify-center text-center mb-6 sm:mb-8 mt-2">
-            <span className="font-black text-slate-900 text-4xl sm:text-5xl tracking-tight relative z-10 mb-1">+{potentialWin}</span>
+            <span className="font-black text-slate-900 text-4xl sm:text-5xl tracking-tight relative z-10 mb-1">+{formatBalance(potentialWinAmount)}</span>
             <span className="text-[10px] sm:text-[11px] font-black uppercase text-slate-400 tracking-widest relative z-10 flex items-center gap-1 sm:gap-2">
               Возможный выигрыш <span className="text-slate-800 bg-slate-100 border border-slate-200 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-md sm:rounded-lg">x{multiplier}</span>
             </span>
@@ -381,18 +403,18 @@ export default function Dice({ user }: DiceProps) {
           <div className="relative pt-8 pb-12 w-full max-w-2xl mx-auto mt-4">
             <div 
               className="absolute top-1 -translate-y-full px-3 py-1 bg-slate-800 text-white font-black text-xs rounded-xl shadow-lg transition-all duration-300 ease-out pointer-events-none z-20 flex items-center justify-center"
-              style={{ left: `calc(${chance}% - 22px)` }}
+              style={{ left: `calc(${activeChance}% - 22px)` }}
             >
               <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-slate-800 rotate-45" />
-              <span className="relative z-10">{chance}%</span>
+              <span className="relative z-10">{activeChance}%</span>
             </div>
 
             <div className="h-3 bg-rose-500 rounded-full relative w-full overflow-hidden shadow-inner">
-              <div className="absolute left-0 top-0 bottom-0 bg-emerald-500 transition-all duration-300 ease-out" style={{ width: `${chance}%` }} />
+              <div className="absolute left-0 top-0 bottom-0 bg-emerald-500 transition-all duration-300 ease-out" style={{ width: `${activeChance}%` }} />
             </div>
-            <input type="range" min="1" max="95" value={chance} disabled={loading} onChange={(e) => setChance(Number(e.target.value))} className="absolute inset-x-0 top-8 w-full h-3 opacity-0 cursor-pointer z-20 disabled:opacity-50 disabled:cursor-not-allowed" />
+            <input type="range" min="1" max="95" value={activeChance} disabled={loading} onChange={(e) => setChance(Number(e.target.value))} className="absolute inset-x-0 top-8 w-full h-3 opacity-0 cursor-pointer z-20 disabled:opacity-50 disabled:cursor-not-allowed" />
             
-            <div className="absolute top-[38px] -translate-y-1/2 w-8 h-8 bg-white border-[4px] border-slate-900 rounded-full shadow-lg pointer-events-none transition-all duration-300 ease-out z-10 flex items-center justify-center" style={{ left: `calc(${chance}% - 16px)` }}>
+            <div className="absolute top-[38px] -translate-y-1/2 w-8 h-8 bg-white border-[4px] border-slate-900 rounded-full shadow-lg pointer-events-none transition-all duration-300 ease-out z-10 flex items-center justify-center" style={{ left: `calc(${activeChance}% - 16px)` }}>
               <div className="w-1.5 h-1.5 bg-slate-900 rounded-full" />
             </div>
 
@@ -417,15 +439,13 @@ export default function Dice({ user }: DiceProps) {
             </div>
           </div>
 
-          {/* ЦЕНТРАЛЬНАЯ ПАНЕЛЬ СТАВКИ */}
           <div className="max-w-md mx-auto w-full mt-6 mb-6">
             <div className="flex flex-col gap-2 sm:gap-3">
-              {/* Уменьшены отступы py-2 sm:py-3 для тонкой панели */}
               <div className="bg-slate-50 px-4 py-2 sm:px-5 sm:py-3 rounded-[1rem] sm:rounded-[1.5rem] border border-slate-100 focus-within:border-brand-300 transition-colors flex flex-col justify-center">
                 <div className="flex justify-between items-center mb-1 sm:mb-2">
                   <span className="text-[10px] sm:text-xs font-black uppercase text-slate-400 tracking-wider">Ставка</span>
                   <span className="text-[10px] sm:text-xs font-black uppercase text-brand-500 tracking-widest bg-brand-100/50 px-2.5 py-0.5 rounded-md">
-                    {user.balance.toFixed(2)}
+                    {formatBalance(user.balance)}
                   </span>
                 </div>
                 <div className="flex items-center">
@@ -442,8 +462,9 @@ export default function Dice({ user }: DiceProps) {
                       }
                     }}
                     onBlur={() => {
+                      if (betInput === '') return;
                       const val = parseFloat(betInput.replace(',', '.'));
-                      if (isNaN(val) || val <= 0) setBetInput('1');
+                      if (isNaN(val) || val < 0) setBetInput('');
                       else setBetInput(val.toString());
                     }}
                     className="w-full bg-transparent font-black text-slate-900 text-xl sm:text-2xl outline-none disabled:opacity-50 min-w-0 text-left"
