@@ -6,13 +6,12 @@ import { Gift, Zap, Coins, MessageCircle, Send, CheckCircle2, Sparkles, AlertCir
 import { motion, AnimatePresence } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { Turnstile } from '@marsidev/react-turnstile'; // Компонент капчи
+import { Turnstile } from '@marsidev/react-turnstile'; 
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-// Данные рангов для расчета % кешбека и рейкбека
 const RANKS = [
   { id: 1, points: 0, minDeposit: 100, cashback: 1, rakeback: 0.05 },
   { id: 2, points: 100, minDeposit: 1000, cashback: 2, rakeback: 0.06 },
@@ -31,7 +30,6 @@ const RANKS = [
   { id: 15, points: 5000000, minDeposit: 25000000, cashback: 15, rakeback: 0.14 },
 ];
 
-// Оригинальная иконка VK (адаптированная под стиль Lucide)
 function VkIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg 
@@ -60,12 +58,14 @@ export default function Bonuses({ user }: BonusesProps) {
   
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
-  const [dailyMessage, setDailyMessage] = useState<string | null>(null); // Уведомление внутри карточки
+  const [dailyMessage, setDailyMessage] = useState<string | null>(null);
   
   const [showModal, setShowModal] = useState(false);
   const [claimedAmount, setClaimedAmount] = useState(0);
+  
+  // Состояние для управления подсказками (чтобы работало и по клику)
+  const [activeTooltip, setActiveTooltip] = useState<number | null>(null);
 
-  // Вычисляем текущие проценты Кешбэка и Рейкбека
   const userExp = user?.xp || 0;
   const userDeposits = (user as any)?.totalDeposits || 0;
   let unlockedRank = RANKS[0];
@@ -90,7 +90,7 @@ export default function Bonuses({ user }: BonusesProps) {
     
     if (lastClaimed && now.getTime() - lastClaimed.getTime() < 24 * 60 * 60 * 1000) {
       setDailyMessage('Вы уже получили бонус сегодня!');
-      setTimeout(() => setDailyMessage(null), 3000); // Скроется само через 3 секунды
+      setTimeout(() => setDailyMessage(null), 3000); 
       return;
     }
 
@@ -194,10 +194,9 @@ export default function Bonuses({ user }: BonusesProps) {
                   <Sparkles className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-brand-200" />
                 </div>
                 
-                {/* Капча Cloudflare Turnstile */}
                 <div className="flex justify-center w-full overflow-hidden rounded-xl">
                   <Turnstile 
-                    siteKey="1x00000000000000000000AA" // Тестовый ключ (пропускает всех). Замените на реальный ключ Cloudflare
+                    siteKey="1x00000000000000000000AA"
                     onSuccess={(token) => setCaptchaToken(token)}
                     onError={() => setCaptchaToken(null)}
                     onExpire={() => setCaptchaToken(null)}
@@ -261,15 +260,34 @@ export default function Bonuses({ user }: BonusesProps) {
                 </div>
                 <div className="space-y-2 relative">
                   
-                  <h3 className="text-2xl font-black text-slate-900 group-hover:text-brand-600 transition-colors flex items-center gap-2">
-                    {card.title}
+                  <h3 className="text-2xl font-black text-slate-900 transition-colors flex items-center gap-2">
+                    <span className="group-hover:text-brand-600 transition-colors">{card.title}</span>
                     {card.tooltip && (
-                      <div className="relative group/tooltip flex items-center">
-                        <HelpCircle className="w-5 h-5 text-slate-300 hover:text-brand-500 cursor-help transition-colors" />
-                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max bg-slate-800 text-white text-xs font-bold py-1.5 px-3 rounded-lg opacity-0 group-hover/tooltip:opacity-100 transition-opacity pointer-events-none z-20">
-                          {card.tooltip}
-                          <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-800"></div>
-                        </div>
+                      <div 
+                        className="relative flex items-center"
+                        onMouseEnter={() => setActiveTooltip(i)}
+                        onMouseLeave={() => setActiveTooltip(null)}
+                      >
+                        <button 
+                          onClick={() => setActiveTooltip(activeTooltip === i ? null : i)}
+                          className="outline-none"
+                        >
+                          <HelpCircle className="w-5 h-5 text-slate-300 hover:text-brand-500 transition-colors" />
+                        </button>
+                        <AnimatePresence>
+                          {activeTooltip === i && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 5 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: 5 }}
+                              transition={{ duration: 0.15 }}
+                              className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max bg-slate-800 text-white text-xs font-bold py-1.5 px-3 rounded-lg z-20 pointer-events-none"
+                            >
+                              {card.tooltip}
+                              <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-800"></div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       </div>
                     )}
                   </h3>
@@ -277,7 +295,6 @@ export default function Bonuses({ user }: BonusesProps) {
                   <p className="text-slate-400 text-sm font-bold leading-relaxed">{card.desc}</p>
                 </div>
 
-                {/* Выпадающее уведомление для ежедневного бонуса */}
                 {card.title === 'Ежедневный бонус' && (
                   <AnimatePresence>
                     {dailyMessage && (
