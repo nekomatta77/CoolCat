@@ -420,10 +420,11 @@ export default function Dice({ user }: DiceProps) {
           {/* ЦЕНТРАЛЬНАЯ ПАНЕЛЬ СТАВКИ */}
           <div className="max-w-md mx-auto w-full mt-6 mb-6">
             <div className="flex flex-col gap-2 sm:gap-3">
-              <div className="bg-slate-50 p-4 sm:p-5 rounded-[1.5rem] sm:rounded-3xl border border-slate-100 focus-within:border-brand-300 transition-colors flex flex-col justify-center">
-                <div className="flex justify-between items-center mb-2 sm:mb-3">
+              {/* Уменьшены отступы py-2 sm:py-3 для тонкой панели */}
+              <div className="bg-slate-50 px-4 py-2 sm:px-5 sm:py-3 rounded-[1rem] sm:rounded-[1.5rem] border border-slate-100 focus-within:border-brand-300 transition-colors flex flex-col justify-center">
+                <div className="flex justify-between items-center mb-1 sm:mb-2">
                   <span className="text-[10px] sm:text-xs font-black uppercase text-slate-400 tracking-wider">Ставка</span>
-                  <span className="text-[10px] sm:text-xs font-black uppercase text-brand-500 tracking-widest bg-brand-100/50 px-2.5 py-1 rounded-lg">
+                  <span className="text-[10px] sm:text-xs font-black uppercase text-brand-500 tracking-widest bg-brand-100/50 px-2.5 py-0.5 rounded-md">
                     {user.balance.toFixed(2)}
                   </span>
                 </div>
@@ -445,7 +446,7 @@ export default function Dice({ user }: DiceProps) {
                       if (isNaN(val) || val <= 0) setBetInput('1');
                       else setBetInput(val.toString());
                     }}
-                    className="w-full bg-transparent font-black text-slate-900 text-2xl sm:text-3xl outline-none disabled:opacity-50 min-w-0 text-center"
+                    className="w-full bg-transparent font-black text-slate-900 text-xl sm:text-2xl outline-none disabled:opacity-50 min-w-0 text-left"
                   />
                 </div>
               </div>
