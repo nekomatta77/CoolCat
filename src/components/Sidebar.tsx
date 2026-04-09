@@ -4,7 +4,7 @@ import { UserProfile } from '../types';
 import { Home, HelpCircle, Gift, TrendingUp, Trophy, Settings, Phone, ShieldAlert } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import OnlineCounter from './OnlineCounter'; // 👈 ИМПОРТИРУЕМ НАШ СЧЕТЧИК
+import OnlineCounter from './OnlineCounter';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -28,6 +28,9 @@ const SIDEBAR_CONFIG = {
   }
 };
 // ============================================================================
+
+// Цвет для слова "Cool"
+const LOGO_COLOR_COOL = "#feb1d1";
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
@@ -87,13 +90,30 @@ export default function Sidebar({ user, onClose }: SidebarProps) {
                 className="w-full h-full object-contain drop-shadow-lg" 
               />
             </div>
+            
+            {/* НОВЫЙ ДИЗАЙН ЛОГОТИПА COOLCAT */}
             <span 
-              className="text-2xl font-black text-slate-900 tracking-tighter origin-left block"
+              className="text-2xl font-black tracking-tighter origin-left block relative"
               style={{
                 transform: `translate(${textCfg.x}px, ${textCfg.y}px) scale(${textCfg.scale})`
               }}
             >
-              CoolCat
+              {/* Задний слой: создает толстую обводку */}
+              <span
+                className="absolute inset-0 z-0 drop-shadow-sm"
+                style={{
+                  WebkitTextStroke: '6px #5c2f3c', // Бежево-коричневато-розовая обводка
+                  color: 'transparent'
+                }}
+                aria-hidden="true"
+              >
+                CoolCat
+              </span>
+              {/* Передний слой: текст с цветом */}
+              <span className="relative z-10">
+                <span style={{ color: LOGO_COLOR_COOL }}>Cool</span>
+                <span className="text-white">Cat</span>
+              </span>
             </span>
           </div>
 
@@ -127,10 +147,7 @@ export default function Sidebar({ user, onClose }: SidebarProps) {
         })}
       </nav>
 
-      {/* 🛠 ИЗМЕНЕННАЯ ЧАСТЬ: Добавлен gap-4 для отступа между счетчиком и рангом */}
       <div className="p-6 flex flex-col gap-4">
-        
-        {/* 👈 ВСТАВЛЯЕМ СЧЕТЧИК ОНЛАЙНА */}
         <OnlineCounter />
 
         <div className="bg-slate-50 rounded-3xl p-4 border border-slate-100 relative overflow-hidden group">
