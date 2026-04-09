@@ -35,7 +35,7 @@ export default function Layout({ children, user, onLogout }: LayoutProps) {
   ];
 
   return (
-    <div className="flex min-h-screen bg-slate-50 font-sans text-slate-900 overflow-x-hidden">
+    <div className="flex min-h-screen bg-slate-50 font-sans text-slate-900">
       {/* Desktop Sidebar */}
       <div className="hidden lg:block">
         <Sidebar user={user} />
@@ -57,13 +57,13 @@ export default function Layout({ children, user, onLogout }: LayoutProps) {
         <Sidebar user={user} onClose={() => setIsSidebarOpen(false)} />
       </div>
 
-      <div className="flex-1 flex flex-col min-w-0 pb-20 lg:pb-0">
+      <div className="flex-1 flex flex-col min-w-0 pb-20 lg:pb-0 relative">
         <Header 
           user={user} 
           onLogout={onLogout} 
           onMenuClick={() => setIsSidebarOpen(true)} 
         />
-        <main className="flex-1 p-4 lg:p-8 overflow-y-auto">
+        <main className="flex-1 p-4 lg:p-8 overflow-x-hidden">
           <div className="max-w-7xl mx-auto">
             {children}
           </div>
@@ -92,7 +92,6 @@ export default function Layout({ children, user, onLogout }: LayoutProps) {
             onClick={() => setIsDepositModalOpen(true)}
             className="relative bg-gradient-to-tr from-brand-600 to-brand-400 text-white p-4 rounded-full border-[6px] border-slate-50 shadow-lg transform transition-all active:scale-95 hover:-translate-y-1"
           >
-            {/* Уменьшили размер до w-6 h-6 и сделали линию чуть толще (stroke-[3]) */}
             <Plus className="w-6 h-6 stroke-[3]" />
           </button>
         </div>

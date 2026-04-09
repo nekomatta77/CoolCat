@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { UserProfile } from '../types';
 import { doc, updateDoc, addDoc, collection, getDocs, query, where, increment } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Dice5, Trophy, ShieldCheck, ArrowDownCircle, ArrowUpCircle, Coins, TrendingUp, Hash } from 'lucide-react';
+import { Dice5, Trophy, ShieldCheck, ArrowDownCircle, ArrowUpCircle, Coins, TrendingUp, Hash, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 
@@ -25,11 +25,11 @@ const generateMockHash = () => {
   return Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
 };
 
-// 🛠 Функция умного форматирования: отсекает длинные копейки и убирает .00 у круглых сумм
-const formatBalance = (val: number) => {
+// 🛠 Функция умного форматирования
+const formatBalance = (val: number, forceDecimals: boolean = false) => {
   const truncated = Math.floor(val * 100) / 100; 
   const isInteger = truncated === Math.floor(truncated);
-  const fixed = isInteger ? truncated.toString() : truncated.toFixed(2);
+  const fixed = (isInteger && !forceDecimals) ? truncated.toString() : truncated.toFixed(2);
   const parts = fixed.split('.');
   const formattedInt = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
   return parts.length > 1 ? `${formattedInt}.${parts[1]}` : formattedInt;
@@ -48,6 +48,7 @@ export default function Dice({ user }: DiceProps) {
   const [win, setWin] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
   const [unlockedAch, setUnlockedAch] = useState<string | null>(null);
+  const [betError, setBetError] = useState<string | null>(null);
   const [diceMode, setDiceMode] = useState<'classic' | 'switch'>('classic');
   const [rollId, setRollId] = useState(0);
   
@@ -70,6 +71,12 @@ export default function Dice({ user }: DiceProps) {
   };
 
   const handlePlay = async (type: 'under' | 'over' = 'under') => {
+    if (bet < 1) {
+      setBetError('Минимальная ставка — 1 CAT');
+      setTimeout(() => setBetError(null), 3000);
+      return;
+    }
+
     if (isRolling.current || bet > user.balance || bet <= 0) return;
     isRolling.current = true;
     
@@ -204,6 +211,20 @@ export default function Dice({ user }: DiceProps) {
         )}
       </AnimatePresence>
 
+      <AnimatePresence>
+        {betError && (
+          <motion.div initial={{ opacity: 0, y: -50, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -50, scale: 0.9 }} className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] bg-white px-6 py-4 rounded-3xl shadow-2xl border-2 border-rose-200 flex items-center gap-4 min-w-[300px]">
+            <div className="w-12 h-12 bg-rose-100 rounded-xl flex items-center justify-center shrink-0">
+              <AlertCircle className="w-6 h-6 text-rose-500" />
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-rose-500 mb-0.5">Ошибка ставки</p>
+              <p className="text-sm sm:text-base font-black text-slate-900 leading-tight">{betError}</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <header className="flex flex-col gap-4">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 bg-brand-600 rounded-[1.2rem] flex items-center justify-center shadow-lg shadow-brand-200 shrink-0">
@@ -321,10 +342,10 @@ export default function Dice({ user }: DiceProps) {
             {/* ПРАВАЯ КОЛОНКА */}
             <div className="lg:col-span-7 flex flex-col gap-5">
               
-              {/* Блок возможного выигрыша с красивым форматированием */}
+              {/* Блок возможного выигрыша (БЕЗ ПЛЮСА) */}
               <div className="flex flex-col items-center justify-center py-6 sm:py-10 flex-1 relative group">
                 <span className="font-black text-slate-900 text-5xl sm:text-7xl tracking-tighter z-10 transition-all duration-300 group-hover:scale-105">
-                  +{formatBalance(potentialWinAmount)}
+                  {formatBalance(potentialWinAmount, true)}
                 </span>
                 <span className="text-xs sm:text-sm font-black uppercase text-slate-400 tracking-widest mt-2 sm:mt-4 z-10">Возможный выигрыш</span>
               </div>
@@ -387,8 +408,9 @@ export default function Dice({ user }: DiceProps) {
       {diceMode === 'switch' && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white p-4 sm:p-8 rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/50 w-full flex flex-col">
           
+          {/* ВЫИГРЫШ И МНОЖИТЕЛЬ СВЕРХУ (БЕЗ ПЛЮСА) */}
           <div className="flex flex-col items-center justify-center text-center mb-6 sm:mb-8 mt-2">
-            <span className="font-black text-slate-900 text-4xl sm:text-5xl tracking-tight relative z-10 mb-1">+{formatBalance(potentialWinAmount)}</span>
+            <span className="font-black text-slate-900 text-4xl sm:text-5xl tracking-tight relative z-10 mb-1">{formatBalance(potentialWinAmount, true)}</span>
             <span className="text-[10px] sm:text-[11px] font-black uppercase text-slate-400 tracking-widest relative z-10 flex items-center gap-1 sm:gap-2">
               Возможный выигрыш <span className="text-slate-800 bg-slate-100 border border-slate-200 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-md sm:rounded-lg">x{multiplier}</span>
             </span>

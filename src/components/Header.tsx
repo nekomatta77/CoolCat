@@ -12,21 +12,13 @@ const HEADER_AVATAR_CONFIG = {
 };
 // ============================================================================
 
-// Функция для форматирования баланса (отсекаем лишние копейки, убираем .00 у целых)
+// Функция для форматирования баланса (отсекаем тысячные и убираем .00)
 const formatBalance = (val: number) => {
-  // 1. Округляем до сотых (отсекаем все, что дальше)
-  const truncated = Math.floor(val * 100) / 100; 
-  
-  // 2. Проверяем, является ли число круглым
+  const truncated = Math.floor(val * 100) / 100;
   const isInteger = truncated === Math.floor(truncated);
-  
-  // 3. Если круглое — переводим в строку без копеек, если нет — оставляем 2 знака
   const fixed = isInteger ? truncated.toString() : truncated.toFixed(2);
   const parts = fixed.split('.');
-  
-  // Добавляем пробелы между тысячами
   const formattedInt = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-  
   return parts.length > 1 ? `${formattedInt}.${parts[1]}` : formattedInt;
 };
 
@@ -52,12 +44,25 @@ export default function Header({ user, onLogout, onMenuClick }: HeaderProps) {
           <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
         </button>
         
-        {/* Адаптированный блок баланса */}
-        <div className="bg-slate-50 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl flex items-center gap-1.5 sm:gap-2 border border-slate-100 shadow-sm min-w-0 max-w-[200px] sm:max-w-none">
+        {/* Адаптированный блок баланса (ДЛЯ МОБИЛОК) */}
+        <div className="lg:hidden bg-slate-50 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl flex items-center gap-1.5 sm:gap-2 border border-slate-100 shadow-sm min-w-0 max-w-[200px] sm:max-w-none">
           <Wallet className="w-4 h-4 sm:w-5 sm:h-5 text-brand-600 shrink-0" />
           <span className="font-bold text-slate-900 tracking-tight text-sm sm:text-base whitespace-nowrap overflow-hidden text-ellipsis">
             {formatBalance(user.balance)} <span className="text-slate-400 text-xs sm:text-sm ml-0.5">CAT</span>
           </span>
+        </div>
+
+        {/* НОВЫЙ БОЛЬШОЙ БЛОК БАЛАНСА (ДЛЯ ПК) */}
+        <div className="hidden lg:flex items-center bg-white border border-slate-200 shadow-sm rounded-[1.2rem] p-1.5 pr-6 gap-4 group hover:shadow-md transition-all cursor-default">
+          <div className="bg-brand-50 rounded-[0.9rem] p-2.5 flex items-center justify-center">
+             <Wallet className="w-6 h-6 text-brand-600 group-hover:scale-110 transition-transform" />
+          </div>
+          <div className="flex flex-col justify-center">
+             <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest leading-none mb-1">Ваш баланс</span>
+             <span className="font-black text-slate-900 text-xl tracking-tight leading-none whitespace-nowrap">
+               {formatBalance(user.balance)} <span className="text-brand-500 text-base ml-1">CAT</span>
+             </span>
+          </div>
         </div>
       </div>
 

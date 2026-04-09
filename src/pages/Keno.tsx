@@ -2,15 +2,11 @@ import { useState, useRef } from 'react';
 import { UserProfile } from '../types';
 import { doc, updateDoc, addDoc, collection, getDocs, query, where, increment } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Layers, Coins, ShieldCheck, ArrowRight, RotateCcw, Zap, Trophy, Play, Sparkles } from 'lucide-react';
+import { Layers, Coins, ShieldCheck, RotateCcw, Zap, Trophy, Play, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 
 const PAW_RIBBON_CONFIG = {
-  width: 24,
-  height: 24,
-  offsetX: 0,
-  offsetY: 0,
   scale: 1,
   activeScale: 1.3,
 };
@@ -68,7 +64,6 @@ interface MutableAchievement {
   rewarded: boolean;
 }
 
-// 🛠 НОВАЯ ФУНКЦИЯ ФОРМАТИРОВАНИЯ (Отсекает копейки > 2 знаков, убирает .00)
 const formatBalance = (val: number) => {
   const truncated = Math.floor(val * 100) / 100; 
   const isInteger = truncated === Math.floor(truncated);
@@ -93,6 +88,17 @@ export default function Keno({ user }: KenoProps) {
   const [fastMode, setFastMode] = useState(false);
 
   const isProcessing = useRef(false);
+  
+  // Реф для контейнера с лапками
+  const ribbonScrollRef = useRef<HTMLDivElement>(null);
+
+  // Функция прокрутки стрелочками
+  const scrollRibbon = (direction: 'left' | 'right') => {
+    if (ribbonScrollRef.current) {
+      const amount = 250; // На сколько пикселей скроллить
+      ribbonScrollRef.current.scrollBy({ left: direction === 'left' ? -amount : amount, behavior: 'smooth' });
+    }
+  };
 
   const resetDrawState = () => {
     if (drawn.length > 0) {
@@ -310,7 +316,6 @@ export default function Keno({ user }: KenoProps) {
 
       <div className="flex flex-col lg:grid lg:grid-cols-12 gap-4 lg:gap-8 flex-1">
         
-        {/* ИЗМЕНЕНО: убрал min-h, убрал justify-between */}
         <div className="order-1 lg:order-2 lg:col-span-8 bg-white sm:rounded-[3rem] sm:border border-slate-100 sm:shadow-xl sm:shadow-slate-200/50 p-4 sm:p-6 lg:p-10 flex flex-col items-center relative overflow-hidden h-fit">
           
           <AnimatePresence>
@@ -371,44 +376,69 @@ export default function Keno({ user }: KenoProps) {
             )}
           </AnimatePresence>
 
-          {/* ИЗМЕНЕНО: Лента лапок перенесена НАВЕРХ */}
-          <div className="w-full min-h-[70px] sm:min-h-[80px] mb-4 sm:mb-6 border-b border-slate-100 pb-2 sm:pb-3 flex flex-col justify-end relative z-20">
+          {/* ЛЕНТА ЛАПОК (На ПК со стрелочками и прижата к левому краю) */}
+          <div className="w-full min-h-[70px] sm:min-h-[80px] lg:min-h-[140px] mb-4 sm:mb-6 border-b border-slate-100 pb-2 sm:pb-3 lg:pb-5 flex flex-col justify-end relative z-20">
             {selected.length > 0 && (
-              <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto justify-start sm:justify-center px-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                {MULTIPLIERS[difficulty][selected.length as keyof typeof MULTIPLIERS['medium']].slice(1).map((mult, idx) => {
-                  const matchTarget = idx + 1; 
-                  const isCompleted = (gameState === 'drawing' || gameState === 'finished') && matchTarget <= currentMatchesCount;
-                  const isCurrent = (gameState === 'drawing' || gameState === 'finished') && matchTarget === currentMatchesCount;
-                  
-                  return (
-                    <div key={matchTarget} className="flex flex-col items-center justify-end min-w-[36px] sm:min-w-[44px]">
-                      <div className="flex items-center justify-center h-[36px] mb-1">
-                        <img 
-                          src={isCompleted ? "/assets/keno/keno_paw.webp" : "/assets/keno/grey_paw_keno.webp"} 
-                          alt="multiplier paw" 
-                          className={cn("drop-shadow-sm", fastMode ? "" : "transition-all duration-300")}
-                          style={{
-                            width: `${PAW_RIBBON_CONFIG.width}px`,
-                            height: `${PAW_RIBBON_CONFIG.height}px`,
-                            transform: `translate(${PAW_RIBBON_CONFIG.offsetX}px, ${PAW_RIBBON_CONFIG.offsetY}px) scale(${isCurrent ? PAW_RIBBON_CONFIG.activeScale : PAW_RIBBON_CONFIG.scale})`,
-                            opacity: isCompleted ? 0.9 : 0.5
-                          }}
-                        />
+              <div className="relative w-full group flex items-center">
+                
+                {/* Левая стрелка навигации (ПК) */}
+                <button 
+                  onClick={() => scrollRibbon('left')}
+                  className="hidden lg:flex absolute left-0 z-30 w-10 h-10 bg-white/90 backdrop-blur-sm border border-slate-200 rounded-full items-center justify-center text-slate-400 hover:text-brand-600 hover:border-brand-300 shadow-md transition-all opacity-0 group-hover:opacity-100 -ml-3"
+                >
+                  <ChevronLeft className="w-6 h-6" />
+                </button>
+
+                {/* Контейнер лапок: убран padding слева (pr-4 lg:pr-12), чтобы лапка была от самого левого края */}
+                <div 
+                  ref={ribbonScrollRef}
+                  className="flex items-end justify-start gap-1.5 sm:gap-2 lg:gap-4 overflow-x-auto w-full pr-4 lg:pr-12 pt-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden scroll-smooth"
+                >
+                  {MULTIPLIERS[difficulty][selected.length as keyof typeof MULTIPLIERS['medium']].slice(1).map((mult, idx) => {
+                    const matchTarget = idx + 1; 
+                    const isCompleted = (gameState === 'drawing' || gameState === 'finished') && matchTarget <= currentMatchesCount;
+                    const isCurrent = (gameState === 'drawing' || gameState === 'finished') && matchTarget === currentMatchesCount;
+                    
+                    return (
+                      <div key={matchTarget} className="flex flex-col items-center justify-end min-w-[36px] sm:min-w-[44px] lg:min-w-[80px] shrink-0">
+                        <div className="flex items-center justify-center h-[36px] lg:h-[80px] mb-1 lg:mb-2">
+                          <img 
+                            src={isCompleted ? "/assets/keno/keno_paw.webp" : "/assets/keno/grey_paw_keno.webp"} 
+                            alt="multiplier paw" 
+                            className={cn(
+                              "drop-shadow-sm w-6 h-6 lg:w-[60px] lg:h-[60px] origin-bottom", 
+                              fastMode ? "" : "transition-all duration-300"
+                            )}
+                            style={{
+                              transform: `scale(${isCurrent ? PAW_RIBBON_CONFIG.activeScale : PAW_RIBBON_CONFIG.scale})`,
+                              opacity: isCompleted ? 0.9 : 0.5
+                            }}
+                          />
+                        </div>
+                        <span className={cn(
+                          "text-[9px] sm:text-[10px] lg:text-sm font-black rounded-md px-1.5 py-0.5 lg:px-3 lg:py-1", 
+                          fastMode ? "" : "transition-all duration-300",
+                          isCompleted 
+                            ? (isCurrent 
+                                ? "bg-brand-500/30 text-brand-600 border border-brand-500/20 backdrop-blur-sm" 
+                                : "bg-brand-100/60 text-brand-600 backdrop-blur-sm") 
+                            : "text-slate-400 bg-slate-100/60 backdrop-blur-sm"
+                        )}>
+                          x{mult}
+                        </span>
                       </div>
-                      <span className={cn(
-                        "text-[9px] sm:text-[10px] font-black rounded-md px-1.5 py-0.5", 
-                        fastMode ? "" : "transition-all duration-300",
-                        isCompleted 
-                          ? (isCurrent 
-                              ? "bg-brand-500/30 text-brand-600 border border-brand-500/20 backdrop-blur-sm" 
-                              : "bg-brand-100/60 text-brand-600 backdrop-blur-sm") 
-                          : "text-slate-400 bg-slate-100/60 backdrop-blur-sm"
-                      )}>
-                        x{mult}
-                      </span>
-                    </div>
-                  )
-                })}
+                    )
+                  })}
+                </div>
+
+                {/* Правая стрелка навигации (ПК) */}
+                <button 
+                  onClick={() => scrollRibbon('right')}
+                  className="hidden lg:flex absolute right-0 z-30 w-10 h-10 bg-white/90 backdrop-blur-sm border border-slate-200 rounded-full items-center justify-center text-slate-400 hover:text-brand-600 hover:border-brand-300 shadow-md transition-all opacity-0 group-hover:opacity-100 -mr-3"
+                >
+                  <ChevronRight className="w-6 h-6" />
+                </button>
+
               </div>
             )}
           </div>
@@ -455,7 +485,7 @@ export default function Keno({ user }: KenoProps) {
 
         </div>
 
-        {/* ПАНЕЛЬ СТАВОК (ЛИПКАЯ СНИЗУ НА МОБИЛКАХ) */}
+        {/* ПАНЕЛЬ СТАВОК */}
         <div className="order-2 lg:order-1 lg:col-span-4 bg-white sm:bg-white/100 rounded-t-[2rem] sm:rounded-[3rem] border-t sm:border border-slate-200 sm:border-slate-100 shadow-[0_-15px_40px_-15px_rgba(0,0,0,0.15)] sm:shadow-xl sm:shadow-slate-200/50 p-4 sm:p-6 lg:p-8 flex flex-col gap-4 sm:gap-6 justify-between sticky bottom-0 z-50 max-h-[60vh] sm:max-h-none overflow-y-auto sm:overflow-visible transition-all [scrollbar-width:none]">
           
           <div className="space-y-4 lg:space-y-6">
