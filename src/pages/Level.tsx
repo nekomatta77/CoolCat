@@ -2,58 +2,62 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence, PanInfo } from 'motion/react';
 import { 
   Trophy, ChevronRight, ChevronLeft, Lock, Unlock, 
-  Star, Shield, Crown, Zap, Gem, Flame, Target, Gift, Coins, Loader2, Wallet
+  Star, Shield, Crown, Zap, Gem, Flame, Target, Gift, Coins, Loader2, Wallet, CheckCircle2
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '../firebase';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-// Обновленные данные с новыми наградами, рейкбеком и минимальным депозитом
+// Убрали 0-й уровень из визуального массива. Карусель начинается с 1-го ранга.
 const RANKS = [
-  { id: 1, name: 'Кот-Новичок', points: 0, minDeposit: 100, reward: 0, cashback: 1, rakeback: 0.05, bonus: 'Доступ в чат', icon: Star, color: 'text-slate-400', bg: 'bg-slate-100', border: 'border-slate-200' },
-  { id: 2, name: 'Уличный Кот', points: 100, minDeposit: 1000, reward: 50, cashback: 2, rakeback: 0.06, bonus: 'Бронзовая рамка профиля', icon: Target, color: 'text-amber-600', bg: 'bg-amber-100', border: 'border-amber-200' },
-  { id: 3, name: 'Охотник', points: 500, minDeposit: 2500, reward: 150, cashback: 3, rakeback: 0.07, bonus: 'Эксклюзивный стикер в чат', icon: Target, color: 'text-orange-500', bg: 'bg-orange-100', border: 'border-orange-200' },
-  { id: 4, name: 'Домашний Любимец', points: 1500, minDeposit: 5000, reward: 300, cashback: 4, rakeback: 0.08, bonus: 'Серебряная рамка', icon: Shield, color: 'text-slate-500', bg: 'bg-slate-200', border: 'border-slate-300' },
-  { id: 5, name: 'Пушистик', points: 3000, minDeposit: 10000, reward: 500, cashback: 5, rakeback: 0.09, bonus: 'Цветной никнейм (Синий)', icon: Star, color: 'text-blue-500', bg: 'bg-blue-100', border: 'border-blue-200' },
-  { id: 6, name: 'Гроза Района', points: 5000, minDeposit: 25000, reward: 1000, cashback: 6, rakeback: 0.10, bonus: 'Уникальная аватарка "Гроза"', icon: Zap, color: 'text-indigo-500', bg: 'bg-indigo-100', border: 'border-indigo-200' },
-  { id: 7, name: 'Аристократ', points: 10000, minDeposit: 50000, reward: 2000, cashback: 7, rakeback: 0.10, bonus: 'Золотая рамка профиля', icon: Crown, color: 'text-yellow-500', bg: 'bg-yellow-100', border: 'border-yellow-200' },
-  { id: 8, name: 'Мафиози', points: 25000, minDeposit: 100000, reward: 3000, cashback: 8, rakeback: 0.11, bonus: 'Режим "Скрытый профиль"', icon: Target, color: 'text-rose-500', bg: 'bg-rose-100', border: 'border-rose-200' },
-  { id: 9, name: 'Удачливый Кот', points: 50000, minDeposit: 250000, reward: 5000, cashback: 9, rakeback: 0.11, bonus: 'Эксклюзивный фон профиля', icon: Flame, color: 'text-emerald-500', bg: 'bg-emerald-100', border: 'border-emerald-200' },
-  { id: 10, name: 'Золотые Лапки', points: 100000, minDeposit: 500000, reward: 7500, cashback: 10, rakeback: 0.11, bonus: 'Платиновая рамка', icon: Gem, color: 'text-cyan-500', bg: 'bg-cyan-100', border: 'border-cyan-200' },
-  { id: 11, name: 'Бриллиантовые Усы', points: 250000, minDeposit: 1000000, reward: 10000, cashback: 11, rakeback: 0.12, bonus: 'Префикс в чате "Бриллиант"', icon: Gem, color: 'text-violet-500', bg: 'bg-violet-100', border: 'border-violet-200' },
-  { id: 12, name: 'Пантера', points: 500000, minDeposit: 2500000, reward: 15000, cashback: 12, rakeback: 0.12, bonus: 'VIP Поддержка 24/7', icon: Zap, color: 'text-fuchsia-500', bg: 'bg-fuchsia-100', border: 'border-fuchsia-200' },
-  { id: 13, name: 'Лев', points: 1000000, minDeposit: 5000000, reward: 25000, cashback: 13, rakeback: 0.13, bonus: 'Анимация для никнейма', icon: Crown, color: 'text-orange-600', bg: 'bg-orange-200', border: 'border-orange-300' },
-  { id: 14, name: 'Котодракон', points: 2500000, minDeposit: 10000000, reward: 50000, cashback: 14, rakeback: 0.13, bonus: 'Кастомный фон профиля', icon: Flame, color: 'text-red-600', bg: 'bg-red-200', border: 'border-red-300' },
-  { id: 15, name: 'Бог Котов', points: 5000000, minDeposit: 25000000, reward: 150000, cashback: 15, rakeback: 0.14, bonus: 'Кастомная рамка профиля', icon: Trophy, color: 'text-brand-500', bg: 'bg-brand-100', border: 'border-brand-200' },
+  { id: 1, name: 'Кот-Новичок', points: 0, minDeposit: 100, reward: 0, cashback: 1, rakeback: 0.05, bonus: 'Доступ в чат', icon: Star, color: 'text-slate-500', bg: 'bg-slate-200', border: 'border-slate-300', img: '/assets/ranks/cat_rank1.webp' },
+  { id: 2, name: 'Уличный Кот', points: 100, minDeposit: 1000, reward: 50, cashback: 2, rakeback: 0.06, bonus: 'Бронзовая рамка профиля', icon: Target, color: 'text-amber-600', bg: 'bg-amber-100', border: 'border-amber-200', img: '/assets/ranks/cat_rank2.webp' },
+  { id: 3, name: 'Охотник', points: 500, minDeposit: 2500, reward: 150, cashback: 3, rakeback: 0.07, bonus: 'Эксклюзивный стикер в чат', icon: Target, color: 'text-orange-500', bg: 'bg-orange-100', border: 'border-orange-200', img: '/assets/ranks/cat_rank3.webp' },
+  { id: 4, name: 'Домашний Любимец', points: 1500, minDeposit: 5000, reward: 300, cashback: 4, rakeback: 0.08, bonus: 'Серебряная рамка', icon: Shield, color: 'text-slate-500', bg: 'bg-slate-200', border: 'border-slate-300', img: '/assets/ranks/cat_rank4.webp' },
+  { id: 5, name: 'Пушистик', points: 3000, minDeposit: 10000, reward: 500, cashback: 5, rakeback: 0.09, bonus: 'Цветной никнейм (Синий)', icon: Star, color: 'text-blue-500', bg: 'bg-blue-100', border: 'border-blue-200', img: '/assets/ranks/cat_rank5.webp' },
+  { id: 6, name: 'Гроза Района', points: 5000, minDeposit: 25000, reward: 1000, cashback: 6, rakeback: 0.10, bonus: 'Уникальная аватарка "Гроза"', icon: Zap, color: 'text-indigo-500', bg: 'bg-indigo-100', border: 'border-indigo-200', img: '/assets/ranks/cat_rank6.webp' },
+  { id: 7, name: 'Аристократ', points: 10000, minDeposit: 50000, reward: 2000, cashback: 7, rakeback: 0.10, bonus: 'Золотая рамка профиля', icon: Crown, color: 'text-yellow-500', bg: 'bg-yellow-100', border: 'border-yellow-200', img: '/assets/ranks/cat_rank7.webp' },
+  { id: 8, name: 'Мафиози', points: 25000, minDeposit: 100000, reward: 3000, cashback: 8, rakeback: 0.11, bonus: 'Режим "Скрытый профиль"', icon: Target, color: 'text-rose-500', bg: 'bg-rose-100', border: 'border-rose-200', img: '/assets/ranks/cat_rank8.webp' },
+  { id: 9, name: 'Удачливый Кот', points: 50000, minDeposit: 250000, reward: 5000, cashback: 9, rakeback: 0.11, bonus: 'Эксклюзивный фон профиля', icon: Flame, color: 'text-emerald-500', bg: 'bg-emerald-100', border: 'border-emerald-200', img: '/assets/ranks/cat_rank9.webp' },
+  { id: 10, name: 'Золотые Лапки', points: 100000, minDeposit: 500000, reward: 7500, cashback: 10, rakeback: 0.11, bonus: 'Платиновая рамка', icon: Gem, color: 'text-cyan-500', bg: 'bg-cyan-100', border: 'border-cyan-200', img: '/assets/ranks/cat_rank10.webp' },
+  { id: 11, name: 'Бриллиантовые Усы', points: 250000, minDeposit: 1000000, reward: 10000, cashback: 11, rakeback: 0.12, bonus: 'Префикс в чате "Бриллиант"', icon: Gem, color: 'text-violet-500', bg: 'bg-violet-100', border: 'border-violet-200', img: '/assets/ranks/cat_rank11.webp' },
+  { id: 12, name: 'Пантера', points: 500000, minDeposit: 2500000, reward: 15000, cashback: 12, rakeback: 0.12, bonus: 'VIP Поддержка 24/7', icon: Zap, color: 'text-fuchsia-500', bg: 'bg-fuchsia-100', border: 'border-fuchsia-200', img: '/assets/ranks/cat_rank12.webp' },
+  { id: 13, name: 'Лев', points: 1000000, minDeposit: 5000000, reward: 25000, cashback: 13, rakeback: 0.13, bonus: 'Анимация для никнейма', icon: Crown, color: 'text-orange-600', bg: 'bg-orange-200', border: 'border-orange-300', img: '/assets/ranks/cat_rank13.webp' },
+  { id: 14, name: 'Котодракон', points: 2500000, minDeposit: 10000000, reward: 50000, cashback: 14, rakeback: 0.13, bonus: 'Кастомный фон профиля', icon: Flame, color: 'text-red-600', bg: 'bg-red-200', border: 'border-red-300', img: '/assets/ranks/cat_rank14.webp' },
+  { id: 15, name: 'Бог Котов', points: 5000000, minDeposit: 25000000, reward: 150000, cashback: 15, rakeback: 0.14, bonus: 'Кастомная рамка профиля', icon: Trophy, color: 'text-brand-500', bg: 'bg-brand-100', border: 'border-brand-200', img: '/assets/ranks/cat_rank15.webp' },
 ];
 
 export default function Level({ user }: { user: any }) {
   const userExp = user?.xp || user?.experience || 0; 
   const userDeposits = user?.totalDeposits || 0;
+  const claimedRanks: number[] = user?.claimedRanks || [];
   
-  // Определяем реальный открытый ранг (нужно соблюдение обоих условий)
-  let unlockedRankIndex = -1;
+  // Механика 0-го уровня: если условия для 1-го ранга не выполнены, actualRankIndex будет -1
+  let actualRankIndex = -1;
   for (let i = RANKS.length - 1; i >= 0; i--) {
     if (userExp >= RANKS[i].points && userDeposits >= RANKS[i].minDeposit) {
-      unlockedRankIndex = i;
+      actualRankIndex = i;
       break;
     }
   }
   
-  // Если пользователь еще не выполнил требования даже для 1-го ранга, ставим ему визуально 1-й
-  const actualRankIndex = unlockedRankIndex === -1 ? 0 : unlockedRankIndex;
+  // Для карусели начальный индекс не может быть меньше 0 (показываем карточку 1-го уровня)
+  const initialIndex = Math.max(0, actualRankIndex);
   
-  const [activeIndex, setActiveIndex] = useState(actualRankIndex);
+  const [activeIndex, setActiveIndex] = useState(initialIndex);
   const [direction, setDirection] = useState(0); 
   const [loadedImages, setLoadedImages] = useState<Record<number, boolean>>({});
+  const [claiming, setClaiming] = useState(false);
 
   useEffect(() => {
     RANKS.forEach(rank => {
       const img = new Image();
-      img.src = `/assets/ranks/cat_rank${rank.id}.webp`;
+      img.src = rank.img;
     });
   }, []);
 
@@ -76,13 +80,33 @@ export default function Level({ user }: { user: any }) {
     }
   };
 
+  const handleClaimReward = async () => {
+    if (claiming || !user?.uid) return;
+    setClaiming(true);
+    try {
+      const activeRank = RANKS[activeIndex];
+      const newClaimed = [...claimedRanks, activeRank.id];
+      await updateDoc(doc(db, 'users', user.uid), {
+        balance: (user.balance || 0) + activeRank.reward,
+        claimedRanks: newClaimed,
+        level: Math.max(user.level || 0, activeRank.id)
+      });
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setClaiming(false);
+    }
+  };
+
   const activeRank = RANKS[activeIndex];
   const isUnlocked = userExp >= activeRank.points && userDeposits >= activeRank.minDeposit;
   const isCurrentImgLoaded = loadedImages[activeRank.id];
+  const hasClaimed = claimedRanks.includes(activeRank.id);
 
-  const isUnranked = unlockedRankIndex === -1;
+  const isUnranked = actualRankIndex === -1;
+  // Визуализация текущего ранга в верхнем блоке (если механически 0-й уровень)
   const displayRankObj = isUnranked 
-    ? { name: 'Гость', bg: 'bg-slate-100', color: 'text-slate-400', icon: Star } 
+    ? { name: 'Без ранга', bg: 'bg-slate-100', color: 'text-slate-400', icon: Star } 
     : RANKS[actualRankIndex];
     
   const nextRankObj = isUnranked ? RANKS[0] : (RANKS[actualRankIndex + 1] || null);
@@ -199,7 +223,7 @@ export default function Level({ user }: { user: any }) {
                    )}
 
                    <img 
-                     src={`/assets/ranks/cat_rank${activeRank.id}.webp`}
+                     src={activeRank.img}
                      alt={activeRank.name}
                      onLoad={() => setLoadedImages(prev => ({ ...prev, [activeRank.id]: true }))}
                      className={cn(
@@ -221,7 +245,6 @@ export default function Level({ user }: { user: any }) {
                     <div className={cn("px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 border w-full sm:w-auto transition-colors", userExp >= activeRank.points ? "bg-brand-50 text-brand-600 border-brand-200" : "bg-slate-50 text-slate-400 border-slate-100")}>
                       <Star className="w-4 h-4" /> {activeRank.points.toLocaleString()} XP
                     </div>
-                    {/* Изменено "Деп" на "Депозит" */}
                     <div className={cn("px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 border w-full sm:w-auto transition-colors", userDeposits >= activeRank.minDeposit ? "bg-emerald-50 text-emerald-600 border-emerald-200" : "bg-slate-50 text-slate-400 border-slate-100")}>
                       <Wallet className="w-4 h-4" /> Депозит {activeRank.minDeposit.toLocaleString()} CAT
                     </div>
@@ -237,18 +260,36 @@ export default function Level({ user }: { user: any }) {
                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Рейкбек</p>
                      <p className="text-2xl font-black text-slate-900">{activeRank.rakeback}%</p>
                   </div>
-                  <div className="col-span-2 bg-gradient-to-br from-brand-50 to-indigo-50 p-4 md:p-5 rounded-2xl border border-brand-100 flex items-center justify-between gap-4">
-                     <div className="flex items-center gap-4">
+                  <div className="col-span-2 bg-gradient-to-br from-brand-50 to-indigo-50 p-4 md:p-5 rounded-2xl border border-brand-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+                     <div className="flex items-center gap-4 w-full">
                        <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shrink-0 shadow-sm border border-brand-100">
                          <Coins className="w-6 h-6 text-brand-500" />
                        </div>
-                       <div>
+                       <div className="flex-1">
                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-0.5">Награда за уровень</p>
                          <p className="text-xl md:text-2xl font-black text-brand-600 leading-none">
                            {activeRank.reward > 0 ? `${activeRank.reward.toLocaleString()} CAT` : 'Нет'}
                          </p>
                        </div>
                      </div>
+                     {/* КНОПКА ПОЛУЧЕНИЯ НАГРАДЫ */}
+                     {activeRank.reward > 0 && isUnlocked && actualRankIndex >= activeIndex && (
+                        <div className="w-full sm:w-auto shrink-0 mt-2 sm:mt-0">
+                          {hasClaimed ? (
+                             <div className="px-4 py-3 bg-white text-emerald-500 border border-emerald-100 rounded-xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-sm w-full">
+                               <CheckCircle2 className="w-4 h-4" /> Получено
+                             </div>
+                          ) : (
+                             <button
+                               onClick={handleClaimReward}
+                               disabled={claiming}
+                               className="px-6 py-3 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-md shadow-brand-200 active:scale-95 w-full flex items-center justify-center gap-2"
+                             >
+                               {claiming ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Забрать'}
+                             </button>
+                          )}
+                        </div>
+                     )}
                   </div>
                 </div>
 

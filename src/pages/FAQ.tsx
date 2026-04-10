@@ -1,4 +1,8 @@
-import { HelpCircle, ShieldCheck, Zap, Coins, Cat, MessageCircle, ArrowRight } from 'lucide-react';
+import { 
+  HelpCircle, ShieldCheck, Zap, MessageCircle, ArrowRight, 
+  Wallet, Users, Terminal, Lock 
+} from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -10,24 +14,44 @@ function cn(...inputs: ClassValue[]) {
 export default function FAQ() {
   const faqs = [
     {
-      icon: HelpCircle,
-      title: 'Как начать играть?',
-      content: 'Просто войдите через Google, получите начальный баланс и выберите любую игру на главной странице. Удачи!'
+      icon: Wallet,
+      title: 'Как пополнить счет?',
+      content: 'На мобильных устройствах в нижней панели есть кнопка плюса для перехода в пополнения. На десктопе в верхней панели — кнопки около вашего баланса. Укажите сумму, и вас перебросит на агрегатор для безопасной оплаты. Внутри CoolCat курс стабилен: 1 CAT = 1 RUB.'
     },
     {
       icon: ShieldCheck,
-      title: 'Честная ли игра?',
-      content: 'Да! Мы используем алгоритмы Provably Fair, основанные на криптографическом хешировании, что гарантирует честность каждого раунда.'
+      title: 'Возрастные ограничения',
+      content: 'Играть в CoolCat могут только лица, достигшие 18 лет! Если вам меньше 18, пожалуйста, немедленно покиньте наш проект.'
+    },
+    {
+      icon: Users,
+      title: 'Аккаунты и рефералы',
+      content: 'Разрешено иметь только 1 учетную запись. Создание мультиаккаунтов, регистрация по своей реферальной ссылке, сговоры с игроками и использование фейков строго запрещены. Нарушение ведет к блокировке всех связанных профилей.'
     },
     {
       icon: Zap,
-      title: 'Как повысить уровень?',
-      content: 'Ваш уровень повышается за счет суммы сделанных ставок. Чем больше вы играете, тем выше ваш уровень и круче бонусы!'
+      title: 'Финансы и выводы',
+      content: 'Используйте только личные реквизиты. Транзитные операции (депозит и моментальный вывод без игры) запрещены — такие выплаты отменяются. Проект не является финансовым сервисом, а внутренний баланс — собственность CoolCat.'
     },
     {
-      icon: Coins,
-      title: 'Как работают промокоды?',
-      content: 'Перейдите в раздел "Бонусы", введите промокод и нажмите "Активировать". Бонус будет мгновенно зачислен на ваш баланс.'
+      icon: Terminal,
+      title: 'Честная игра',
+      content: 'Использование софта, ботов, автокликеров и консольных команд строго запрещено. Злоупотребление бонусной системой ведет к бану. Если нашли баг или уязвимость — сообщите в поддержку, и мы вознаградим вас за честность!'
+    },
+    {
+      icon: Lock,
+      title: 'Безопасность профиля',
+      content: 'Никогда не передавайте доступ к своему аккаунту третьим лицам. Вход в аккаунт с устройства знакомых или вывод на чужие реквизиты рассматривается как передача доступа и может привести к вечной блокировке всех бонусов или аккаунта.'
+    },
+    {
+      icon: MessageCircle,
+      title: 'Правила чата',
+      content: 'Мы за дружелюбное комьюнити! В чате CoolCat запрещены: спам, попрошайничество, оскорбления, продажа "тактик" или услуг по раскрутке баланса. За нарушение выдается ограничение на отправку сообщений или полная блокировка.'
+    },
+    {
+      icon: HelpCircle,
+      title: 'Как начать играть?',
+      content: 'Просто войдите в аккаунт, получите начальный баланс и выберите любую игру на главной странице. Все игры основаны на криптографическом хешировании (Provably Fair), что гарантирует абсолютную честность каждого раунда.'
     }
   ];
 
@@ -38,7 +62,7 @@ export default function FAQ() {
           <HelpCircle className="w-10 h-10 text-white" />
         </div>
         <div className="space-y-2">
-          <h1 className="text-5xl font-black text-slate-900 tracking-tighter">Часто задаваемые вопросы</h1>
+          <h1 className="text-5xl font-black text-slate-900 tracking-tighter">Правила и FAQ</h1>
           <p className="text-slate-400 text-lg font-medium">Все, что вам нужно знать о CoolCat Casino</p>
         </div>
       </header>
@@ -76,9 +100,9 @@ export default function FAQ() {
             Наша команда поддержки всегда готова помочь вам. Свяжитесь с нами через раздел контактов.
           </p>
           <div className="flex justify-center pt-4">
-            <button className="bg-white text-brand-600 px-12 py-5 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-brand-50 transition-all shadow-xl flex items-center gap-3 group">
+            <Link to="/contacts" className="bg-white text-brand-600 px-12 py-5 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-brand-50 transition-all shadow-xl inline-flex items-center gap-3 group">
               Связаться с нами <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </button>
+            </Link>
           </div>
         </div>
       </section>

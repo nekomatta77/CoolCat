@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { UserProfile, PromoCode } from '../types';
 import { doc, updateDoc, getDocs, query, collection, addDoc, deleteDoc, orderBy, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Users, Ticket, Plus, List, Zap, Search, Ban, Trash2, Cat, CheckCircle2, AlertCircle, Copy, X, ShieldAlert, RefreshCw } from 'lucide-react';
+import { Users, Ticket, Plus, List, Zap, Search, Ban, Trash2, Cat, CheckCircle2, AlertCircle, Copy, X, ShieldAlert, RefreshCw, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 
@@ -11,6 +11,31 @@ interface AdminProps {
 }
 
 type UserActionType = 'block' | 'unblock' | 'delete' | 'reset_wager';
+
+type EditConfirmData = {
+  userTarget: UserProfile;
+  changes: { field: string; label: string; oldVal: any; newVal: any }[];
+};
+
+// Требования для синхронизации, включая механический 0-й уровень
+const LEVEL_REQUIREMENTS = [
+  { id: 0, points: 0, minDeposit: 0 },
+  { id: 1, points: 0, minDeposit: 100 },
+  { id: 2, points: 100, minDeposit: 1000 },
+  { id: 3, points: 500, minDeposit: 2500 },
+  { id: 4, points: 1500, minDeposit: 5000 },
+  { id: 5, points: 3000, minDeposit: 10000 },
+  { id: 6, points: 5000, minDeposit: 25000 },
+  { id: 7, points: 10000, minDeposit: 50000 },
+  { id: 8, points: 25000, minDeposit: 100000 },
+  { id: 9, points: 50000, minDeposit: 250000 },
+  { id: 10, points: 100000, minDeposit: 500000 },
+  { id: 11, points: 250000, minDeposit: 1000000 },
+  { id: 12, points: 500000, minDeposit: 2500000 },
+  { id: 13, points: 1000000, minDeposit: 5000000 },
+  { id: 14, points: 2500000, minDeposit: 10000000 },
+  { id: 15, points: 5000000, minDeposit: 25000000 },
+];
 
 export default function Admin({ user }: AdminProps) {
   const [activeTab, setActiveTab] = useState<'users' | 'promo'>('users');
@@ -23,9 +48,9 @@ export default function Admin({ user }: AdminProps) {
 
   const [userActionModal, setUserActionModal] = useState<{ userTarget: UserProfile, action: UserActionType } | null>(null);
   
-  // Новые состояния для редактирования баланса
-  const [editingBalances, setEditingBalances] = useState<Record<string, number>>({});
-  const [balanceConfirmModal, setBalanceConfirmModal] = useState<{ userTarget: UserProfile, newBalance: number } | null>(null);
+  const [editingUsers, setEditingUsers] = useState<Record<string, { balance?: number; level?: number; rank?: 'user'|'vip'|'admin' }>>({});
+  
+  const [editConfirmModal, setEditConfirmModal] = useState<EditConfirmData | null>(null);
 
   const [newPromoId, setNewPromoId] = useState<string | null>(null);
 
@@ -72,7 +97,7 @@ export default function Admin({ user }: AdminProps) {
     const targetName = userTarget.nickname || 'Без имени';
 
     if (!userTarget.uid) {
-      setNotification({ message: 'Ошибка: Невозможно выполнить действие, отсутствует UID пользователя', type: 'error' });
+      setNotification({ message: 'Ошибка: Отсутствует UID пользователя', type: 'error' });
       setUserActionModal(null);
       return;
     }
@@ -84,12 +109,10 @@ export default function Admin({ user }: AdminProps) {
         setNotification({ message: `Игрок ${targetName} успешно ${isBanning ? 'заблокирован' : 'разблокирован'}!`, type: 'success' });
       } 
       else if (action === 'delete') {
-        // 🔒 Вносим в черный список удаленных пользователей, чтобы они не могли зайти снова
         await setDoc(doc(db, 'deleted_users', userTarget.uid), {
           deletedAt: new Date().toISOString(),
           nickname: targetName
         });
-        
         await deleteDoc(doc(db, 'users', userTarget.uid));
         setUsers(users.filter(u => u.uid !== userTarget.uid));
         setNotification({ message: `Аккаунт ${targetName} удален навсегда!`, type: 'success' });
@@ -106,19 +129,51 @@ export default function Admin({ user }: AdminProps) {
     }
   };
 
-  const confirmBalanceChange = async () => {
-    if (!balanceConfirmModal) return;
-    const { userTarget, newBalance } = balanceConfirmModal;
+  const handleSaveProfileClick = (u: UserProfile) => {
+    const currentEdit = editingUsers[u.uid];
+    if (!currentEdit) return;
+
+    const changes = [];
+    if (currentEdit.balance !== undefined && currentEdit.balance !== u.balance) {
+      changes.push({ field: 'balance', label: 'Баланс (CAT)', oldVal: u.balance, newVal: currentEdit.balance });
+    }
+    if (currentEdit.level !== undefined && currentEdit.level !== (u.level ?? 0)) {
+      changes.push({ field: 'level', label: 'Уровень (Синхронизирует XP и Деп)', oldVal: u.level ?? 0, newVal: currentEdit.level });
+    }
+    if (currentEdit.rank !== undefined && currentEdit.rank !== u.rank) {
+      changes.push({ field: 'rank', label: 'Ранг', oldVal: u.rank || 'user', newVal: currentEdit.rank });
+    }
+
+    if (changes.length > 0) {
+      setEditConfirmModal({ userTarget: u, changes });
+    }
+  };
+
+  const confirmEditProfile = async () => {
+    if (!editConfirmModal) return;
     
-    await handleUpdateUser(userTarget.uid, { balance: newBalance });
+    const updates: Partial<UserProfile> = {};
+    editConfirmModal.changes.forEach(c => { updates[c.field as keyof UserProfile] = c.newVal; });
     
-    // Убираем из режима редактирования, чтобы пропала кнопка сохранения
-    const updatedEditing = { ...editingBalances };
-    delete updatedEditing[userTarget.uid];
-    setEditingBalances(updatedEditing);
+    // СИНХРОНИЗАЦИЯ УРОВНЯ ДЛЯ СИСТЕМЫ "ЛВЛ КОТИКА"
+    if (updates.level !== undefined) {
+      const targetLevel = Math.min(Math.max(Number(updates.level), 0), 15);
+      updates.level = targetLevel;
+      
+      const req = LEVEL_REQUIREMENTS.find(r => r.id === targetLevel) || LEVEL_REQUIREMENTS[0];
+      
+      updates.xp = req.points;
+      updates.totalDeposits = req.minDeposit;
+    }
+
+    await handleUpdateUser(editConfirmModal.userTarget.uid, updates);
     
-    setNotification({ message: `Баланс игрока ${userTarget.nickname} успешно обновлен!`, type: 'success' });
-    setBalanceConfirmModal(null);
+    const newEditing = { ...editingUsers };
+    delete newEditing[editConfirmModal.userTarget.uid];
+    setEditingUsers(newEditing);
+    
+    setNotification({ message: `Профиль игрока ${editConfirmModal.userTarget.nickname} обновлен!`, type: 'success' });
+    setEditConfirmModal(null);
   };
 
   const handleCreatePromo = async (name: string, amount: number, activations: number, wager: number) => {
@@ -138,19 +193,16 @@ export default function Admin({ user }: AdminProps) {
       };
       
       const docRef = await addDoc(collection(db, 'promoCodes'), newPromoData);
-      
       const createdPromo = { id: docRef.id, ...newPromoData } as PromoCode;
-      setPromoCodes([createdPromo, ...promoCodes]);
       
+      setPromoCodes([createdPromo, ...promoCodes]);
       setPromoName('');
       setNotification({ message: 'Промокод успешно создан!', type: 'success' });
       setPromoTab('list');
       
       setNewPromoId(docRef.id);
       setTimeout(() => setNewPromoId(null), 2000); 
-
     } catch (error) {
-      console.error('Create promo error:', error);
       setNotification({ message: 'Ошибка при создании промокода', type: 'error' });
     }
   };
@@ -168,23 +220,33 @@ export default function Admin({ user }: AdminProps) {
   const filteredUsers = users.filter(u => (u.nickname || '').toLowerCase().includes((search || '').toLowerCase()));
 
   const getModalContent = () => {
-    if (balanceConfirmModal) {
+    if (editConfirmModal) {
       return (
         <div className="flex flex-col items-center text-center space-y-5 md:space-y-6">
           <div className="w-16 h-16 md:w-20 md:h-20 rounded-3xl flex items-center justify-center shadow-xl bg-amber-100 text-amber-500 shadow-amber-100">
             <AlertCircle className="w-8 h-8 md:w-10 md:h-10" />
           </div>
-          <div className="space-y-2">
-            <h3 className="text-xl md:text-2xl font-black text-slate-900">Изменение баланса</h3>
+          <div className="space-y-4 w-full">
+            <h3 className="text-xl md:text-2xl font-black text-slate-900">Подтверждение изменений</h3>
             <p className="text-slate-500 font-medium text-sm md:text-base leading-relaxed">
-              Вы уверены, что хотите изменить баланс игрока <span className="font-black text-slate-900">{balanceConfirmModal.userTarget.nickname}</span>?<br/>
-              Старый баланс: <span className="font-bold text-red-500">{balanceConfirmModal.userTarget.balance.toFixed(2)}</span> CAT<br/>
-              Новый баланс: <span className="font-bold text-emerald-500">{balanceConfirmModal.newBalance.toFixed(2)}</span> CAT
+              Вы уверены, что хотите применить новые параметры для игрока <span className="font-black text-slate-900">{editConfirmModal.userTarget.nickname}</span>?
             </p>
+            <div className="flex flex-col gap-2 w-full text-left">
+              {editConfirmModal.changes.map((c, idx) => (
+                <div key={idx} className="flex items-center justify-between bg-slate-50 border border-slate-100 p-3 rounded-xl">
+                  <span className="text-xs md:text-sm font-black text-slate-400 uppercase tracking-widest">{c.label}</span>
+                  <div className="flex items-center gap-2 font-black text-sm md:text-base">
+                    <span className="text-red-400 line-through truncate max-w-[80px] sm:max-w-xs">{c.oldVal}</span>
+                    <ArrowRight className="w-4 h-4 text-slate-300 shrink-0" />
+                    <span className="text-emerald-500 truncate max-w-[80px] sm:max-w-xs">{c.newVal}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
           <div className="flex flex-col-reverse md:flex-row gap-3 w-full pt-2 md:pt-4">
-            <button onClick={() => setBalanceConfirmModal(null)} className="w-full py-4 bg-slate-50 hover:bg-slate-100 text-slate-600 font-black rounded-2xl transition-all">Отмена</button>
-            <button onClick={confirmBalanceChange} className="w-full py-4 text-white font-black rounded-2xl transition-all shadow-lg bg-amber-500 hover:bg-amber-600 shadow-amber-200">Да, изменить</button>
+            <button onClick={() => setEditConfirmModal(null)} className="w-full py-4 bg-slate-50 hover:bg-slate-100 text-slate-600 font-black rounded-2xl transition-all">Отмена</button>
+            <button onClick={confirmEditProfile} className="w-full py-4 text-white font-black rounded-2xl transition-all shadow-lg bg-amber-500 hover:bg-amber-600 shadow-amber-200">Да, применить</button>
           </div>
         </div>
       );
@@ -241,10 +303,10 @@ export default function Admin({ user }: AdminProps) {
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 md:space-y-8 pb-12 relative px-2 md:px-0">
+    <div className="max-w-[90rem] mx-auto space-y-6 md:space-y-8 pb-12 relative px-2 md:px-0">
       
       <AnimatePresence>
-        {(userActionModal || balanceConfirmModal) && (
+        {(userActionModal || editConfirmModal) && (
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -258,7 +320,7 @@ export default function Admin({ user }: AdminProps) {
               className="bg-white rounded-[2.5rem] p-6 md:p-8 max-w-md w-full shadow-2xl border border-slate-100 relative mx-4"
             >
               <button 
-                onClick={() => { setUserActionModal(null); setBalanceConfirmModal(null); }}
+                onClick={() => { setUserActionModal(null); setEditConfirmModal(null); }}
                 className="absolute top-4 right-4 md:top-6 md:right-6 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all"
               >
                 <X className="w-6 h-6" />
@@ -269,7 +331,7 @@ export default function Admin({ user }: AdminProps) {
         )}
       </AnimatePresence>
 
-      <header className="flex flex-col md:flex-row items-center justify-between gap-6 bg-white p-5 lg:p-8 rounded-[2rem] md:rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50">
+      <header className="flex flex-col md:flex-row items-center justify-between gap-6 bg-white p-5 lg:p-8 rounded-[2rem] md:rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 max-w-7xl mx-auto">
         <div className="flex flex-col md:flex-row items-center gap-4 md:gap-6 text-center md:text-left">
           <div className="w-14 h-14 md:w-16 md:h-16 bg-brand-600 rounded-2xl md:rounded-3xl flex items-center justify-center shadow-xl shadow-brand-200 shrink-0">
             <Cat className="w-7 h-7 md:w-8 md:h-8 text-white" />
@@ -322,22 +384,26 @@ export default function Admin({ user }: AdminProps) {
       <AnimatePresence mode="wait">
         {activeTab === 'users' ? (
           <motion.div key="users" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-4 md:space-y-6">
-            <div className="bg-white p-3 md:p-4 rounded-[1.5rem] md:rounded-[2rem] border border-slate-100 shadow-lg shadow-slate-200/50 flex items-center gap-3 md:gap-4 focus-within:border-brand-300 transition-colors">
+            <div className="max-w-7xl mx-auto bg-white p-3 md:p-4 rounded-[1.5rem] md:rounded-[2rem] border border-slate-100 shadow-lg shadow-slate-200/50 flex items-center gap-3 md:gap-4 focus-within:border-brand-300 transition-colors">
               <div className="w-10 h-10 md:w-12 md:h-12 bg-slate-50 rounded-xl md:rounded-2xl flex items-center justify-center shrink-0">
                 <Search className="w-4 h-4 md:w-5 md:h-5 text-slate-400" />
               </div>
               <input type="text" placeholder="Поиск по никнейму..." value={search} onChange={(e) => setSearch(e.target.value)} className="flex-1 bg-transparent border-none outline-none font-bold text-slate-900 placeholder:text-slate-300 text-base md:text-lg w-full" />
             </div>
 
-            <div className="grid grid-cols-1 gap-5">
+            <div className="grid grid-cols-1 gap-5 max-w-7xl mx-auto">
               {filteredUsers.map((u) => {
-                // Проверяем, изменился ли баланс в инпуте по сравнению с базой
-                const isBalanceChanged = editingBalances[u.uid] !== undefined && editingBalances[u.uid] !== u.balance;
+                const currentEdit = editingUsers[u.uid];
+                const hasChanges = currentEdit && (
+                  (currentEdit.balance !== undefined && currentEdit.balance !== u.balance) ||
+                  (currentEdit.level !== undefined && currentEdit.level !== (u.level ?? 0)) ||
+                  (currentEdit.rank !== undefined && currentEdit.rank !== (u.rank || 'user'))
+                );
                 
                 return (
                 <div key={u.uid} className="bg-white p-5 md:p-6 rounded-[2rem] md:rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-xl shadow-slate-200/40 transition-all flex flex-col gap-5 md:gap-6 group relative overflow-hidden">
                   
-                  <div className="flex flex-col md:flex-row md:items-center justify-between w-full gap-4 pb-5 border-b border-slate-100">
+                  <div className="flex flex-col lg:flex-row lg:items-center justify-between w-full gap-4 pb-5 border-b border-slate-100">
                     <div className="flex items-center gap-4 min-w-0">
                       <div className="relative shrink-0">
                         <img src={u.avatar || '/assets/avatars/ava1.webp'} className="w-14 h-14 md:w-16 md:h-16 rounded-2xl object-cover border-2 border-slate-100 shadow-sm" alt="" />
@@ -350,59 +416,92 @@ export default function Admin({ user }: AdminProps) {
                       <div className="min-w-0">
                         <p className="font-black text-slate-900 text-lg md:text-xl truncate">{u.nickname || 'Без имени'}</p>
                         <p className={cn("text-xs font-black uppercase tracking-widest mt-0.5", u.rank === 'admin' ? "text-brand-500" : "text-slate-400")}>
-                          {u.rank || 'user'} • LVL {u.level || 1}
+                          {u.rank || 'user'} • LVL {u.level ?? 0}
                         </p>
                       </div>
                     </div>
                     
-                    <div className="flex items-center gap-2 md:gap-3 self-end md:self-auto w-full md:w-auto">
-                      <button onClick={() => setUserActionModal({ userTarget: u, action: 'reset_wager' })} className="flex-1 md:flex-none py-2.5 px-3 md:p-3 rounded-xl bg-brand-50 text-brand-500 hover:bg-brand-500 hover:text-white transition-all shadow-sm flex items-center justify-center gap-2" title="Сбросить отыгрыш">
-                        <RefreshCw className="w-4 h-4" /> <span className="md:hidden text-xs font-bold">Отыгрыш</span>
+                    <div className="flex flex-wrap items-center gap-2 md:gap-3 w-full lg:w-auto shrink-0">
+                      
+                      <AnimatePresence>
+                        {hasChanges && (
+                          <motion.button 
+                            initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}
+                            onClick={() => handleSaveProfileClick(u)} 
+                            className="flex-1 lg:flex-none py-2.5 px-4 md:p-3 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 transition-all shadow-md shadow-emerald-200 flex items-center justify-center gap-2 animate-pulse" 
+                            title="Сохранить изменения"
+                          >
+                            <CheckCircle2 className="w-4 h-4" /> <span className="text-xs font-bold uppercase tracking-widest">Сохранить</span>
+                          </motion.button>
+                        )}
+                      </AnimatePresence>
+
+                      <button onClick={() => setUserActionModal({ userTarget: u, action: 'reset_wager' })} className="flex-1 lg:flex-none py-2.5 px-3 md:p-3 rounded-xl bg-brand-50 text-brand-500 hover:bg-brand-500 hover:text-white transition-all shadow-sm flex items-center justify-center gap-2" title="Сбросить отыгрыш">
+                        <RefreshCw className="w-4 h-4" /> <span className="lg:hidden text-[10px] uppercase font-bold tracking-widest">Отыгрыш</span>
                       </button>
-                      <button onClick={() => setUserActionModal({ userTarget: u, action: u.banned ? 'unblock' : 'block' })} className={cn("flex-1 md:flex-none py-2.5 px-3 md:p-3 rounded-xl transition-all shadow-sm flex items-center justify-center gap-2", u.banned ? "bg-emerald-50 text-emerald-500 hover:bg-emerald-500 hover:text-white" : "bg-orange-50 text-orange-500 hover:bg-orange-500 hover:text-white")} title={u.banned ? 'Разблокировать' : 'Заблокировать'}>
-                        {u.banned ? <CheckCircle2 className="w-4 h-4" /> : <Ban className="w-4 h-4" />} <span className="md:hidden text-xs font-bold">{u.banned ? 'Разбан' : 'Бан'}</span>
+                      <button onClick={() => setUserActionModal({ userTarget: u, action: u.banned ? 'unblock' : 'block' })} className={cn("flex-1 lg:flex-none py-2.5 px-3 md:p-3 rounded-xl transition-all shadow-sm flex items-center justify-center gap-2", u.banned ? "bg-emerald-50 text-emerald-500 hover:bg-emerald-500 hover:text-white" : "bg-orange-50 text-orange-500 hover:bg-orange-500 hover:text-white")} title={u.banned ? 'Разблокировать' : 'Заблокировать'}>
+                        {u.banned ? <CheckCircle2 className="w-4 h-4" /> : <Ban className="w-4 h-4" />} <span className="lg:hidden text-[10px] uppercase font-bold tracking-widest">{u.banned ? 'Разбан' : 'Бан'}</span>
                       </button>
-                      <button onClick={() => setUserActionModal({ userTarget: u, action: 'delete' })} className="flex-1 md:flex-none py-2.5 px-3 md:p-3 rounded-xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-sm flex items-center justify-center gap-2" title="Удалить аккаунт">
-                        <Trash2 className="w-4 h-4" /> <span className="md:hidden text-xs font-bold">Удалить</span>
+                      <button onClick={() => setUserActionModal({ userTarget: u, action: 'delete' })} className="flex-1 lg:flex-none py-2.5 px-3 md:p-3 rounded-xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-sm flex items-center justify-center gap-2" title="Удалить аккаунт">
+                        <Trash2 className="w-4 h-4" /> <span className="lg:hidden text-[10px] uppercase font-bold tracking-widest">Удалить</span>
                       </button>
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+                  {/* ОБНОВЛЕННАЯ СЕТКА ИНПУТОВ (6 КОЛОНОК) */}
+                  <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 md:gap-6">
+                    
+                    {/* РАНГ */}
                     <div className="space-y-2 relative">
-                      <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400 pl-1">Баланс (CAT)</p>
-                      <div className="relative flex items-center">
-                        <input
-                          type="number"
-                          value={editingBalances[u.uid] !== undefined ? editingBalances[u.uid] : (u.balance || 0)}
-                          onChange={(e) => setEditingBalances({ ...editingBalances, [u.uid]: Number(e.target.value) })}
-                          className="w-full bg-slate-50 hover:bg-slate-100 focus:bg-white border-2 border-transparent focus:border-brand-500 rounded-xl pl-4 pr-12 py-3 font-black text-slate-900 text-sm md:text-base outline-none transition-all shadow-inner"
-                        />
-                        <AnimatePresence>
-                          {isBalanceChanged && (
-                            <motion.button 
-                              initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.5 }}
-                              onClick={() => setBalanceConfirmModal({ userTarget: u, newBalance: editingBalances[u.uid] })}
-                              className="absolute right-2 p-1.5 bg-brand-500 hover:bg-brand-600 text-white rounded-lg transition-all shadow-md"
-                              title="Подтвердить изменение"
-                            >
-                              <CheckCircle2 className="w-4 h-4" />
-                            </motion.button>
-                          )}
-                        </AnimatePresence>
-                      </div>
+                      <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400 pl-1">Ранг</p>
+                      <select
+                        value={editingUsers[u.uid]?.rank ?? (u.rank || 'user')}
+                        onChange={(e) => setEditingUsers({...editingUsers, [u.uid]: {...(editingUsers[u.uid]||{}), rank: e.target.value as any}})}
+                        className="w-full bg-slate-50 hover:bg-slate-100 focus:bg-white border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-3 font-black text-slate-900 text-sm md:text-base outline-none transition-all shadow-inner appearance-none cursor-pointer uppercase"
+                      >
+                        <option value="user">User</option>
+                        <option value="vip">VIP</option>
+                        <option value="admin">Admin</option>
+                      </select>
                     </div>
 
+                    {/* УРОВЕНЬ */}
+                    <div className="space-y-2 relative">
+                      <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400 pl-1">Уровень</p>
+                      <input
+                        type="number"
+                        min="0"
+                        max="15"
+                        value={editingUsers[u.uid]?.level ?? (u.level ?? 0)}
+                        onChange={(e) => setEditingUsers({...editingUsers, [u.uid]: {...(editingUsers[u.uid]||{}), level: Number(e.target.value)}})}
+                        className="w-full bg-slate-50 hover:bg-slate-100 focus:bg-white border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-3 font-black text-slate-900 text-sm md:text-base outline-none transition-all shadow-inner"
+                      />
+                    </div>
+
+                    {/* БАЛАНС */}
+                    <div className="space-y-2 relative">
+                      <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400 pl-1">Баланс (CAT)</p>
+                      <input
+                        type="number"
+                        value={editingUsers[u.uid]?.balance ?? u.balance}
+                        onChange={(e) => setEditingUsers({...editingUsers, [u.uid]: {...(editingUsers[u.uid]||{}), balance: Number(e.target.value)}})}
+                        className="w-full bg-slate-50 hover:bg-slate-100 focus:bg-white border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-3 font-black text-slate-900 text-sm md:text-base outline-none transition-all shadow-inner"
+                      />
+                    </div>
+
+                    {/* ВАГЕР (Сохраняется по onBlur) */}
                     <div className="space-y-2">
                       <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400 pl-1 text-brand-500">Отыгрыш</p>
                       <input type="number" key={`wager-${u.uid}-${u.wagerRequirement}`} defaultValue={u.wagerRequirement || 0} onBlur={(e) => handleUpdateUser(u.uid, { wagerRequirement: Number(e.target.value) })} className="w-full bg-brand-50/50 hover:bg-brand-50 focus:bg-white border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-3 font-black text-brand-700 text-sm md:text-base outline-none transition-all shadow-inner" />
                     </div>
 
+                    {/* ПАРОЛЬ (Сохраняется по onBlur) */}
                     <div className="space-y-2">
                       <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400 pl-1">Пароль</p>
                       <input type="text" defaultValue={u.password || 'N/A'} onBlur={(e) => handleUpdateUser(u.uid, { password: e.target.value })} className="w-full bg-slate-50 hover:bg-slate-100 focus:bg-white border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-3 font-bold text-slate-900 text-sm md:text-base outline-none transition-all shadow-inner" />
                     </div>
 
+                    {/* СТАТИСТИКА */}
                     <div className="space-y-2 col-span-2 md:col-span-1">
                       <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400 pl-1">Статистика</p>
                       <div className="flex flex-row items-center gap-4 text-xs md:text-sm font-black text-slate-500 bg-slate-50 border border-slate-100 px-4 py-3 rounded-xl w-full h-[46px] md:h-[52px]">
@@ -416,7 +515,7 @@ export default function Admin({ user }: AdminProps) {
               )})}
               
               {filteredUsers.length === 0 && (
-                <div className="text-center py-12 bg-white rounded-[2rem] border border-slate-100">
+                <div className="text-center py-12 bg-white rounded-[2rem] border border-slate-100 max-w-7xl mx-auto w-full">
                   <Search className="w-12 h-12 text-slate-200 mx-auto mb-4" />
                   <p className="text-slate-400 font-bold">Игроки не найдены</p>
                 </div>
@@ -424,7 +523,7 @@ export default function Admin({ user }: AdminProps) {
             </div>
           </motion.div>
         ) : (
-          <motion.div key="promo" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-6 md:space-y-8">
+          <motion.div key="promo" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-6 md:space-y-8 max-w-7xl mx-auto">
             <div className="grid grid-cols-3 md:flex bg-white p-1.5 rounded-[1.5rem] md:rounded-[2rem] border border-slate-100 shadow-lg shadow-slate-200/50 w-full md:w-fit gap-1 md:gap-2">
               <button onClick={() => setPromoTab('create')} className={cn("px-2 md:px-8 py-3 rounded-xl font-black text-[9px] md:text-xs uppercase tracking-widest transition-all flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2", promoTab === 'create' ? 'bg-brand-50 text-brand-600' : 'text-slate-400 hover:text-brand-600')}>
                 <Plus className="w-4 h-4 md:w-4 md:h-4" /> <span className="truncate w-full text-center">Создать</span>

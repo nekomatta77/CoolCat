@@ -12,7 +12,7 @@ import Home from './pages/Home';
 import Dice from './pages/Dice';
 import Mines from './pages/Mines';
 import Keno from './pages/Keno';
-import WheelX from './pages/WheelX'; // <-- Изменен импорт
+import WheelX from './pages/WheelX';
 import FAQ from './pages/FAQ';
 import Bonuses from './pages/Bonuses';
 import Level from './pages/Level';
@@ -206,9 +206,29 @@ export default function App() {
           </div>
         </div>
         
-        <div className="flex flex-col items-center gap-3">
-          <h2 className="text-3xl lg:text-4xl font-black text-slate-900 tracking-tighter uppercase">CoolCat</h2>
-          <div className="flex gap-2">
+        <div className="flex flex-col items-center gap-4">
+          
+          {/* НОВЫЙ ДИЗАЙН ТЕКСТА COOLCAT (КАК В САЙДБАРЕ) */}
+          <div className="relative inline-block pb-1">
+            {/* Задний слой: создает толстую обводку */}
+            <span
+              className="absolute inset-0 z-0 drop-shadow-sm block text-4xl lg:text-5xl font-black tracking-tighter"
+              style={{
+                WebkitTextStroke: '8px #5c2f3c', // Толстая бежево-коричневато-розовая обводка
+                color: 'transparent'
+              }}
+              aria-hidden="true"
+            >
+              CoolCat
+            </span>
+            {/* Передний слой: текст с цветом */}
+            <span className="relative z-10 block text-4xl lg:text-5xl font-black tracking-tighter">
+              <span style={{ color: '#feb1d1' }}>Cool</span>
+              <span className="text-white">Cat</span>
+            </span>
+          </div>
+
+          <div className="flex gap-2 mt-2">
             <div className="w-2.5 h-2.5 bg-brand-500 rounded-full animate-bounce [animation-delay:-0.3s]" />
             <div className="w-2.5 h-2.5 bg-brand-500 rounded-full animate-bounce [animation-delay:-0.15s]" />
             <div className="w-2.5 h-2.5 bg-brand-500 rounded-full animate-bounce" />
@@ -242,7 +262,7 @@ export default function App() {
           <Route path="/dice" element={<Dice user={user} />} />
           <Route path="/mines" element={<Mines user={user} />} />
           <Route path="/keno" element={<Keno user={user} />} />
-          <Route path="/wheelx" element={<WheelX user={user} />} /> {/* <-- Изменен путь */}
+          <Route path="/wheelx" element={<WheelX user={user} />} />
           <Route path="/faq" element={<FAQ />} />
           <Route path="/bonuses" element={<Bonuses user={user} />} />
           <Route path="/level" element={<Level user={user} />} />

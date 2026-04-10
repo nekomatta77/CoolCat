@@ -21,7 +21,7 @@ interface LayoutProps {
 export default function Layout({ children, user, onLogout }: LayoutProps) {
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
+  const [modalType, setModalType] = useState<'deposit' | 'withdraw' | null>(null);
 
   // Разделяем кнопки, чтобы освободить центр
   const mobileNavLeft = [
@@ -61,7 +61,9 @@ export default function Layout({ children, user, onLogout }: LayoutProps) {
         <Header 
           user={user} 
           onLogout={onLogout} 
-          onMenuClick={() => setIsSidebarOpen(true)} 
+          onMenuClick={() => setIsSidebarOpen(true)}
+          onDepositClick={() => setModalType('deposit')}
+          onWithdrawClick={() => setModalType('withdraw')}
         />
         <main className="flex-1 p-4 lg:p-8 overflow-x-hidden">
           <div className="max-w-7xl mx-auto">
@@ -70,7 +72,7 @@ export default function Layout({ children, user, onLogout }: LayoutProps) {
         </main>
       </div>
 
-      {/* BOTTOM NAVIGATION */}
+      {/* BOTTOM NAVIGATION (MOBILE) */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-slate-100 px-6 py-2 flex items-center justify-between lg:hidden z-50">
         
         {/* Левые кнопки */}
@@ -85,11 +87,10 @@ export default function Layout({ children, user, onLogout }: LayoutProps) {
 
         {/* 🌟 ВЫПИРАЮЩАЯ КНОПКА ПОПОЛНЕНИЯ ПО ЦЕНТРУ */}
         <div className="relative -mt-8 flex justify-center">
-          {/* Свечение под кнопкой */}
           <div className="absolute inset-0 bg-brand-500 rounded-full blur-xl opacity-40" />
           
           <button 
-            onClick={() => setIsDepositModalOpen(true)}
+            onClick={() => setModalType('deposit')}
             className="relative bg-gradient-to-tr from-brand-600 to-brand-400 text-white p-4 rounded-full border-[6px] border-slate-50 shadow-lg transform transition-all active:scale-95 hover:-translate-y-1"
           >
             <Plus className="w-6 h-6 stroke-[3]" />
@@ -107,10 +108,11 @@ export default function Layout({ children, user, onLogout }: LayoutProps) {
         })}
       </nav>
 
-      {/* МОДАЛКА */}
+      {/* УНИВЕРСАЛЬНАЯ МОДАЛКА (ПОПОЛНЕНИЕ / ВЫВОД) */}
       <DepositModal 
-        isOpen={isDepositModalOpen} 
-        onClose={() => setIsDepositModalOpen(false)} 
+        isOpen={modalType !== null} 
+        type={modalType || 'deposit'}
+        onClose={() => setModalType(null)} 
       />
     </div>
   );

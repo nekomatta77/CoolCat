@@ -4,7 +4,7 @@ import { doc, updateDoc, getDocs, query, collection, where } from 'firebase/fire
 import { db } from '../firebase';
 import { 
   Trophy, Dice5, Grid3X3, Layers, Coins, CheckCircle2, Lock, 
-  Star, Sparkles, ChevronLeft, ChevronRight, Gift, ArrowRight 
+  Star, Sparkles, ChevronLeft, ChevronRight, Gift, ArrowRight, Aperture 
 } from 'lucide-react';
 import { motion, AnimatePresence, PanInfo } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
@@ -20,7 +20,7 @@ interface AchievementsProps {
 
 interface LocalAchievement {
   id: string;
-  category: 'dice' | 'mines' | 'keno' | 'jackpot' | 'general';
+  category: 'dice' | 'mines' | 'keno' | 'wheelx' | 'jackpot' | 'general';
   title: string;
   desc: string;
   target: number;
@@ -34,7 +34,7 @@ export default function Achievements({ user }: AchievementsProps) {
   const [loading, setLoading] = useState(true);
 
   const [activeIndices, setActiveIndices] = useState<Record<string, number>>({
-    dice: 0, mines: 0, keno: 0, jackpot: 0, general: 0
+    dice: 0, mines: 0, keno: 0, wheelx: 0, jackpot: 0, general: 0
   });
   const [directions, setDirections] = useState<Record<string, number>>({});
 
@@ -42,6 +42,7 @@ export default function Achievements({ user }: AchievementsProps) {
     { id: 'dice', name: 'Dice', icon: Dice5, color: 'bg-brand-500', shadow: 'shadow-brand-500/50' },
     { id: 'mines', name: 'Mines', icon: Grid3X3, color: 'bg-rose-500', shadow: 'shadow-rose-500/50' },
     { id: 'keno', name: 'Keno', icon: Layers, color: 'bg-violet-500', shadow: 'shadow-violet-500/50' },
+    { id: 'wheelx', name: 'WheelX', icon: Aperture, color: 'bg-pink-500', shadow: 'shadow-pink-500/50' },
     { id: 'jackpot', name: 'Jackpot', icon: Trophy, color: 'bg-amber-500', shadow: 'shadow-amber-500/50' },
     { id: 'general', name: 'Общие', icon: Coins, color: 'bg-emerald-500', shadow: 'shadow-emerald-500/50' },
   ] as const;
@@ -76,6 +77,12 @@ export default function Achievements({ user }: AchievementsProps) {
     { id: 'keno_magic', category: 'keno', title: 'Кошачья магия', desc: 'Поймать множитель x200 или выше (ставка от 50 CAT)', target: 1, rewardCat: 1500, rewardXp: 2500 },
     { id: 'keno_nostracat', category: 'keno', title: 'Ностракотус', desc: 'Угадать 10 из 10 чисел (ставка от 10 CAT)', target: 1, rewardCat: 5000, rewardXp: 10000, bonus: 'Префикс "ПРОРОК", Аватар "Magic Cat"' },
     
+    // --- WHEELX ---
+    { id: 'wx_greedy', category: 'wheelx', title: 'Жадный', desc: 'Поймать 30 раз коэффициент х30 (ставка от 50 CAT)', target: 30, rewardCat: 150, rewardXp: 200, bonus: 'Аватар "Моя прелесть"' },
+    { id: 'wx_safe', category: 'wheelx', title: 'Надежный выигрыш', desc: 'Поставить ставку на все коэффициенты в одном раунде (от 100 CAT)', target: 1, rewardCat: 100, rewardXp: 250 },
+    { id: 'wx_why_not', category: 'wheelx', title: 'Почему бы и нет?', desc: 'Поймать по очереди Х2, Х3, Х5, Х30 (ставка от 10 CAT)', target: 1, rewardCat: 200, rewardXp: 300, bonus: 'Аватар "Терпение"' },
+    { id: 'wx_more', category: 'wheelx', title: 'Мне нужно больше', desc: 'Выиграть за раунд больше 10,000 CAT', target: 1, rewardCat: 300, rewardXp: 300, bonus: 'Префикс "Рука Мидаса"' },
+
     // --- JACKPOT ---
     { id: 'jackpot_ticket1', category: 'jackpot', title: 'Билет в высшее общество', desc: 'Сыграть 10 раз (ставка от 100 CAT)', target: 10, rewardCat: 150, rewardXp: 100 },
     { id: 'jackpot_ticket2', category: 'jackpot', title: 'Билет в высшее общество II', desc: 'Сыграть 25 раз (ставка от 250 CAT)', target: 25, rewardCat: 300, rewardXp: 200 },
@@ -133,7 +140,6 @@ export default function Achievements({ user }: AchievementsProps) {
     }));
   };
 
-  // Обработчик свайпов для телефонов
   const handleDragEnd = (categoryId: string, maxIndex: number, event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     const swipeThreshold = 50;
     const currentIndex = activeIndices[categoryId] || 0;
@@ -184,7 +190,6 @@ export default function Achievements({ user }: AchievementsProps) {
               </div>
               
               <div className="relative flex items-center justify-center pt-2">
-                {/* Левая стрелка (ТОЛЬКО НА ПК) */}
                 <button 
                   onClick={() => handlePrev(cat.id)}
                   disabled={currentIndex === 0}
@@ -304,7 +309,6 @@ export default function Achievements({ user }: AchievementsProps) {
                   </AnimatePresence>
                 </div>
 
-                {/* Правая стрелка (ТОЛЬКО НА ПК) */}
                 <button 
                   onClick={() => handleNext(cat.id, catAchievements.length - 1)}
                   disabled={currentIndex === catAchievements.length - 1}
@@ -314,7 +318,6 @@ export default function Achievements({ user }: AchievementsProps) {
                 </button>
               </div>
               
-              {/* Точечки навигации (остаются видимыми везде) */}
               <div className="flex justify-center gap-2 pt-2">
                 {catAchievements.map((_, i) => (
                   <button

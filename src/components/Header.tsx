@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { UserProfile } from '../types';
-import { Wallet, LogOut, Menu } from 'lucide-react';
-import { cn, useIsMobile } from '../lib/utils';
+import { Wallet, LogOut, Menu, Plus, Minus } from 'lucide-react';
+import { useIsMobile } from '../lib/utils';
 
 // ============================================================================
 // 🛠 НАСТРОЙКИ ПОЗИЦИОНИРОВАНИЯ И РАЗМЕРОВ (АВАТАРКА В ШАПКЕ)
@@ -12,7 +12,7 @@ const HEADER_AVATAR_CONFIG = {
 };
 // ============================================================================
 
-// Функция для форматирования баланса (отсекаем тысячные и убираем .00)
+// Функция для форматирования баланса
 const formatBalance = (val: number) => {
   const truncated = Math.floor(val * 100) / 100;
   const isInteger = truncated === Math.floor(truncated);
@@ -26,9 +26,11 @@ interface HeaderProps {
   user: UserProfile;
   onLogout: () => void;
   onMenuClick?: () => void;
+  onDepositClick?: () => void;
+  onWithdrawClick?: () => void;
 }
 
-export default function Header({ user, onLogout, onMenuClick }: HeaderProps) {
+export default function Header({ user, onLogout, onMenuClick, onDepositClick, onWithdrawClick }: HeaderProps) {
   const isMobile = useIsMobile();
   const avatarCfg = isMobile ? HEADER_AVATAR_CONFIG.mobile : HEADER_AVATAR_CONFIG.pc;
 
@@ -52,16 +54,33 @@ export default function Header({ user, onLogout, onMenuClick }: HeaderProps) {
           </span>
         </div>
 
-        {/* НОВЫЙ БОЛЬШОЙ БЛОК БАЛАНСА (ДЛЯ ПК) */}
-        <div className="hidden lg:flex items-center bg-white border border-slate-200 shadow-sm rounded-[1.2rem] p-1.5 pr-6 gap-4 group hover:shadow-md transition-all cursor-default">
-          <div className="bg-brand-50 rounded-[0.9rem] p-2.5 flex items-center justify-center">
-             <Wallet className="w-6 h-6 text-brand-600 group-hover:scale-110 transition-transform" />
+        {/* НОВЫЙ БОЛЬШОЙ БЛОК БАЛАНСА С КНОПКАМИ (ДЛЯ ПК) */}
+        <div className="hidden lg:flex items-center bg-white border border-slate-200 shadow-sm rounded-[1.2rem] p-1.5 pl-2 gap-3 group hover:shadow-md transition-all cursor-default">
+          <div className="bg-brand-50 rounded-[0.9rem] p-2 flex items-center justify-center shrink-0">
+             <Wallet className="w-6 h-6 text-brand-600" />
           </div>
-          <div className="flex flex-col justify-center">
-             <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest leading-none mb-1">Ваш баланс</span>
-             <span className="font-black text-slate-900 text-xl tracking-tight leading-none whitespace-nowrap">
-               {formatBalance(user.balance)} <span className="text-brand-500 text-base ml-1">CAT</span>
+          <div className="flex flex-col justify-center min-w-[100px]">
+             <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest leading-none mb-1">Баланс котика</span>
+             <span className="font-black text-slate-900 text-lg tracking-tight leading-none whitespace-nowrap">
+               {formatBalance(user.balance)} <span className="text-brand-500 text-sm ml-0.5">CAT</span>
              </span>
+          </div>
+          {/* Кнопки Депозита и Вывода */}
+          <div className="flex items-center gap-1.5 border-l border-slate-100 pl-3 pr-1">
+             <button 
+               onClick={onDepositClick} 
+               className="w-8 h-8 bg-brand-500 hover:bg-brand-600 text-white rounded-xl flex items-center justify-center transition-all shadow-md shadow-brand-200 active:scale-95" 
+               title="Пополнить"
+             >
+               <Plus className="w-5 h-5" />
+             </button>
+             <button 
+               onClick={onWithdrawClick} 
+               className="w-8 h-8 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl flex items-center justify-center transition-all active:scale-95" 
+               title="Вывести"
+             >
+               <Minus className="w-4 h-4 stroke-[3]" />
+             </button>
           </div>
         </div>
       </div>
