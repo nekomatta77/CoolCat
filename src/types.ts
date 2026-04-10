@@ -20,10 +20,14 @@ export interface UserProfile {
   wagerRequirement?: number;
   unlockedAvatars?: string[];
   
-  // Добавленные поля для новых механик
   lastDailyBonus?: string;
   password?: string;
-  claimedRanks?: number[]; // <-- Вот это поле исправит ошибку в Admin.tsx
+  claimedRanks?: number[];
+  
+  // НАДЕТЫЕ ПРЕДМЕТЫ ИНВЕНТАРЯ:
+  equippedFrame?: string;
+  equippedPrefix?: string;
+  equippedBg?: string;
 }
 
 export interface PromoCode {

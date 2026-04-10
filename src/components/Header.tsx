@@ -1,18 +1,15 @@
 import { Link } from 'react-router-dom';
 import { UserProfile } from '../types';
 import { Wallet, LogOut, Menu, Plus, Minus } from 'lucide-react';
-import { useIsMobile } from '../lib/utils';
+// 🔥 ИСПРАВЛЕНИЕ: Добавили импорт cn вместе с useIsMobile
+import { useIsMobile, cn } from '../lib/utils'; 
+import { FRAMES } from '../lib/customization';
 
-// ============================================================================
-// 🛠 НАСТРОЙКИ ПОЗИЦИОНИРОВАНИЯ И РАЗМЕРОВ (АВАТАРКА В ШАПКЕ)
-// ============================================================================
 const HEADER_AVATAR_CONFIG = {
   pc: { size: 80, x: 0, y: 0, scale: 1 },
   mobile: { size: 60, x: 0, y: 0, scale: 1 }
 };
-// ============================================================================
 
-// Функция для форматирования баланса
 const formatBalance = (val: number) => {
   const truncated = Math.floor(val * 100) / 100;
   const isInteger = truncated === Math.floor(truncated);
@@ -34,10 +31,12 @@ export default function Header({ user, onLogout, onMenuClick, onDepositClick, on
   const isMobile = useIsMobile();
   const avatarCfg = isMobile ? HEADER_AVATAR_CONFIG.mobile : HEADER_AVATAR_CONFIG.pc;
 
+  // ДОСТАЕМ НАДЕТУЮ РАМКУ (если нет - ставим дефолт)
+  const activeFrameObj = FRAMES.find(f => f.id === (user.equippedFrame || 'none')) || FRAMES[0];
+
   return (
     <header className="bg-white/80 backdrop-blur-xl border-b border-slate-100 px-3 sm:px-4 lg:px-8 py-3 sm:py-4 flex items-center justify-between sticky top-0 z-50">
       
-      {/* Левая часть: Меню и Баланс */}
       <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
         <button 
           onClick={onMenuClick}
@@ -46,7 +45,6 @@ export default function Header({ user, onLogout, onMenuClick, onDepositClick, on
           <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
         </button>
         
-        {/* НОВЫЙ ЭСТЕТИЧНЫЙ БЛОК БАЛАНСА (ДЛЯ МОБИЛОК) */}
         <div className="lg:hidden flex items-center bg-white border border-slate-200 shadow-sm rounded-2xl p-1 pl-1.5 gap-2.5 max-w-[180px] sm:max-w-[220px]">
           <div className="bg-brand-50 rounded-xl w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center shrink-0">
             <Wallet className="w-5 h-5 text-brand-600" />
@@ -59,7 +57,6 @@ export default function Header({ user, onLogout, onMenuClick, onDepositClick, on
           </div>
         </div>
 
-        {/* БОЛЬШОЙ БЛОК БАЛАНСА С КНОПКАМИ (ДЛЯ ПК) */}
         <div className="hidden lg:flex items-center bg-white border border-slate-200 shadow-sm rounded-[1.2rem] p-1.5 pl-2 gap-3 group hover:shadow-md transition-all cursor-default">
           <div className="bg-brand-50 rounded-[0.9rem] p-2 flex items-center justify-center shrink-0">
              <Wallet className="w-6 h-6 text-brand-600" />
@@ -70,7 +67,6 @@ export default function Header({ user, onLogout, onMenuClick, onDepositClick, on
                {formatBalance(user.balance)} <span className="text-brand-500 text-sm ml-0.5">CAT</span>
              </span>
           </div>
-          {/* Кнопки Депозита и Вывода */}
           <div className="flex items-center gap-1.5 border-l border-slate-100 pl-3 pr-1">
              <button 
                onClick={onDepositClick} 
@@ -90,30 +86,38 @@ export default function Header({ user, onLogout, onMenuClick, onDepositClick, on
         </div>
       </div>
 
-      {/* Правая часть: Профиль и Выход */}
       <div className="flex items-center gap-2 lg:gap-4 shrink-0">
         <Link to="/profile" className="flex items-center gap-2 sm:gap-3 hover:bg-slate-50 p-1 sm:pr-4 rounded-xl sm:rounded-2xl transition-all group">
           
-          {/* КОНТЕЙНЕР АВАТАРКИ */}
+          {/* КОНТЕЙНЕР АВАТАРКИ В ХЕДЕРЕ С РАМКОЙ */}
           <div 
-            className="rounded-lg sm:rounded-xl overflow-hidden border-2 transition-all flex items-center justify-center group-hover:opacity-80 shrink-0"
-            style={{ 
-              width: `${avatarCfg.size}px`, 
-              height: `${avatarCfg.size}px`,
-              backgroundColor: user.cardStyle.background,
-              borderColor: user.cardStyle.border
-            }}
+            className="relative shrink-0 flex items-center justify-center"
+            style={{ width: `${avatarCfg.size}px`, height: `${avatarCfg.size}px` }}
           >
-            <img 
-              src={user.avatar} 
-              alt={user.nickname} 
-              className="object-cover transition-transform duration-300" 
-              style={{
-                width: '100%',
-                height: '100%',
-                transform: `translate(${avatarCfg.x}px, ${avatarCfg.y}px) scale(${avatarCfg.scale})`
+            <div 
+              className={cn(
+                "absolute inset-0 rounded-lg sm:rounded-xl overflow-hidden border-2 transition-all flex items-center justify-center group-hover:opacity-80",
+                activeFrameObj.css
+              )}
+              style={{ 
+                backgroundColor: user.cardStyle.background,
+                borderColor: activeFrameObj.id === 'none' ? user.cardStyle.border : undefined 
               }}
-            />
+            >
+              <img 
+                src={user.avatar} 
+                alt={user.nickname} 
+                className="object-cover w-full h-full" 
+              />
+            </div>
+            {/* ЕСЛИ ЭТО КАРТИНОЧНАЯ РАМКА */}
+            {activeFrameObj.img && (
+              <img 
+                src={activeFrameObj.img} 
+                className="absolute w-[125%] h-[125%] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-contain pointer-events-none z-10 drop-shadow-md" 
+                alt="frame"
+              />
+            )}
           </div>
 
           <div className="text-right hidden md:block">

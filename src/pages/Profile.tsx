@@ -3,23 +3,13 @@ import { UserProfile } from '../types';
 import { doc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { updateProfile } from 'firebase/auth';
-import { User, Settings, Shield, LogOut, Camera, Palette, CheckCircle2, Trophy, Wallet, Lock } from 'lucide-react';
+import { 
+  User, Settings, Shield, LogOut, Palette, CheckCircle2, 
+  Trophy, Wallet, Lock, Image as ImageIcon, MessageSquare, Frame, Package
+} from 'lucide-react';
 import { cn } from '../lib/utils';
-
-// ============================================================================
-// 🎨 НАСТРОЙКА АВАТАРОК
-// ============================================================================
-const DEFAULT_AVATARS = [
-  '/assets/avatars/ava1.webp',
-  '/assets/avatars/ava2.webp',
-  '/assets/avatars/ava3.webp',
-];
-
-const ACHIEVEMENT_AVATARS = [
-  { id: '/assets/avatars/dice_ava1.webp', hint: 'Достижение Dice' },
-  { id: '/assets/avatars/mines_ava1.webp', hint: 'Достижение Mines' },
-  { id: '/assets/avatars/keno_ava1.webp', hint: 'Достижение Keno' },
-];
+import { motion, AnimatePresence } from 'motion/react';
+import { AVATARS, FRAMES, PREFIXES, BACKGROUNDS, COLORS } from '../lib/customization';
 
 interface ProfileProps {
   user: UserProfile;
@@ -27,11 +17,19 @@ interface ProfileProps {
 }
 
 export default function Profile({ user, onLogout }: ProfileProps) {
+  const [mainTab, setMainTab] = useState<'profile' | 'inventory' | 'settings'>('inventory');
+  const [invTab, setInvTab] = useState<'avatars' | 'frames' | 'backgrounds' | 'prefixes'>('avatars');
+  
   const [nickname, setNickname] = useState(user.nickname);
   const [avatar, setAvatar] = useState(user.avatar);
-  const [cardBg, setCardBg] = useState(user.cardStyle.background);
-  const [cardBorder, setCardBorder] = useState(user.cardStyle.border);
-  const [cardColor, setCardColor] = useState(user.cardStyle.color);
+  const [cardBg, setCardBg] = useState(user.cardStyle?.background || '#ffffff');
+  const [cardBorder, setCardBorder] = useState(user.cardStyle?.border || '#6366f1');
+  
+  // ЗАГРУЖАЕМ НАДЕТОЕ ИЗ БАЗЫ (по умолчанию 'none' или 'default')
+  const [activeFrame, setActiveFrame] = useState(user.equippedFrame || 'none');
+  const [activePrefix, setActivePrefix] = useState(user.equippedPrefix || 'none');
+  const [activeBg, setActiveBg] = useState(user.equippedBg || 'default');
+  
   const [loading, setLoading] = useState(false);
 
   const handleSave = async () => {
@@ -42,7 +40,6 @@ export default function Profile({ user, onLogout }: ProfileProps) {
 
     setLoading(true);
     try {
-      // ИЗМЕНЕНИЕ: Проверка на занятость ника, если пользователь его меняет
       if (nickname.trim() !== user.nickname) {
         const usersRef = collection(db, 'users');
         const q = query(usersRef, where('nickname', '==', nickname.trim()));
@@ -55,6 +52,7 @@ export default function Profile({ user, onLogout }: ProfileProps) {
         }
       }
 
+      // СОХРАНЯЕМ В ФАЙРБЕЙС ВСЕ НАСТРОЙКИ КАСТОМИЗАЦИИ
       await updateDoc(doc(db, 'users', user.uid), {
         nickname: nickname.trim(),
         avatar,
@@ -62,11 +60,12 @@ export default function Profile({ user, onLogout }: ProfileProps) {
           ...user.cardStyle,
           background: cardBg,
           border: cardBorder,
-          color: cardColor
-        }
+        },
+        equippedFrame: activeFrame,
+        equippedPrefix: activePrefix,
+        equippedBg: activeBg
       });
       
-      // Синхронизируем имя в Firebase Auth
       if (auth.currentUser) {
         await updateProfile(auth.currentUser, { displayName: nickname.trim() });
       }
@@ -80,256 +79,421 @@ export default function Profile({ user, onLogout }: ProfileProps) {
     }
   };
 
-  const isUnlocked = (avId: string) => {
-    if (DEFAULT_AVATARS.includes(avId)) return true;
-    return user.unlockedAvatars?.includes(avId) || false;
+  const isAvatarUnlocked = (av: typeof AVATARS[0]) => {
+    if (av.type === 'default') return true;
+    if (av.type === 'level') return (user.level || 0) >= (av.reqLevel || 0);
+    return user.unlockedAvatars?.includes(av.id) || false; 
   };
 
-  const hasAchievementAvatars = ACHIEVEMENT_AVATARS.some(av => user.unlockedAvatars?.includes(av.id));
+  const isItemUnlocked = (reqLevel: number, isAch?: boolean) => {
+    if (isAch) return true; // Заглушка для тестов ачивок
+    return (user.level || 0) >= reqLevel;
+  };
 
-  const colors = ['#ffffff', '#f8fafc', '#f1f5f9', '#e2e8f0', '#cbd5e1', '#94a3b8', '#64748b', '#475569', '#334155', '#1e293b', '#0f172a', '#020617', '#6366f1', '#4f46e5', '#4338ca', '#3730a3', '#312e81', '#1e1b4b', '#10b981', '#059669', '#047857', '#ef4444', '#dc2626', '#b91c1c'];
+  const activeFrameObj = FRAMES.find(f => f.id === activeFrame) || FRAMES[0];
+  const activePrefixObj = PREFIXES.find(p => p.id === activePrefix);
+  const activeBgObj = BACKGROUNDS.find(b => b.id === activeBg);
 
   return (
-    <div className="max-w-6xl mx-auto space-y-12 pb-12">
+    <div className="max-w-7xl mx-auto space-y-8 pb-12">
+      
+      {/* HEADER ПРОФИЛЯ */}
       <header className="flex flex-col md:flex-row items-center gap-8 bg-white p-8 lg:p-12 rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/50 relative overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-brand-50/50 to-transparent opacity-50" />
+        <div className={cn("absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] opacity-50 transition-colors duration-700", activeBgObj?.gradient)} />
         
-        <div 
-          className="relative z-10 w-32 h-32 lg:w-40 lg:h-40 rounded-[2.5rem] overflow-hidden border-4 shadow-2xl transition-colors duration-300 flex-shrink-0"
-          style={{
-            backgroundColor: cardBg,
-            borderColor: cardBorder
-          }}
-        >
-          <img src={avatar} alt={nickname} className="w-full h-full object-cover" />
-          <button className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 flex items-center justify-center transition-all">
-            <Camera className="w-8 h-8 text-white" />
-          </button>
+        <div className="relative z-10 flex items-center justify-center">
+          {/* КОНТЕЙНЕР АВАТАРКИ */}
+          <div className="relative w-32 h-32 lg:w-40 lg:h-40 flex-shrink-0">
+             <div 
+               className={cn(
+                 "absolute inset-0 rounded-[2.5rem] overflow-hidden border-4 bg-white transition-all duration-500",
+                 activeFrameObj.css
+               )}
+               style={{ 
+                 backgroundColor: cardBg, 
+                 borderColor: activeFrameObj.id === 'none' ? cardBorder : undefined 
+               }}
+             >
+               <img src={avatar} alt={nickname} className="w-full h-full object-cover" />
+             </div>
+             
+             {activeFrameObj.img && (
+               <img 
+                 src={activeFrameObj.img} 
+                 alt="frame" 
+                 className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[125%] h-[125%] object-contain pointer-events-none z-20 drop-shadow-xl" 
+               />
+             )}
+          </div>
         </div>
 
-        <div className="relative z-10 flex-1 space-y-4 text-center md:text-left w-full">
-          <div className="space-y-1">
+        <div className="relative z-10 flex-1 space-y-4 text-center md:text-left w-full mt-4 md:mt-0">
+          <div className="space-y-2">
             <div className="flex items-center justify-center md:justify-start gap-2">
-              <Trophy className="w-4 h-4 text-brand-500" />
-              <p className="text-xs font-black uppercase tracking-widest text-brand-400">Ранг: {user.rank}</p>
+              <Trophy className="w-5 h-5 text-brand-500" />
+              <p className="text-sm font-black uppercase tracking-widest text-brand-500">{user.rank} • LVL {user.level || 0}</p>
             </div>
-            <h1 className="text-4xl lg:text-5xl font-black text-slate-900 tracking-tighter truncate">{nickname}</h1>
+            <div className="flex flex-wrap items-center justify-center md:justify-start gap-3">
+              {activePrefix !== 'none' && (
+                <span className={cn("px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest", activePrefixObj?.color)}>
+                  {activePrefixObj?.name}
+                </span>
+              )}
+              <h1 className="text-4xl lg:text-5xl font-black text-slate-900 tracking-tighter truncate">{nickname}</h1>
+            </div>
           </div>
           
-          <div className="flex flex-col sm:flex-row items-stretch justify-center md:justify-start gap-4 w-full">
-            <div className="bg-slate-50 px-6 py-4 sm:py-3 rounded-2xl border border-slate-100 w-full sm:w-auto flex flex-col items-center sm:items-start transition-all">
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-0.5">Отыгрыш</p>
-              <p className="text-2xl sm:text-xl font-black text-slate-900 leading-none">{user.wagerRequirement.toFixed(0)} CAT</p>
+          <div className="flex flex-col sm:flex-row items-stretch justify-center md:justify-start gap-4 w-full pt-2">
+            <div className="bg-white/60 backdrop-blur-md px-6 py-4 sm:py-3 rounded-2xl border border-slate-200 w-full sm:w-auto flex flex-col items-center sm:items-start shadow-sm">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-0.5">Отыгрыш</p>
+              <p className="text-xl font-black text-slate-900 leading-none">{(user.wagerRequirement || 0).toFixed(0)} CAT</p>
+            </div>
+            <div className="bg-white/60 backdrop-blur-md px-6 py-4 sm:py-3 rounded-2xl border border-slate-200 w-full sm:w-auto flex flex-col items-center sm:items-start shadow-sm">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-0.5">Опыт</p>
+              <p className="text-xl font-black text-slate-900 leading-none">{user.xp?.toLocaleString() || 0} XP</p>
             </div>
           </div>
         </div>
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <div className="lg:col-span-8 space-y-8">
-          <section className="bg-white p-8 lg:p-10 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 space-y-8">
-            <h2 className="text-2xl font-black text-slate-900 flex items-center gap-3">
-              <Palette className="w-6 h-6 text-brand-600" /> Кастомизация
-            </h2>
+        
+        {/* ЛЕВАЯ КОЛОНКА */}
+        <div className="lg:col-span-8 space-y-6">
+          
+          <div className="bg-white p-2 rounded-2xl border border-slate-100 shadow-sm flex flex-wrap gap-2">
+             <button onClick={() => setMainTab('inventory')} className={cn("flex-1 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2", mainTab === 'inventory' ? "bg-brand-50 text-brand-600 shadow-sm" : "text-slate-400 hover:bg-slate-50 hover:text-slate-600")}>
+               <Package className="w-4 h-4" /> Инвентарь
+             </button>
+             <button onClick={() => setMainTab('profile')} className={cn("flex-1 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2", mainTab === 'profile' ? "bg-brand-50 text-brand-600 shadow-sm" : "text-slate-400 hover:bg-slate-50 hover:text-slate-600")}>
+               <User className="w-4 h-4" /> Профиль
+             </button>
+             <button onClick={() => setMainTab('settings')} className={cn("flex-1 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2", mainTab === 'settings' ? "bg-brand-50 text-brand-600 shadow-sm" : "text-slate-400 hover:bg-slate-50 hover:text-slate-600")}>
+               <Settings className="w-4 h-4" /> Настройки
+             </button>
+          </div>
+
+          <AnimatePresence mode="wait">
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-              
-              <div className="space-y-8">
-                <div className="space-y-3">
-                  <label className="text-xs font-black uppercase tracking-widest text-slate-400">Никнейм</label>
-                  <input
-                    type="text"
-                    value={nickname}
-                    onChange={(e) => setNickname(e.target.value)}
-                    className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-6 py-4 font-bold text-slate-900 focus:border-brand-500 outline-none transition-all"
-                  />
+            {mainTab === 'inventory' && (
+              <motion.div key="inventory" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="bg-white p-6 md:p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 space-y-8">
+                
+                <div className="flex overflow-x-auto pb-2 gap-2 border-b border-slate-100 scrollbar-hide">
+                  {[
+                    { id: 'avatars', name: 'Аватарки', icon: ImageIcon },
+                    { id: 'frames', name: 'Рамки', icon: Frame },
+                    { id: 'backgrounds', name: 'Фоны', icon: Palette },
+                    { id: 'prefixes', name: 'Префиксы', icon: MessageSquare }
+                  ].map(tab => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setInvTab(tab.id as any)}
+                      className={cn(
+                        "whitespace-nowrap px-5 py-3 rounded-t-2xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 border-b-2",
+                        invTab === tab.id ? "border-brand-500 text-brand-600 bg-brand-50/50" : "border-transparent text-slate-400 hover:text-slate-600 hover:bg-slate-50"
+                      )}
+                    >
+                      <tab.icon className="w-4 h-4" /> {tab.name}
+                    </button>
+                  ))}
                 </div>
 
-                <div className="space-y-6">
-                  <div className="space-y-3">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Базовые</label>
-                    <div className="grid grid-cols-3 gap-3">
-                      {DEFAULT_AVATARS.map((av) => (
-                        <button
-                          key={av}
-                          type="button"
-                          onClick={() => setAvatar(av)}
-                          className={cn(
-                            "relative aspect-square rounded-2xl overflow-hidden border-4 transition-all duration-300",
-                            avatar === av 
-                              ? "border-brand-500 scale-105 shadow-xl shadow-brand-200 z-10" 
-                              : "border-slate-900 hover:border-slate-700 hover:scale-105 hover:shadow-lg"
-                          )}
-                        >
-                          <img src={av} alt="Avatar option" className="w-full h-full object-cover bg-white" />
-                          {avatar === av && <div className="absolute inset-0 bg-brand-500/10" />}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {hasAchievementAvatars && (
-                    <div className="space-y-3">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-brand-500 flex items-center gap-2">
-                        <Trophy className="w-3 h-3" /> Эксклюзивные
-                      </label>
-                      <div className="grid grid-cols-3 gap-3">
-                        {ACHIEVEMENT_AVATARS.map((av) => {
-                          const unlocked = isUnlocked(av.id);
-                          return (
+                <div className="min-h-[400px]">
+                  
+                  {invTab === 'avatars' && (
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
+                      {AVATARS.map((av) => {
+                        const unlocked = isAvatarUnlocked(av);
+                        const isEquipped = avatar === av.id;
+                        return (
+                          <div key={av.id} className="space-y-2">
                             <button
-                              key={av.id}
-                              type="button"
                               onClick={() => unlocked && setAvatar(av.id)}
                               disabled={!unlocked}
-                              title={!unlocked ? av.hint : "Выбрать аватар"}
                               className={cn(
-                                "relative aspect-square rounded-2xl overflow-hidden border-4 transition-all duration-300 group",
-                                unlocked && avatar === av.id 
-                                  ? "border-brand-500 scale-105 shadow-xl shadow-brand-200 z-10" 
-                                  : unlocked 
-                                    ? "border-slate-900 hover:border-slate-700 hover:scale-105 hover:shadow-lg"
-                                    : "border-slate-200 cursor-not-allowed"
+                                "relative w-full aspect-square rounded-2xl overflow-hidden border-4 transition-all duration-300 group",
+                                isEquipped ? "border-brand-500 scale-105 shadow-xl shadow-brand-200 z-10" : unlocked ? "border-slate-100 hover:border-slate-300" : "border-slate-100 cursor-not-allowed"
                               )}
                             >
-                              <img 
-                                src={av.id} 
-                                alt="Achievement Avatar" 
-                                className={cn("w-full h-full object-cover transition-all bg-white", !unlocked && "grayscale opacity-40 blur-[2px]")} 
-                              />
-                              {unlocked && avatar === av.id && <div className="absolute inset-0 bg-brand-500/10" />}
-                              {!unlocked && (
-                                <div className="absolute inset-0 flex items-center justify-center bg-slate-900/40 group-hover:bg-slate-900/60 transition-colors">
-                                  <Lock className="w-5 h-5 text-white" />
-                                </div>
-                              )}
+                              <img src={av.id} alt="Avatar" className={cn("w-full h-full object-cover bg-white transition-all", !unlocked && "grayscale opacity-30 blur-[2px]")} />
+                              {isEquipped && <div className="absolute inset-0 bg-brand-500/10 flex items-end p-2"><CheckCircle2 className="w-5 h-5 text-brand-600 drop-shadow-md" /></div>}
+                              {!unlocked && <div className="absolute inset-0 flex items-center justify-center bg-slate-900/10"><Lock className="w-6 h-6 text-slate-600 drop-shadow-lg" /></div>}
                             </button>
-                          );
-                        })}
-                      </div>
+                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center truncate px-1" title={av.hint}>{av.hint}</p>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
-                </div>
-              </div>
 
-              <div className="space-y-8">
-                <div className="space-y-3">
-                  <label className="text-xs font-black uppercase tracking-widest text-slate-400">Цвет фона</label>
-                  <div className="flex flex-wrap gap-2">
-                    {colors.map(c => (
-                      <button
-                        key={c}
-                        onClick={() => setCardBg(c)}
-                        className={cn(
-                          "w-8 h-8 rounded-lg border-2 transition-all",
-                          cardBg === c ? "border-brand-600 scale-110 shadow-lg" : "border-transparent"
-                        )}
-                        style={{ backgroundColor: c }}
-                      />
-                    ))}
+                  {invTab === 'frames' && (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                      {FRAMES.map((frame) => {
+                        const unlocked = frame.reqLevel === 0 || isItemUnlocked(frame.reqLevel, frame.isAch);
+                        const isEquipped = activeFrame === frame.id;
+                        return (
+                          <button
+                            key={frame.id}
+                            onClick={() => unlocked && setActiveFrame(frame.id)}
+                            disabled={!unlocked}
+                            className={cn(
+                              "relative p-4 rounded-3xl border-2 transition-all flex flex-col items-center gap-4 group",
+                              isEquipped ? "border-brand-500 bg-brand-50 shadow-md" : unlocked ? "border-slate-100 bg-white hover:border-slate-300 hover:shadow-sm" : "border-slate-100 bg-slate-50 cursor-not-allowed opacity-70"
+                            )}
+                          >
+                            <div className="relative w-16 h-16 flex items-center justify-center">
+                              {frame.img ? (
+                                <>
+                                  <div className="absolute inset-0 rounded-3xl bg-slate-200 border-2 border-slate-300" />
+                                  <img src={frame.img} className="absolute w-[130%] h-[130%] object-contain pointer-events-none z-10" />
+                                </>
+                              ) : (
+                                <div className={cn("w-full h-full rounded-3xl border-4 bg-slate-100", frame.css)} />
+                              )}
+                            </div>
+                            
+                            <div className="text-center space-y-1">
+                              <p className="font-black text-sm text-slate-900 leading-tight">{frame.name}</p>
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                                {unlocked ? (isEquipped ? 'Надето' : 'Выбрать') : (frame.hint || `Уровень ${frame.reqLevel}`)}
+                              </p>
+                            </div>
+                            {!unlocked && <Lock className="absolute top-3 right-3 w-4 h-4 text-slate-400" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {invTab === 'prefixes' && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {PREFIXES.map((prefix) => {
+                        const unlocked = prefix.reqLevel === 0 || isItemUnlocked(prefix.reqLevel, prefix.isAch);
+                        const isEquipped = activePrefix === prefix.id;
+                        return (
+                          <button
+                            key={prefix.id}
+                            onClick={() => unlocked && setActivePrefix(prefix.id)}
+                            disabled={!unlocked}
+                            className={cn(
+                              "relative p-5 rounded-2xl border-2 transition-all flex items-center justify-between group",
+                              isEquipped ? "border-brand-500 bg-brand-50 shadow-md" : unlocked ? "border-slate-100 bg-white hover:border-slate-300" : "border-slate-100 bg-slate-50 cursor-not-allowed opacity-70"
+                            )}
+                          >
+                            <div className="flex items-center gap-3">
+                               <div className={cn("px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest", prefix.color, !unlocked && "grayscale opacity-50")}>
+                                 {prefix.name}
+                               </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 max-w-[100px] truncate" title={prefix.hint || `Ур. ${prefix.reqLevel}`}>
+                                {unlocked ? (isEquipped ? 'Надето' : 'Выбрать') : (prefix.hint || `Ур. ${prefix.reqLevel}`)}
+                              </p>
+                            </div>
+                            {!unlocked && <Lock className="absolute top-1/2 -translate-y-1/2 right-4 w-4 h-4 text-slate-400 opacity-50" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {invTab === 'backgrounds' && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                       {BACKGROUNDS.map((bg) => {
+                        const unlocked = bg.reqLevel === 0 || isItemUnlocked(bg.reqLevel, bg.isAch);
+                        const isEquipped = activeBg === bg.id;
+                        return (
+                          <button
+                            key={bg.id}
+                            onClick={() => unlocked && setActiveBg(bg.id)}
+                            disabled={!unlocked}
+                            className={cn(
+                              "relative h-32 rounded-3xl border-2 transition-all flex flex-col justify-end p-4 overflow-hidden group text-left",
+                              isEquipped ? "border-brand-500 shadow-md ring-2 ring-brand-200" : unlocked ? "border-slate-200 hover:border-slate-400" : "border-slate-100 cursor-not-allowed grayscale opacity-60"
+                            )}
+                          >
+                            <div className={cn("absolute inset-0 bg-gradient-to-tr opacity-80", bg.gradient)} />
+                            <div className="relative z-10">
+                              <p className="font-black text-lg text-slate-900 truncate pr-6" title={bg.name}>{bg.name}</p>
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600 truncate">
+                                {unlocked ? (isEquipped ? 'Надето' : 'Доступно') : (bg.hint || `Уровень ${bg.reqLevel}`)}
+                              </p>
+                            </div>
+                            {!unlocked && <Lock className="absolute top-4 right-4 w-5 h-5 text-slate-500" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                </div>
+              </motion.div>
+            )}
+
+            {mainTab === 'profile' && (
+              <motion.div key="profile" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="bg-white p-6 md:p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 space-y-8">
+                <h2 className="text-2xl font-black text-slate-900 flex items-center gap-3">
+                  <Palette className="w-6 h-6 text-brand-600" /> Базовые настройки
+                </h2>
+                
+                <div className="space-y-8">
+                  <div className="space-y-3">
+                    <label className="text-xs font-black uppercase tracking-widest text-slate-400">Никнейм</label>
+                    <input
+                      type="text"
+                      value={nickname}
+                      onChange={(e) => setNickname(e.target.value)}
+                      className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-6 py-4 font-bold text-slate-900 focus:border-brand-500 outline-none transition-all"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="space-y-3">
+                      <label className="text-xs font-black uppercase tracking-widest text-slate-400">Цвет фона аватарки</label>
+                      <div className="flex flex-wrap gap-2">
+                        {COLORS.map(c => (
+                          <button
+                            key={`bg-${c}`}
+                            onClick={() => setCardBg(c)}
+                            className={cn(
+                              "w-8 h-8 rounded-lg border-2 transition-all",
+                              cardBg === c ? "border-brand-600 scale-110 shadow-lg" : "border-transparent shadow-sm"
+                            )}
+                            style={{ backgroundColor: c }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <label className="text-xs font-black uppercase tracking-widest text-slate-400">Цвет обводки аватарки</label>
+                      <div className="flex flex-wrap gap-2">
+                        {COLORS.map(c => (
+                          <button
+                            key={`border-${c}`}
+                            onClick={() => setCardBorder(c)}
+                            className={cn(
+                              "w-8 h-8 rounded-lg border-2 transition-all",
+                              cardBorder === c ? "border-brand-600 scale-110 shadow-lg" : "border-transparent shadow-sm"
+                            )}
+                            style={{ backgroundColor: c }}
+                          />
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <div className="space-y-3">
-                  <label className="text-xs font-black uppercase tracking-widest text-slate-400">Цвет обводки</label>
-                  <div className="flex flex-wrap gap-2">
-                    {colors.map(c => (
-                      <button
-                        key={c}
-                        onClick={() => setCardBorder(c)}
-                        className={cn(
-                          "w-8 h-8 rounded-lg border-2 transition-all",
-                          cardBorder === c ? "border-brand-600 scale-110 shadow-lg" : "border-transparent"
-                        )}
-                        style={{ backgroundColor: c }}
-                      />
-                    ))}
+              </motion.div>
+            )}
+
+            {mainTab === 'settings' && (
+              <motion.div key="settings" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="bg-white p-6 md:p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 space-y-8">
+                <h2 className="text-2xl font-black text-slate-900 flex items-center gap-3">
+                  <Settings className="w-6 h-6 text-brand-600" /> Настройки аккаунта
+                </h2>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">Безопасность</h3>
+                    <button className="w-full text-left px-6 py-4 bg-slate-50 rounded-2xl font-bold text-slate-900 hover:bg-slate-100 transition-all border border-slate-100 flex items-center justify-between group">
+                      Сменить пароль 
+                      <Shield className="w-5 h-5 text-slate-400 group-hover:text-brand-500 transition-colors" />
+                    </button>
+                  </div>
+                  <div className="space-y-3">
+                    <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">Финансы</h3>
+                    <button className="w-full text-left px-6 py-4 bg-slate-50 rounded-2xl font-bold text-slate-900 hover:bg-slate-100 transition-all border border-slate-100 flex items-center justify-between group">
+                      История транзакций
+                      <Wallet className="w-5 h-5 text-slate-400 group-hover:text-brand-500 transition-colors" />
+                    </button>
                   </div>
                 </div>
-              </div>
-            </div>
 
-            <button
-              onClick={handleSave}
-              disabled={loading}
-              className="w-full bg-brand-600 hover:bg-brand-700 text-white font-black py-5 rounded-2xl transition-all shadow-lg shadow-brand-200 uppercase tracking-widest text-sm flex items-center justify-center gap-2 mt-4"
-            >
-              {loading ? (
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
-                <><CheckCircle2 className="w-5 h-5" /> Сохранить изменения</>
-              )}
-            </button>
-          </section>
+                <div className="pt-6 border-t border-slate-100">
+                  <button
+                    onClick={onLogout}
+                    className="w-full bg-rose-50 hover:bg-rose-100 text-rose-600 font-black py-4 rounded-2xl transition-all flex items-center justify-center gap-2 uppercase tracking-widest text-xs"
+                  >
+                    <LogOut className="w-4 h-4" /> Выйти из аккаунта
+                  </button>
+                </div>
+              </motion.div>
+            )}
 
-          <section id="settings" className="bg-white p-8 lg:p-10 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 space-y-8">
-            <h2 className="text-2xl font-black text-slate-900 flex items-center gap-3">
-              <Settings className="w-6 h-6 text-brand-600" /> Настройки
-            </h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="space-y-4">
-                <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">Безопасность</h3>
-                <button className="w-full text-left px-6 py-4 bg-slate-50 rounded-2xl font-bold text-slate-900 hover:bg-slate-100 transition-all border border-slate-100 flex items-center justify-between group">
-                  Сменить пароль 
-                  <Shield className="w-5 h-5 text-slate-400 group-hover:text-brand-500 transition-colors" />
-                </button>
-              </div>
-              <div className="space-y-4">
-                <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">Финансы</h3>
-                <button className="w-full text-left px-6 py-4 bg-slate-50 rounded-2xl font-bold text-slate-900 hover:bg-slate-100 transition-all border border-slate-100 flex items-center justify-between group">
-                  История транзакций
-                  <Wallet className="w-5 h-5 text-slate-400 group-hover:text-brand-500 transition-colors" />
-                </button>
-              </div>
-            </div>
+          </AnimatePresence>
 
-            <div className="pt-8 border-t border-slate-50">
-              <button
-                onClick={onLogout}
-                className="w-full bg-rose-50 hover:bg-rose-100 text-rose-600 font-black py-5 rounded-2xl transition-all flex items-center justify-center gap-2 uppercase tracking-widest text-sm"
-              >
-                <LogOut className="w-5 h-5" /> Выйти из аккаунта
-              </button>
-            </div>
-          </section>
+          {/* ГЛОБАЛЬНАЯ КНОПКА СОХРАНЕНИЯ (ВИДНА ВЕЗДЕ) */}
+          <button
+            onClick={handleSave}
+            disabled={loading}
+            className="w-full bg-brand-600 hover:bg-brand-700 text-white font-black py-5 rounded-2xl transition-all shadow-xl shadow-brand-200 uppercase tracking-widest text-sm flex items-center justify-center gap-2 sticky bottom-4 z-40"
+          >
+            {loading ? (
+              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <><CheckCircle2 className="w-5 h-5" /> Сохранить изменения</>
+            )}
+          </button>
+
         </div>
 
-        <div className="lg:col-span-4 space-y-8">
-          <div className="sticky top-24 space-y-8">
-            <div className="space-y-4">
-              <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 px-4">Предпросмотр</h3>
-              <div
-                className="p-8 rounded-[2.5rem] border-4 shadow-2xl space-y-6 transition-all duration-500"
-                style={{ backgroundColor: cardBg, borderColor: cardBorder, color: cardColor }}
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-current/20">
-                    <img src={avatar} alt="" className="w-full h-full object-cover bg-white" />
+        {/* ПРАВАЯ КОЛОНКА (ПРЕДПРОСМОТР) */}
+        <div className="lg:col-span-4 space-y-8 hidden lg:block">
+          <div className="sticky top-24 space-y-4">
+            <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 px-2">Предпросмотр профиля</h3>
+            
+            <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden relative">
+              <div className={cn("absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] opacity-60", activeBgObj?.gradient)} />
+              
+              <div className="relative z-10 p-8 flex flex-col items-center text-center space-y-5">
+                
+                <div className="relative w-28 h-28 flex-shrink-0">
+                  <div 
+                    className={cn(
+                      "absolute inset-0 rounded-[2.5rem] overflow-hidden border-4 bg-white transition-all duration-500",
+                      activeFrameObj.css
+                    )}
+                    style={{ 
+                      backgroundColor: cardBg, 
+                      borderColor: activeFrameObj.id === 'none' ? cardBorder : undefined 
+                    }}
+                  >
+                    <img src={avatar} alt="" className="w-full h-full object-cover" />
                   </div>
-                  <div>
-                    <p className="text-xl font-black leading-none mb-1">{nickname}</p>
-                    <p className="text-[10px] uppercase tracking-widest font-black opacity-60">LVL {user.level} • {user.rank}</p>
-                  </div>
+                  {activeFrameObj.img && (
+                    <img 
+                      src={activeFrameObj.img} 
+                      alt="frame preview" 
+                      className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[125%] h-[125%] object-contain pointer-events-none z-20 drop-shadow-xl" 
+                    />
+                  )}
                 </div>
-                <div className="space-y-4">
-                  <div className="h-2 bg-current/10 rounded-full overflow-hidden">
-                    <div className="h-full bg-current/40 rounded-full" style={{ width: '65%' }} />
-                  </div>
-                  <div className="flex justify-between text-[10px] font-black uppercase tracking-widest opacity-60">
-                    <span>Прогресс</span>
-                    <span>65%</span>
-                  </div>
+                
+                <div className="space-y-1">
+                   <div className="flex justify-center mb-2 h-5">
+                     {activePrefix !== 'none' && (
+                       <span className={cn("px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest", activePrefixObj?.color)}>
+                         {activePrefixObj?.name}
+                       </span>
+                     )}
+                   </div>
+                   <p className="text-2xl font-black leading-none text-slate-900 truncate w-full px-4">{nickname}</p>
+                   <p className="text-[10px] uppercase tracking-widest font-black text-slate-400">LVL {user.level || 0} • {user.rank}</p>
                 </div>
-                <div className="pt-4 border-t border-current/10 flex justify-between items-center">
-                  <div className="w-8 h-8 bg-current/10 rounded-lg flex items-center justify-center">
-                    <User className="w-4 h-4" />
-                  </div>
-                  <p className="text-xs font-black uppercase tracking-widest">CoolCat Elite</p>
+
+                <div className="w-full bg-white/60 backdrop-blur-sm p-4 rounded-2xl border border-slate-200/50 shadow-sm">
+                   <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">
+                     <span>Опыт</span>
+                     <span className="text-brand-600">{user.xp?.toLocaleString() || 0} XP</span>
+                   </div>
+                   <div className="h-1.5 bg-slate-200/50 rounded-full overflow-hidden">
+                     <div className="h-full bg-brand-500 rounded-full w-[60%]" />
+                   </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
+
       </div>
     </div>
   );
