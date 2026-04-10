@@ -1,10 +1,9 @@
-// src/types.ts
 export interface UserProfile {
   uid: string;
   email?: string;
   nickname: string;
   balance: number;
-  rank: 'user' | 'vip' | 'admin';
+  rank: string;
   xp: number;
   level: number;
   avatar: string;
@@ -14,17 +13,17 @@ export interface UserProfile {
     color: string;
     pattern: string;
   };
-  socialLinks: {
-    vk?: string;
-    tg?: string;
-  };
-  banned: boolean;
-  password?: string;
-  totalDeposits: number;
-  totalWithdrawals: number;
-  wagerRequirement: number;
-  lastDailyBonus?: string;
+  socialLinks?: Record<string, string>;
+  banned?: boolean;
+  totalDeposits?: number;
+  totalWithdrawals?: number;
+  wagerRequirement?: number;
   unlockedAvatars?: string[];
+  
+  // Добавленные поля для новых механик
+  lastDailyBonus?: string;
+  password?: string;
+  claimedRanks?: number[]; // <-- Вот это поле исправит ошибку в Admin.tsx
 }
 
 export interface PromoCode {
@@ -37,21 +36,10 @@ export interface PromoCode {
   createdAt: string;
 }
 
-export interface GameSession {
-  id: string;
-  userId: string;
-  gameType: 'dice' | 'mines' | 'keno' | 'wheelx'; // <-- изменено jackpot на wheelx
-  bet: number;
-  multiplier: number;
-  payout: number;
-  timestamp: string;
-}
-
 export interface Achievement {
   id: string;
   userId: string;
   type: string;
-  category: 'dice' | 'mines' | 'keno' | 'wheelx' | 'general'; // <-- изменено jackpot на wheelx
   progress: number;
   completed: boolean;
   rewarded: boolean;

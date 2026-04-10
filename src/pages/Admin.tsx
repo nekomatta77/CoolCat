@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { UserProfile, PromoCode } from '../types';
 import { doc, updateDoc, getDocs, query, collection, addDoc, deleteDoc, orderBy, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Users, Ticket, Plus, List, Zap, Search, Ban, Trash2, Cat, CheckCircle2, AlertCircle, Copy, X, ShieldAlert, RefreshCw, ArrowRight } from 'lucide-react';
+import { Users, Ticket, Plus, List, Zap, Search, Ban, Trash2, Cat, CheckCircle2, AlertCircle, Copy, X, ShieldAlert, RefreshCw, ArrowRight, RotateCcw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 
@@ -10,14 +10,13 @@ interface AdminProps {
   user: UserProfile;
 }
 
-type UserActionType = 'block' | 'unblock' | 'delete' | 'reset_wager';
+type UserActionType = 'block' | 'unblock' | 'delete' | 'reset_wager' | 'reset_level';
 
 type EditConfirmData = {
   userTarget: UserProfile;
   changes: { field: string; label: string; oldVal: any; newVal: any }[];
 };
 
-// Требования для синхронизации, включая механический 0-й уровень
 const LEVEL_REQUIREMENTS = [
   { id: 0, points: 0, minDeposit: 0 },
   { id: 1, points: 0, minDeposit: 100 },
@@ -47,11 +46,8 @@ export default function Admin({ user }: AdminProps) {
   const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
 
   const [userActionModal, setUserActionModal] = useState<{ userTarget: UserProfile, action: UserActionType } | null>(null);
-  
   const [editingUsers, setEditingUsers] = useState<Record<string, { balance?: number; level?: number; rank?: 'user'|'vip'|'admin' }>>({});
-  
   const [editConfirmModal, setEditConfirmModal] = useState<EditConfirmData | null>(null);
-
   const [newPromoId, setNewPromoId] = useState<string | null>(null);
 
   const [promoName, setPromoName] = useState('');
@@ -121,6 +117,16 @@ export default function Admin({ user }: AdminProps) {
         await handleUpdateUser(userTarget.uid, { wagerRequirement: 0 });
         setNotification({ message: `Отыгрыш игрока ${targetName} обнулен!`, type: 'success' });
       }
+      // НОВАЯ ФУНКЦИЯ: АННУЛИРОВАТЬ УРОВЕНЬ
+      else if (action === 'reset_level') {
+        await handleUpdateUser(userTarget.uid, { 
+          level: 0,
+          xp: 0,
+          totalDeposits: 0,
+          claimedRanks: [] 
+        });
+        setNotification({ message: `Уровень игрока ${targetName} полностью аннулирован!`, type: 'success' });
+      }
     } catch (error) {
       console.error('Action error:', error);
       setNotification({ message: 'Ошибка при выполнении действия', type: 'error' });
@@ -155,13 +161,10 @@ export default function Admin({ user }: AdminProps) {
     const updates: Partial<UserProfile> = {};
     editConfirmModal.changes.forEach(c => { updates[c.field as keyof UserProfile] = c.newVal; });
     
-    // СИНХРОНИЗАЦИЯ УРОВНЯ ДЛЯ СИСТЕМЫ "ЛВЛ КОТИКА"
     if (updates.level !== undefined) {
       const targetLevel = Math.min(Math.max(Number(updates.level), 0), 15);
       updates.level = targetLevel;
-      
       const req = LEVEL_REQUIREMENTS.find(r => r.id === targetLevel) || LEVEL_REQUIREMENTS[0];
-      
       updates.xp = req.points;
       updates.totalDeposits = req.minDeposit;
     }
@@ -260,7 +263,8 @@ export default function Admin({ user }: AdminProps) {
       block: { title: 'Блокировка аккаунта', color: 'red', icon: ShieldAlert, text: 'заблокировать' },
       unblock: { title: 'Разблокировка аккаунта', color: 'emerald', icon: CheckCircle2, text: 'разблокировать' },
       delete: { title: 'Удаление аккаунта', color: 'red', icon: Trash2, text: 'навсегда удалить' },
-      reset_wager: { title: 'Обнуление отыгрыша', color: 'brand', icon: RefreshCw, text: 'обнулить отыгрыш (вагер) для' }
+      reset_wager: { title: 'Обнуление отыгрыша', color: 'brand', icon: RefreshCw, text: 'обнулить отыгрыш (вагер) для' },
+      reset_level: { title: 'Сброс уровня', color: 'amber', icon: RotateCcw, text: 'полностью обнулить уровень, опыт и депозиты' } // Конфиг новой кнопки
     };
 
     const cfg = config[action];
@@ -272,6 +276,7 @@ export default function Admin({ user }: AdminProps) {
           "w-16 h-16 md:w-20 md:h-20 rounded-3xl flex items-center justify-center shadow-xl",
           cfg.color === 'red' ? "bg-red-100 text-red-500 shadow-red-100" :
           cfg.color === 'emerald' ? "bg-emerald-100 text-emerald-500 shadow-emerald-100" :
+          cfg.color === 'amber' ? "bg-amber-100 text-amber-500 shadow-amber-100" :
           "bg-brand-100 text-brand-500 shadow-brand-100"
         )}>
           <Icon className="w-8 h-8 md:w-10 md:h-10" />
@@ -282,6 +287,7 @@ export default function Admin({ user }: AdminProps) {
             Вы уверены, что хотите {cfg.text} пользователя <br/>
             <span className="font-black text-slate-900 truncate block max-w-xs mx-auto">"{targetName}"</span>?
             {action === 'delete' && <span className="block mt-2 text-xs text-red-500 font-bold">Это действие необратимо! Игрок больше никогда не сможет войти.</span>}
+            {action === 'reset_level' && <span className="block mt-2 text-xs text-amber-500 font-bold">Награды за уровень можно будет получить заново.</span>}
           </p>
         </div>
         <div className="flex flex-col-reverse md:flex-row gap-3 w-full pt-2 md:pt-4">
@@ -292,6 +298,7 @@ export default function Admin({ user }: AdminProps) {
               "w-full py-4 text-white font-black rounded-2xl transition-all shadow-lg",
               cfg.color === 'red' ? "bg-red-500 hover:bg-red-600 shadow-red-200" :
               cfg.color === 'emerald' ? "bg-emerald-500 hover:bg-emerald-600 shadow-emerald-200" :
+              cfg.color === 'amber' ? "bg-amber-500 hover:bg-amber-600 shadow-amber-200" :
               "bg-brand-500 hover:bg-brand-600 shadow-brand-200"
             )}
           >
@@ -439,6 +446,12 @@ export default function Admin({ user }: AdminProps) {
                       <button onClick={() => setUserActionModal({ userTarget: u, action: 'reset_wager' })} className="flex-1 lg:flex-none py-2.5 px-3 md:p-3 rounded-xl bg-brand-50 text-brand-500 hover:bg-brand-500 hover:text-white transition-all shadow-sm flex items-center justify-center gap-2" title="Сбросить отыгрыш">
                         <RefreshCw className="w-4 h-4" /> <span className="lg:hidden text-[10px] uppercase font-bold tracking-widest">Отыгрыш</span>
                       </button>
+                      
+                      {/* НОВАЯ КНОПКА: СБРОС УРОВНЯ */}
+                      <button onClick={() => setUserActionModal({ userTarget: u, action: 'reset_level' })} className="flex-1 lg:flex-none py-2.5 px-3 md:p-3 rounded-xl bg-amber-50 text-amber-500 hover:bg-amber-500 hover:text-white transition-all shadow-sm flex items-center justify-center gap-2" title="Аннулировать уровень">
+                        <RotateCcw className="w-4 h-4" /> <span className="lg:hidden text-[10px] uppercase font-bold tracking-widest">Уровень</span>
+                      </button>
+
                       <button onClick={() => setUserActionModal({ userTarget: u, action: u.banned ? 'unblock' : 'block' })} className={cn("flex-1 lg:flex-none py-2.5 px-3 md:p-3 rounded-xl transition-all shadow-sm flex items-center justify-center gap-2", u.banned ? "bg-emerald-50 text-emerald-500 hover:bg-emerald-500 hover:text-white" : "bg-orange-50 text-orange-500 hover:bg-orange-500 hover:text-white")} title={u.banned ? 'Разблокировать' : 'Заблокировать'}>
                         {u.banned ? <CheckCircle2 className="w-4 h-4" /> : <Ban className="w-4 h-4" />} <span className="lg:hidden text-[10px] uppercase font-bold tracking-widest">{u.banned ? 'Разбан' : 'Бан'}</span>
                       </button>

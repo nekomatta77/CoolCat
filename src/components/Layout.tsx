@@ -1,8 +1,9 @@
 import { ReactNode, useState } from 'react';
 import Header from './Header';
 import Sidebar from './Sidebar';
+import Chat from './Chat';
 import { UserProfile } from '../types';
-import { Home, Gift, Trophy, User, Plus } from 'lucide-react';
+import { Home, Gift, User, Plus, MessageCircle } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -22,16 +23,19 @@ export default function Layout({ children, user, onLogout }: LayoutProps) {
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [modalType, setModalType] = useState<'deposit' | 'withdraw' | null>(null);
+  
+  // Состояние чата
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
-  // Разделяем кнопки, чтобы освободить центр
   const mobileNavLeft = [
     { icon: Home, path: '/' },
     { icon: Gift, path: '/bonuses' },
   ];
   
+  // Заменили Достижения на Чат
   const mobileNavRight = [
-    { icon: Trophy, path: '/achievements' },
-    { icon: User, path: '/profile' },
+    { icon: MessageCircle, isButton: true, onClick: () => setIsChatOpen(true), id: 'chat' },
+    { icon: User, path: '/profile', id: 'profile' },
   ];
 
   return (
@@ -74,8 +78,6 @@ export default function Layout({ children, user, onLogout }: LayoutProps) {
 
       {/* BOTTOM NAVIGATION (MOBILE) */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-slate-100 px-6 py-2 flex items-center justify-between lg:hidden z-50">
-        
-        {/* Левые кнопки */}
         {mobileNavLeft.map((item) => {
           const isActive = location.pathname === item.path;
           return (
@@ -85,10 +87,8 @@ export default function Layout({ children, user, onLogout }: LayoutProps) {
           );
         })}
 
-        {/* 🌟 ВЫПИРАЮЩАЯ КНОПКА ПОПОЛНЕНИЯ ПО ЦЕНТРУ */}
         <div className="relative -mt-8 flex justify-center">
           <div className="absolute inset-0 bg-brand-500 rounded-full blur-xl opacity-40" />
-          
           <button 
             onClick={() => setModalType('deposit')}
             className="relative bg-gradient-to-tr from-brand-600 to-brand-400 text-white p-4 rounded-full border-[6px] border-slate-50 shadow-lg transform transition-all active:scale-95 hover:-translate-y-1"
@@ -97,23 +97,32 @@ export default function Layout({ children, user, onLogout }: LayoutProps) {
           </button>
         </div>
 
-        {/* Правые кнопки */}
         {mobileNavRight.map((item) => {
+          if (item.isButton) {
+            return (
+              <button key={item.id} onClick={item.onClick} className={cn("p-2 rounded-xl transition-all", isChatOpen ? "bg-brand-50 text-brand-600" : "text-slate-400")}>
+                <item.icon className="w-6 h-6" />
+              </button>
+            );
+          }
           const isActive = location.pathname === item.path;
           return (
-            <Link key={item.path} to={item.path} className={cn("p-2 rounded-xl transition-all", isActive ? "bg-brand-50 text-brand-600" : "text-slate-400")}>
+            <Link key={item.id} to={item.path!} className={cn("p-2 rounded-xl transition-all", isActive ? "bg-brand-50 text-brand-600" : "text-slate-400")}>
               <item.icon className="w-6 h-6" />
             </Link>
           );
         })}
       </nav>
 
-      {/* УНИВЕРСАЛЬНАЯ МОДАЛКА (ПОПОЛНЕНИЕ / ВЫВОД) */}
       <DepositModal 
         isOpen={modalType !== null} 
         type={modalType || 'deposit'}
         onClose={() => setModalType(null)} 
       />
+
+      {/* ЧАТ */}
+      <Chat user={user} isOpen={isChatOpen} setIsOpen={setIsChatOpen} />
+
     </div>
   );
 }

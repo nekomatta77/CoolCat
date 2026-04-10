@@ -42,10 +42,24 @@ interface BonusesProps {
   user: UserProfile;
 }
 
+// ============================================================================
+// 🛠 НАСТРОЙКИ КОТИКОВ (ИЗОБРАЖЕНИЙ ПОДАРКА)
+// ============================================================================
+
+// 1. Настройки котика в модальном окне (когда игрок забирает бонус)
 const giftConfig = {
   mobile: { size: '140px', x: '0px', y: '-10px', scale: 1 },
   desktop: { size: '180px', x: '0px', y: '-20px', scale: 1.1 }
 };
+
+// 2. Настройки котика на самой странице (в правой карточке "Ежедневный бонус")
+const bannerGiftConfig = {
+  size: '260px', // Базовый размер контейнера (ширина и высота)
+  x: '0px',      // Сдвиг по горизонтали (например, '20px' или '-20px')
+  y: '15px',      // Сдвиг по вертикали (отрицательные значения двигают вверх)
+  scale: 1.0     // Масштаб картинки (1.0 = 100%, 1.2 = 120%, 0.8 = 80%)
+};
+// ============================================================================
 
 export default function Bonuses({ user }: BonusesProps) {
   const [promoCode, setPromoCode] = useState('');
@@ -111,7 +125,6 @@ export default function Bonuses({ user }: BonusesProps) {
   };
 
   const handleClaimDaily = async () => {
-    // Двойная проверка на всякий случай
     if (timeToNextBonus === null || timeToNextBonus > 0) return;
 
     setLoading(true);
@@ -120,7 +133,7 @@ export default function Bonuses({ user }: BonusesProps) {
     
     try {
       await updateDoc(doc(db, 'users', user.uid), {
-        balance: user.balance + bonusAmount,
+        balance: (user.balance || 0) + bonusAmount,
         lastDailyBonus: new Date().toISOString()
       });
       
@@ -129,7 +142,6 @@ export default function Bonuses({ user }: BonusesProps) {
       
     } catch (error) {
       console.error('Daily bonus error:', error);
-      // Тихая ошибка в консоль
     } finally {
       setLoading(false);
     }
@@ -158,10 +170,12 @@ export default function Bonuses({ user }: BonusesProps) {
           setMessage({ text: 'Промокод закончился', type: 'error' });
         } else {
           await updateDoc(doc(db, 'promoCodes', promo.id), { activations: promo.activations + 1 });
+          
           await updateDoc(doc(db, 'users', user.uid), {
-            balance: user.balance + promo.amount,
-            wagerRequirement: user.wagerRequirement + promo.amount * promo.wager
+            balance: (user.balance || 0) + promo.amount,
+            wagerRequirement: (user.wagerRequirement || 0) + promo.amount * promo.wager
           });
+
           setMessage({ text: `Промокод активирован! +${promo.amount} CAT`, type: 'success' });
           setPromoCode('');
         }
@@ -307,13 +321,20 @@ export default function Bonuses({ user }: BonusesProps) {
             </div>
           </div>
 
-          {/* Иллюстрация подарка */}
-          <div className="w-48 h-48 shrink-0 relative z-10 hidden md:block">
+          {/* Иллюстрация подарка (УПРАВЛЯЕТСЯ ИЗ bannerGiftConfig ВВЕРХУ) */}
+          <div 
+            className="shrink-0 relative z-10 hidden md:block transition-transform duration-300"
+            style={{
+              width: bannerGiftConfig.size,
+              height: bannerGiftConfig.size,
+              transform: `translate(${bannerGiftConfig.x}, ${bannerGiftConfig.y}) scale(${bannerGiftConfig.scale})`
+            }}
+          >
             <div className="absolute inset-0 bg-brand-300 blur-2xl opacity-30 rounded-full group-hover:scale-110 transition-transform duration-700" />
             <img 
               src="/assets/CoolCat_gift.webp" 
               alt="Подарок" 
-              className="w-full h-full object-contain animate-float drop-shadow-2xl" 
+              className="w-full h-full object-contain animate-float drop-shadow-2xl relative z-10" 
             />
           </div>
         </div>

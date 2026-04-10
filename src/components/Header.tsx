@@ -46,15 +46,20 @@ export default function Header({ user, onLogout, onMenuClick, onDepositClick, on
           <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
         </button>
         
-        {/* Адаптированный блок баланса (ДЛЯ МОБИЛОК) */}
-        <div className="lg:hidden bg-slate-50 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl flex items-center gap-1.5 sm:gap-2 border border-slate-100 shadow-sm min-w-0 max-w-[200px] sm:max-w-none">
-          <Wallet className="w-4 h-4 sm:w-5 sm:h-5 text-brand-600 shrink-0" />
-          <span className="font-bold text-slate-900 tracking-tight text-sm sm:text-base whitespace-nowrap overflow-hidden text-ellipsis">
-            {formatBalance(user.balance)} <span className="text-slate-400 text-xs sm:text-sm ml-0.5">CAT</span>
-          </span>
+        {/* НОВЫЙ ЭСТЕТИЧНЫЙ БЛОК БАЛАНСА (ДЛЯ МОБИЛОК) */}
+        <div className="lg:hidden flex items-center bg-white border border-slate-200 shadow-sm rounded-2xl p-1 pl-1.5 gap-2.5 max-w-[180px] sm:max-w-[220px]">
+          <div className="bg-brand-50 rounded-xl w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center shrink-0">
+            <Wallet className="w-5 h-5 text-brand-600" />
+          </div>
+          <div className="flex flex-col justify-center min-w-0 pr-2">
+            <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest leading-none mb-1">Баланс</span>
+            <span className="font-black text-slate-900 text-sm sm:text-base tracking-tight leading-none truncate block">
+              {formatBalance(user.balance)} <span className="text-brand-500 text-[10px] sm:text-xs ml-0.5">CAT</span>
+            </span>
+          </div>
         </div>
 
-        {/* НОВЫЙ БОЛЬШОЙ БЛОК БАЛАНСА С КНОПКАМИ (ДЛЯ ПК) */}
+        {/* БОЛЬШОЙ БЛОК БАЛАНСА С КНОПКАМИ (ДЛЯ ПК) */}
         <div className="hidden lg:flex items-center bg-white border border-slate-200 shadow-sm rounded-[1.2rem] p-1.5 pl-2 gap-3 group hover:shadow-md transition-all cursor-default">
           <div className="bg-brand-50 rounded-[0.9rem] p-2 flex items-center justify-center shrink-0">
              <Wallet className="w-6 h-6 text-brand-600" />
@@ -114,7 +119,7 @@ export default function Header({ user, onLogout, onMenuClick, onDepositClick, on
           <div className="text-right hidden md:block">
             <p className="text-sm font-bold text-slate-800 leading-none mb-1">{user.nickname}</p>
             <p className="text-[10px] uppercase tracking-widest font-black text-brand-400 leading-none">
-              {user.rank} • LVL {user.level}
+              {user.rank} • LVL {user.level || 0}
             </p>
           </div>
         </Link>
