@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { UserProfile, Achievement } from '../types';
-import { doc, updateDoc, getDocs, query, collection, where } from 'firebase/firestore';
+import { doc, updateDoc, getDocs, query, collection, where, arrayUnion, increment } from 'firebase/firestore';
 import { db } from '../firebase';
 import { 
   Trophy, Dice5, Grid3X3, Layers, Coins, CheckCircle2, Lock, 
@@ -27,6 +27,12 @@ interface LocalAchievement {
   rewardCat: number;
   rewardXp: number;
   bonus?: string;
+  itemRewards?: {
+    avatars?: string[];
+    frames?: string[];
+    prefixes?: string[];
+    backgrounds?: string[];
+  };
 }
 
 export default function Achievements({ user }: AchievementsProps) {
@@ -49,51 +55,51 @@ export default function Achievements({ user }: AchievementsProps) {
 
   const achievementList: LocalAchievement[] = [
     // --- DICE ---
-    { id: 'dice_fb1', category: 'dice', title: 'Первый бросок', desc: 'Выиграть 25 игр (шанс <70%, ставка от 100 CAT)', target: 25, rewardCat: 10, rewardXp: 50, bonus: 'Аватар "DICE CAT"' },
+    { id: 'dice_fb1', category: 'dice', title: 'Первый бросок', desc: 'Выиграть 25 игр (шанс <70%, ставка от 100 CAT)', target: 25, rewardCat: 10, rewardXp: 50, bonus: 'Аватар "DICE CAT"', itemRewards: { avatars: ['/assets/avatars/dice_cat_original.webp'] } },
     { id: 'dice_fb2', category: 'dice', title: 'Первый бросок II', desc: 'Выиграть 100 игр (шанс <70%, ставка от 100 CAT)', target: 100, rewardCat: 50, rewardXp: 250 },
-    { id: 'dice_fb3', category: 'dice', title: 'Первый бросок III', desc: 'Выиграть 500 игр (шанс <70%, ставка от 100 CAT)', target: 500, rewardCat: 75, rewardXp: 500, bonus: 'Фон "DICE"' },
-    { id: 'dice_cat_sense', category: 'dice', title: 'Кошачье чутье', desc: 'Выиграть 5 раз подряд (шанс <15%, ставка от 30 CAT)', target: 5, rewardCat: 1000, rewardXp: 2500, bonus: 'Рамка "DICE"' },
+    { id: 'dice_fb3', category: 'dice', title: 'Первый бросок III', desc: 'Выиграть 500 игр (шанс <70%, ставка от 100 CAT)', target: 500, rewardCat: 75, rewardXp: 500, bonus: 'Фон "DICE"', itemRewards: { backgrounds: ['dice_bg'] } },
+    { id: 'dice_cat_sense', category: 'dice', title: 'Кошачье чутье', desc: 'Выиграть 5 раз подряд (шанс <15%, ставка от 30 CAT)', target: 5, rewardCat: 1000, rewardXp: 2500, bonus: 'Рамка "DICE"', itemRewards: { frames: ['dice_frame'] } },
     { id: 'dice_sniper', category: 'dice', title: 'Снайпер', desc: 'Поймать победу на шансе 1% (ставка от 15 CAT)', target: 1, rewardCat: 300, rewardXp: 250 },
-    { id: 'dice_nine_lives', category: 'dice', title: 'Девять жизней', desc: 'Выиграть после 8 поражений подряд (шанс <50%)', target: 1, rewardCat: 50, rewardXp: 100, bonus: 'Аватар "NINE LIVES"' },
-    { id: 'dice_madman', category: 'dice', title: 'Безумец', desc: 'Ставка 15,000 CAT на шанс 90% и выигрыш', target: 1, rewardCat: 333, rewardXp: 999, bonus: 'Префикс "БЕЗУМИЕ"' },
+    { id: 'dice_nine_lives', category: 'dice', title: 'Девять жизней', desc: 'Выиграть после 8 поражений подряд (шанс <50%)', target: 1, rewardCat: 50, rewardXp: 100, bonus: 'Аватар "NINE LIVES"', itemRewards: { avatars: ['/assets/avatars/nine_lives.webp'] } },
+    { id: 'dice_madman', category: 'dice', title: 'Безумец', desc: 'Ставка 15,000 CAT на шанс 90% и выигрыш', target: 1, rewardCat: 333, rewardXp: 999, bonus: 'Префикс "БЕЗУМИЕ"', itemRewards: { prefixes: ['madness'] } },
     
     // --- MINES ---
     { id: 'mines_sapper1', category: 'mines', title: 'Кот-сапер', desc: 'Завершить игры победой 25 раз, ставка от 100 CAT', target: 25, rewardCat: 50, rewardXp: 100 },
     { id: 'mines_sapper2', category: 'mines', title: 'Кот-сапер II', desc: 'Завершить игры победой 50 раз, ставка от 100 CAT', target: 50, rewardCat: 100, rewardXp: 250 },
-    { id: 'mines_sapper3', category: 'mines', title: 'Кот-сапер III', desc: 'Выиграть 100 раз (ставка от 250 CAT, от 5 мин)', target: 100, rewardCat: 150, rewardXp: 400, bonus: 'Аватар "Кот-сапёр"' },
+    { id: 'mines_sapper3', category: 'mines', title: 'Кот-сапер III', desc: 'Выиграть 100 раз (ставка от 250 CAT, от 5 мин)', target: 100, rewardCat: 150, rewardXp: 400, bonus: 'Аватар "Кот-сапёр"', itemRewards: { avatars: ['/assets/avatars/sapper.webp'] } },
     { id: 'mines_careful', category: 'mines', title: 'Осторожные лапки', desc: 'Выиграть 5 раз на 24 минах, ставка от 100 CAT', target: 5, rewardCat: 250, rewardXp: 100 },
     { id: 'mines_kitty1', category: 'mines', title: 'В поисках кисы', desc: 'Поймать x50 в одной игре', target: 1, rewardCat: 50, rewardXp: 10 },
     { id: 'mines_kitty2', category: 'mines', title: 'В поисках кисы II', desc: 'Поймать x100 в одной игре', target: 1, rewardCat: 100, rewardXp: 20 },
     { id: 'mines_kitty3', category: 'mines', title: 'В поисках кисы III', desc: 'Поймать x250 в одной игре', target: 1, rewardCat: 200, rewardXp: 40 },
-    { id: 'mines_kitty4', category: 'mines', title: 'В поисках кисы IV', desc: 'Поймать x800 (ставка от 25 CAT)', target: 1, rewardCat: 1500, rewardXp: 10000, bonus: 'Аватар "I find"' },
+    { id: 'mines_kitty4', category: 'mines', title: 'В поисках кисы IV', desc: 'Поймать x800 (ставка от 25 CAT)', target: 1, rewardCat: 1500, rewardXp: 10000, bonus: 'Аватар "I find"', itemRewards: { avatars: ['/assets/avatars/i_find.webp'] } },
     { id: 'mines_infinity1', category: 'mines', title: 'Бесконечность не предел', desc: 'Открыть все выигрышные ячейки на 2-х минах', target: 1, rewardCat: 300, rewardXp: 800 },
-    { id: 'mines_infinity2', category: 'mines', title: 'Бесконечность не предел II', desc: 'Открыть все ячейки на 3-х минах (ставка от 5 CAT)', target: 1, rewardCat: 1000, rewardXp: 1500, bonus: 'Аватар "Buzz-Cat"' },
+    { id: 'mines_infinity2', category: 'mines', title: 'Бесконечность не предел II', desc: 'Открыть все ячейки на 3-х минах (ставка от 5 CAT)', target: 1, rewardCat: 1000, rewardXp: 1500, bonus: 'Аватар "Buzz-Cat"', itemRewards: { avatars: ['/assets/avatars/buzz_cat.webp'] } },
     
     // --- KENO ---
     { id: 'keno_line1', category: 'keno', title: 'Первая линия', desc: 'Сыграть 25 игр (ставка от 20 CAT)', target: 25, rewardCat: 50, rewardXp: 50 },
     { id: 'keno_line2', category: 'keno', title: 'Первая линия II', desc: 'Сыграть 50 игр (ставка от 40 CAT)', target: 50, rewardCat: 150, rewardXp: 200 },
-    { id: 'keno_line3', category: 'keno', title: 'Первая линия III', desc: 'Сыграть 100 игр (ставка от 100 CAT)', target: 100, rewardCat: 300, rewardXp: 400, bonus: 'Аватар "Paw"' },
-    { id: 'keno_lucky_num', category: 'keno', title: 'Счастливое число', desc: 'Выиграть 5 раз ПОДРЯД, угадав 1 из 1 числа', target: 5, rewardCat: 300, rewardXp: 500, bonus: 'Аватары "Numbers"' },
+    { id: 'keno_line3', category: 'keno', title: 'Первая линия III', desc: 'Сыграть 100 игр (ставка от 100 CAT)', target: 100, rewardCat: 300, rewardXp: 400, bonus: 'Аватар "Paw"', itemRewards: { avatars: ['/assets/avatars/paw.webp'] } },
+    { id: 'keno_lucky_num', category: 'keno', title: 'Счастливое число', desc: 'Выиграть 5 раз ПОДРЯД, угадав 1 из 1 числа', target: 5, rewardCat: 300, rewardXp: 500, bonus: 'Аватары "Numbers"', itemRewards: { avatars: ['/assets/avatars/numbers.webp'] } },
     { id: 'keno_magic', category: 'keno', title: 'Кошачья магия', desc: 'Поймать множитель x200 или выше (ставка от 50 CAT)', target: 1, rewardCat: 1500, rewardXp: 2500 },
-    { id: 'keno_nostracat', category: 'keno', title: 'Ностракотус', desc: 'Угадать 10 из 10 чисел (ставка от 10 CAT)', target: 1, rewardCat: 5000, rewardXp: 10000, bonus: 'Префикс "ПРОРОК", Аватар "Magic Cat"' },
+    { id: 'keno_nostracat', category: 'keno', title: 'Ностракотус', desc: 'Угадать 10 из 10 чисел (ставка от 10 CAT)', target: 1, rewardCat: 5000, rewardXp: 10000, bonus: 'Префикс "ПРОРОК", Аватар "Magic Cat"', itemRewards: { prefixes: ['prophet'], avatars: ['/assets/avatars/magic_cat.webp'] } },
     
     // --- WHEELX ---
-    { id: 'wx_greedy', category: 'wheelx', title: 'Жадный', desc: 'Поймать 30 раз коэффициент х30 (ставка от 50 CAT)', target: 30, rewardCat: 150, rewardXp: 200, bonus: 'Аватар "Моя прелесть"' },
+    { id: 'wx_greedy', category: 'wheelx', title: 'Жадный', desc: 'Поймать 30 раз коэффициент х30 (ставка от 50 CAT)', target: 30, rewardCat: 150, rewardXp: 200, bonus: 'Аватар "Моя прелесть"', itemRewards: { avatars: ['/assets/avatars/my_precious.webp'] } },
     { id: 'wx_safe', category: 'wheelx', title: 'Надежный выигрыш', desc: 'Поставить ставку на все коэффициенты в одном раунде (от 100 CAT)', target: 1, rewardCat: 100, rewardXp: 250 },
-    { id: 'wx_why_not', category: 'wheelx', title: 'Почему бы и нет?', desc: 'Поймать по очереди Х2, Х3, Х5, Х30 (ставка от 10 CAT)', target: 1, rewardCat: 200, rewardXp: 300, bonus: 'Аватар "Терпение"' },
-    { id: 'wx_more', category: 'wheelx', title: 'Мне нужно больше', desc: 'Выиграть за раунд больше 10,000 CAT', target: 1, rewardCat: 300, rewardXp: 300, bonus: 'Префикс "Рука Мидаса"' },
+    { id: 'wx_why_not', category: 'wheelx', title: 'Почему бы и нет?', desc: 'Поймать по очереди Х2, Х3, Х5, Х30 (ставка от 10 CAT)', target: 1, rewardCat: 200, rewardXp: 300, bonus: 'Аватар "Терпение"', itemRewards: { avatars: ['/assets/avatars/patience.webp'] } },
+    { id: 'wx_more', category: 'wheelx', title: 'Мне нужно больше', desc: 'Выиграть за раунд больше 10,000 CAT', target: 1, rewardCat: 300, rewardXp: 300, bonus: 'Префикс "Рука Мидаса"', itemRewards: { prefixes: ['midas'] } },
 
     // --- JACKPOT ---
     { id: 'jackpot_ticket1', category: 'jackpot', title: 'Билет в высшее общество', desc: 'Сыграть 10 раз (ставка от 100 CAT)', target: 10, rewardCat: 150, rewardXp: 100 },
     { id: 'jackpot_ticket2', category: 'jackpot', title: 'Билет в высшее общество II', desc: 'Сыграть 25 раз (ставка от 250 CAT)', target: 25, rewardCat: 300, rewardXp: 200 },
-    { id: 'jackpot_ticket3', category: 'jackpot', title: 'Билет в высшее общество III', desc: 'Сыграть 50 раз (ставка от 1000 CAT)', target: 50, rewardCat: 500, rewardXp: 500, bonus: 'Фон "Любимец общества"' },
-    { id: 'jackpot_predator', category: 'jackpot', title: 'Азартный хищник', desc: 'Выиграть 5 раз ПОДРЯД', target: 5, rewardCat: 300, rewardXp: 250, bonus: 'Аватар "Tiger"' },
+    { id: 'jackpot_ticket3', category: 'jackpot', title: 'Билет в высшее общество III', desc: 'Сыграть 50 раз (ставка от 1000 CAT)', target: 50, rewardCat: 500, rewardXp: 500, bonus: 'Фон "Любимец общества"', itemRewards: { backgrounds: ['society_bg'] } },
+    { id: 'jackpot_predator', category: 'jackpot', title: 'Азартный хищник', desc: 'Выиграть 5 раз ПОДРЯД', target: 5, rewardCat: 300, rewardXp: 250, bonus: 'Аватар "Tiger"', itemRewards: { avatars: ['/assets/avatars/tiger.webp'] } },
     { id: 'jackpot_big_catch', category: 'jackpot', title: 'Большой куш', desc: 'Выиграть за раз более 10,000 CAT', target: 1, rewardCat: 1000, rewardXp: 1500 },
     
     // --- GENERAL ---
     { id: 'gen_first_step', category: 'general', title: 'Первые шаги', desc: 'Сумма депозитов более 1000 CAT', target: 1000, rewardCat: 100, rewardXp: 100 },
     { id: 'gen_investor', category: 'general', title: 'Инвестор', desc: 'Сумма депозитов более 10,000 CAT', target: 10000, rewardCat: 500, rewardXp: 1000 },
-    { id: 'gen_crypto_cat', category: 'general', title: 'Крипто-Кот', desc: 'Сумма депозитов более 100,000 CAT', target: 100000, rewardCat: 1000, rewardXp: 5000, bonus: 'Фон "CRYPTO"' },
+    { id: 'gen_crypto_cat', category: 'general', title: 'Крипто-Кот', desc: 'Сумма депозитов более 100,000 CAT', target: 100000, rewardCat: 1000, rewardXp: 5000, bonus: 'Фон "CRYPTO"', itemRewards: { backgrounds: ['crypto_bg'] } },
   ];
 
   useEffect(() => {
@@ -113,10 +119,20 @@ export default function Achievements({ user }: AchievementsProps) {
     try {
       await updateDoc(doc(db, 'achievements', ach.id), { rewarded: true });
       
-      await updateDoc(doc(db, 'users', user.uid), { 
-        balance: (user.balance || 0) + item.rewardCat,
-        xp: (user.xp || 0) + item.rewardXp
-      });
+      const userUpdates: any = {
+        balance: increment(item.rewardCat),
+        xp: increment(item.rewardXp)
+      };
+
+      // ФИЗИЧЕСКИ ЗАПИСЫВАЕМ ПРЕДМЕТЫ В ПРОФИЛЬ
+      if (item.itemRewards) {
+        if (item.itemRewards.avatars) userUpdates.unlockedAvatars = arrayUnion(...item.itemRewards.avatars);
+        if (item.itemRewards.frames) userUpdates.unlockedFrames = arrayUnion(...item.itemRewards.frames);
+        if (item.itemRewards.prefixes) userUpdates.unlockedPrefixes = arrayUnion(...item.itemRewards.prefixes);
+        if (item.itemRewards.backgrounds) userUpdates.unlockedBackgrounds = arrayUnion(...item.itemRewards.backgrounds);
+      }
+
+      await updateDoc(doc(db, 'users', user.uid), userUpdates);
       
       setAchievements(achievements.map(a => a.id === ach.id ? { ...a, rewarded: true } : a));
     } catch (error) {

@@ -36,7 +36,6 @@ const WHEEL_PATTERN = [
 ];
 
 export default function WheelX({ user }: WheelXProps) {
-  // Единая сумма ставки для всех карточек
   const [globalBet, setGlobalBet] = useState('10');
   const currentBetNum = parseFloat(globalBet.replace(',', '.')) || 0;
 
@@ -63,8 +62,6 @@ export default function WheelX({ user }: WheelXProps) {
         setGameState(data.gameState);
         setTimeLeft(data.timeLeft || 0);
 
-        // Обновляем историю ТОЛЬКО если сейчас фаза ставок. 
-        // Иначе мы спалим результат до того, как остановится колесо!
         if (data.gameState === 'betting' && data.history && data.history.length > 0) {
           setHistory(data.history);
         }
@@ -79,21 +76,19 @@ export default function WheelX({ user }: WheelXProps) {
           const winningIndex = data.winningIndex;
           const winningSlice = WHEEL_PATTERN[winningIndex];
           
-          // Исправленная математика: абсолютный угол!
           setRotation(prev => {
-              // Сколько полных оборотов (по 360 градусов) уже сделало колесо за все время
               const currentSpins = Math.floor(prev / 360);
-              // Делаем еще ровно 10 оборотов + вычисляем точный угол сектора
               const nextSpins = currentSpins + 10;
               return (nextSpins * 360) + (winningIndex * (360 / 32));
           });
 
+          // Таймер 5 секунд на саму анимацию кручения
           setTimeout(() => {
             handlePayout(winningSlice);
             
-            // Локально добавляем результат, чтобы он сразу появился под колесом
             setHistory(prev => [winningSlice.mult, ...prev].slice(0, 10));
 
+            // Даем время полюбоваться на результат перед обнулением ставок
             setTimeout(() => {
               setMyBets({ black: 0, blue: 0, pink: 0, orange: 0 });
             }, 3000);
@@ -102,7 +97,7 @@ export default function WheelX({ user }: WheelXProps) {
       }
     });
     return () => unsubscribe();
-  }, []);
+  }, []); // Пустой массив зависимостей, чтобы подписка сработала 1 раз
 
   const handlePayout = async (winningSlice: typeof WHEEL_PATTERN[0]) => {
     const betPlaced = myBetsRef.current[winningSlice.type as keyof typeof myBetsRef.current];
@@ -115,7 +110,13 @@ export default function WheelX({ user }: WheelXProps) {
           xp: increment(betPlaced / 10)
         });
         await addDoc(collection(db, 'gameSessions'), { 
-          userId: user.uid, gameType: 'wheelx', bet: betPlaced, multiplier: winningSlice.mult, payout, timestamp: new Date().toISOString(), nickname: user.nickname 
+          userId: user.uid, 
+          gameType: 'wheelx', 
+          bet: betPlaced, 
+          multiplier: winningSlice.mult, 
+          payout, 
+          timestamp: new Date().toISOString(), 
+          nickname: user.nickname 
         });
       } catch (e) {
         console.error("Ошибка при начислении выигрыша", e);
@@ -133,7 +134,6 @@ export default function WheelX({ user }: WheelXProps) {
     }
   };
 
-  // Компонент компактной карточки
   const BetCard = ({ 
     type, mult, titleColor, btnClass 
   }: { 
@@ -144,8 +144,6 @@ export default function WheelX({ user }: WheelXProps) {
 
     return (
       <div className="bg-white rounded-xl sm:rounded-2xl p-2 sm:p-4 flex flex-col gap-2 sm:gap-4 border border-slate-100 shadow-md sm:shadow-lg shadow-slate-200/50 relative overflow-hidden h-[200px] sm:h-[280px]">
-        
-        {/* Заголовок */}
         <div className="flex flex-col items-center justify-center pt-1">
             <span className={cn("text-2xl sm:text-4xl font-black drop-shadow-sm leading-none", titleColor)}>{mult}x</span>
             <div className="text-slate-400 text-[9px] sm:text-xs font-bold uppercase tracking-wider mt-1 sm:mt-2 flex items-center gap-1">
@@ -153,8 +151,6 @@ export default function WheelX({ user }: WheelXProps) {
                 {playersList.length}
             </div>
         </div>
-
-        {/* Кнопка ставки */}
         <button 
           disabled={gameState !== 'betting'} 
           onClick={() => placeBet(type)}
@@ -162,14 +158,10 @@ export default function WheelX({ user }: WheelXProps) {
         >
           Поставить
         </button>
-
-        {/* Общая сумма пула */}
         <div className="flex justify-between items-center px-1 border-b border-slate-100 pb-1 sm:pb-2">
             <Coins className="w-3 h-3 sm:w-4 sm:h-4 text-brand-500" />
             <span className="text-xs sm:text-sm font-black text-slate-700">{currentPool.toFixed(0)}</span>
         </div>
-
-        {/* Список игроков */}
         <div className="flex-1 overflow-y-auto space-y-1 sm:space-y-2 pr-1 custom-scrollbar">
           {playersList.map((p, i) => (
             <div key={i} className="flex items-center justify-between bg-slate-50 p-1.5 sm:p-2.5 rounded-lg border border-slate-100/50">
@@ -196,14 +188,10 @@ export default function WheelX({ user }: WheelXProps) {
 
   return (
     <div className="max-w-[1200px] mx-auto space-y-4 sm:space-y-8 pb-12">
-      
-      {/* === ВЕРХНИЙ БЛОК: КОЛЕСО И ИСТОРИЯ === */}
       <div className="bg-white rounded-3xl sm:rounded-[3.5rem] border border-slate-100 shadow-xl sm:shadow-2xl shadow-slate-200/50 pt-4 sm:pt-8 pb-4 sm:pb-6 relative overflow-hidden flex flex-col items-center">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-slate-50 via-transparent to-transparent opacity-80" />
         
-        {/* Колесо */}
         <div className="relative w-[220px] h-[220px] sm:w-[450px] sm:h-[450px] flex items-center justify-center z-10 mb-6 sm:mb-10 mt-2">
-          
           <div className="absolute -top-4 sm:-top-6 left-1/2 -translate-x-1/2 z-40 drop-shadow-[0_4px_12px_rgba(0,0,0,0.15)] scale-75 sm:scale-100">
             <svg width="40" height="48" viewBox="0 0 40 48" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M20 48L4 24C4 24 0 18.5 0 12C0 5.5 8.9543 0 20 0C31.0457 0 40 5.5 40 12C40 18.5 36 24 36 24L20 48Z" fill="#F59E0B"/>
@@ -287,7 +275,6 @@ export default function WheelX({ user }: WheelXProps) {
           </AnimatePresence>
         </div>
 
-        {/* История растущая прямо из нижней линии */}
         <div className="w-full max-w-2xl flex items-end justify-center gap-1 sm:gap-2 z-10 border-b-2 border-slate-100 px-2 h-16 sm:h-20">
           {history.map((mult, i) => (
             <div key={i} className="flex flex-col items-center gap-0.5 sm:gap-1 group relative">
@@ -314,14 +301,9 @@ export default function WheelX({ user }: WheelXProps) {
         </div>
       </div>
 
-      {/* === НИЖНИЙ БЛОК: ЕДИНАЯ ПАНЕЛЬ СТАВОК И КАРТОЧКИ === */}
       <div className={cn("space-y-4 sm:space-y-6 transition-opacity duration-300", gameState !== 'betting' && "opacity-50 pointer-events-none")}>
-        
-        {/* Универсальный инпут */}
         <div className="bg-white rounded-2xl sm:rounded-[2rem] p-3 sm:p-5 border border-slate-100 shadow-lg shadow-slate-200/50">
             <div className="flex flex-col md:flex-row gap-2 sm:gap-4 items-center">
-                
-                {/* Поле ввода */}
                 <div className="relative w-full md:w-1/2">
                     <span className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm sm:text-base">₽</span>
                     <input
@@ -332,7 +314,6 @@ export default function WheelX({ user }: WheelXProps) {
                     />
                 </div>
                 
-                {/* Кнопки быстрого выбора */}
                 <div className="flex w-full md:w-1/2 gap-1.5 sm:gap-2">
                     <button onClick={() => setGlobalBet((currentBetNum / 2).toString())} className="flex-1 bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold text-[10px] sm:text-xs py-2.5 sm:py-3.5 rounded-lg sm:rounded-xl border border-slate-200 transition-colors">
                         /2
@@ -350,16 +331,13 @@ export default function WheelX({ user }: WheelXProps) {
             </div>
         </div>
 
-        {/* 4 Карточки множителей */}
         <div className="grid grid-cols-4 gap-1.5 sm:gap-4">
             <BetCard type="black" mult={2} titleColor="text-slate-800" btnClass="bg-slate-800 hover:bg-slate-700" />
             <BetCard type="blue" mult={3} titleColor="text-blue-500" btnClass="bg-blue-500 hover:bg-blue-600" />
             <BetCard type="pink" mult={5} titleColor="text-pink-500" btnClass="bg-pink-500 hover:bg-pink-600" />
             <BetCard type="orange" mult={30} titleColor="text-orange-500" btnClass="bg-orange-500 hover:bg-orange-600 shadow-orange-500/30" />
         </div>
-
       </div>
-
     </div>
   );
 }

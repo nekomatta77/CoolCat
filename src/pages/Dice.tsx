@@ -20,12 +20,10 @@ interface MutableAchievement {
   rewarded: boolean;
 }
 
-// Генератор случайного хэша
 const generateMockHash = () => {
   return Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
 };
 
-// 🛠 Функция умного форматирования
 const formatBalance = (val: number, forceDecimals: boolean = false) => {
   const truncated = Math.floor(val * 100) / 100; 
   const isInteger = truncated === Math.floor(truncated);
@@ -36,7 +34,6 @@ const formatBalance = (val: number, forceDecimals: boolean = false) => {
 };
 
 export default function Dice({ user }: DiceProps) {
-  // === ГЛОБАЛЬНАЯ МЕХАНИКА ВВОДА ===
   const [betInput, setBetInput] = useState('10');
   const bet = parseFloat(betInput.replace(',', '.')) || 0;
 
@@ -152,6 +149,17 @@ export default function Dice({ user }: DiceProps) {
         return a;
       }, 'Кошачье чутье');
 
+      // ИСПРАВЛЕНИЕ: ДОБАВЛЕНЫ НЕДОСТАЮЩИЕ АЧИВКИ ИЗ СПИСКА
+      if (isWin && activeChance <= 1 && bet >= 15) {
+        processAch('dice_sniper', 1, a => { a.progress = 1; return a; }, 'Снайпер');
+      }
+      if (isWin && prevLossStreak >= 8 && activeChance < 50) {
+        processAch('dice_nine_lives', 1, a => { a.progress = 1; return a; }, 'Девять жизней');
+      }
+      if (isWin && bet >= 15000 && activeChance >= 90) {
+        processAch('dice_madman', 1, a => { a.progress = 1; return a; }, 'Безумец');
+      }
+
       await Promise.all([
         updateDoc(doc(db, 'users', user.uid), { 
           balance: increment(payout), 
@@ -238,20 +246,12 @@ export default function Dice({ user }: DiceProps) {
         </div>
       </header>
 
-      {/* =========================================
-          РЕЖИМ CLASSIC 
-          ========================================= */}
       {diceMode === 'classic' && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white p-4 sm:p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 w-full">
-          
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
             
-            {/* ЛЕВАЯ КОЛОНКА */}
             <div className="lg:col-span-5 flex flex-col gap-5">
-              
               <div className="grid grid-cols-2 lg:grid-cols-1 gap-3 sm:gap-5">
-                
-                {/* БЛОК СТАВКИ */}
                 <div className="flex flex-col gap-2">
                   <div className="bg-slate-50 p-3 sm:p-5 rounded-2xl sm:rounded-[1.5rem] border border-slate-100 focus-within:border-brand-300 transition-colors">
                     <div className="flex justify-between items-center mb-2 sm:mb-3">
@@ -291,7 +291,6 @@ export default function Dice({ user }: DiceProps) {
                   </div>
                 </div>
 
-                {/* БЛОК ШАНСА */}
                 <div className="flex flex-col gap-2">
                   <div className="bg-slate-50 p-3 sm:p-5 rounded-2xl sm:rounded-[1.5rem] border border-slate-100 focus-within:border-brand-300 transition-colors">
                     <div className="flex justify-between items-center mb-2 sm:mb-3">
@@ -332,17 +331,10 @@ export default function Dice({ user }: DiceProps) {
                 </div>
 
               </div>
-
-              <div className="hidden lg:block mt-auto pt-2">
-                {hashBlock}
-              </div>
-
+              <div className="hidden lg:block mt-auto pt-2">{hashBlock}</div>
             </div>
 
-            {/* ПРАВАЯ КОЛОНКА */}
             <div className="lg:col-span-7 flex flex-col gap-5">
-              
-              {/* Блок возможного выигрыша (БЕЗ ПЛЮСА) */}
               <div className="flex flex-col items-center justify-center py-6 sm:py-10 flex-1 relative group">
                 <span className="font-black text-slate-900 text-5xl sm:text-7xl tracking-tighter z-10 transition-all duration-300 group-hover:scale-105">
                   {formatBalance(potentialWinAmount, true)}
@@ -392,23 +384,15 @@ export default function Dice({ user }: DiceProps) {
                 </AnimatePresence>
               </div>
 
-              <div className="block lg:hidden mt-2">
-                {hashBlock}
-              </div>
-
+              <div className="block lg:hidden mt-2">{hashBlock}</div>
             </div>
 
           </div>
         </motion.div>
       )}
 
-      {/* =========================================
-          РЕЖИМ SWITCH 
-          ========================================= */}
       {diceMode === 'switch' && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white p-4 sm:p-8 rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/50 w-full flex flex-col">
-          
-          {/* ВЫИГРЫШ И МНОЖИТЕЛЬ СВЕРХУ (БЕЗ ПЛЮСА) */}
           <div className="flex flex-col items-center justify-center text-center mb-6 sm:mb-8 mt-2">
             <span className="font-black text-slate-900 text-4xl sm:text-5xl tracking-tight relative z-10 mb-1">{formatBalance(potentialWinAmount, true)}</span>
             <span className="text-[10px] sm:text-[11px] font-black uppercase text-slate-400 tracking-widest relative z-10 flex items-center gap-1 sm:gap-2">

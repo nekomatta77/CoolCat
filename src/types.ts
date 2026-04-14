@@ -18,7 +18,12 @@ export interface UserProfile {
   totalDeposits?: number;
   totalWithdrawals?: number;
   wagerRequirement?: number;
+  
+  // МАССИВЫ РАЗБЛОКИРОВАННЫХ ПРЕДМЕТОВ
   unlockedAvatars?: string[];
+  unlockedFrames?: string[];
+  unlockedPrefixes?: string[];
+  unlockedBackgrounds?: string[];
   
   lastDailyBonus?: string;
   password?: string;
@@ -28,6 +33,9 @@ export interface UserProfile {
   equippedFrame?: string;
   equippedPrefix?: string;
   equippedBg?: string;
+
+  // ТРЕКЕРЫ ДЛЯ АЧИВОК
+  wxSequence?: number[];
 }
 
 export interface PromoCode {

@@ -25,7 +25,6 @@ export default function Profile({ user, onLogout }: ProfileProps) {
   const [cardBg, setCardBg] = useState(user.cardStyle?.background || '#ffffff');
   const [cardBorder, setCardBorder] = useState(user.cardStyle?.border || '#6366f1');
   
-  // ЗАГРУЖАЕМ НАДЕТОЕ ИЗ БАЗЫ (по умолчанию 'none' или 'default')
   const [activeFrame, setActiveFrame] = useState(user.equippedFrame || 'none');
   const [activePrefix, setActivePrefix] = useState(user.equippedPrefix || 'none');
   const [activeBg, setActiveBg] = useState(user.equippedBg || 'default');
@@ -52,7 +51,6 @@ export default function Profile({ user, onLogout }: ProfileProps) {
         }
       }
 
-      // СОХРАНЯЕМ В ФАЙРБЕЙС ВСЕ НАСТРОЙКИ КАСТОМИЗАЦИИ
       await updateDoc(doc(db, 'users', user.uid), {
         nickname: nickname.trim(),
         avatar,
@@ -79,15 +77,14 @@ export default function Profile({ user, onLogout }: ProfileProps) {
     }
   };
 
+  // ЗАГЛУШКА: Все аватары всегда доступны для тестирования
   const isAvatarUnlocked = (av: typeof AVATARS[0]) => {
-    if (av.type === 'default') return true;
-    if (av.type === 'level') return (user.level || 0) >= (av.reqLevel || 0);
-    return user.unlockedAvatars?.includes(av.id) || false; 
+    return true; 
   };
 
-  const isItemUnlocked = (reqLevel: number, isAch?: boolean) => {
-    if (isAch) return true; // Заглушка для тестов ачивок
-    return (user.level || 0) >= reqLevel;
+  // ЗАГЛУШКА: Все рамки, префиксы и фоны всегда доступны для тестирования
+  const isItemUnlocked = (id: string, reqLevel: number, category: 'frames' | 'prefixes' | 'backgrounds', isAch?: boolean) => {
+    return true; 
   };
 
   const activeFrameObj = FRAMES.find(f => f.id === activeFrame) || FRAMES[0];
@@ -102,7 +99,6 @@ export default function Profile({ user, onLogout }: ProfileProps) {
         <div className={cn("absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] opacity-50 transition-colors duration-700", activeBgObj?.gradient)} />
         
         <div className="relative z-10 flex items-center justify-center">
-          {/* КОНТЕЙНЕР АВАТАРКИ */}
           <div className="relative w-32 h-32 lg:w-40 lg:h-40 flex-shrink-0">
              <div 
                className={cn(
@@ -158,7 +154,6 @@ export default function Profile({ user, onLogout }: ProfileProps) {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
-        {/* ЛЕВАЯ КОЛОНКА */}
         <div className="lg:col-span-8 space-y-6">
           
           <div className="bg-white p-2 rounded-2xl border border-slate-100 shadow-sm flex flex-wrap gap-2">
@@ -229,7 +224,7 @@ export default function Profile({ user, onLogout }: ProfileProps) {
                   {invTab === 'frames' && (
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                       {FRAMES.map((frame) => {
-                        const unlocked = frame.reqLevel === 0 || isItemUnlocked(frame.reqLevel, frame.isAch);
+                        const unlocked = frame.reqLevel === 0 || isItemUnlocked(frame.id, frame.reqLevel, 'frames', frame.isAch);
                         const isEquipped = activeFrame === frame.id;
                         return (
                           <button
@@ -268,7 +263,7 @@ export default function Profile({ user, onLogout }: ProfileProps) {
                   {invTab === 'prefixes' && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {PREFIXES.map((prefix) => {
-                        const unlocked = prefix.reqLevel === 0 || isItemUnlocked(prefix.reqLevel, prefix.isAch);
+                        const unlocked = prefix.reqLevel === 0 || isItemUnlocked(prefix.id, prefix.reqLevel, 'prefixes', prefix.isAch);
                         const isEquipped = activePrefix === prefix.id;
                         return (
                           <button
@@ -300,7 +295,7 @@ export default function Profile({ user, onLogout }: ProfileProps) {
                   {invTab === 'backgrounds' && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                        {BACKGROUNDS.map((bg) => {
-                        const unlocked = bg.reqLevel === 0 || isItemUnlocked(bg.reqLevel, bg.isAch);
+                        const unlocked = bg.reqLevel === 0 || isItemUnlocked(bg.id, bg.reqLevel, 'backgrounds', bg.isAch);
                         const isEquipped = activeBg === bg.id;
                         return (
                           <button
@@ -421,7 +416,6 @@ export default function Profile({ user, onLogout }: ProfileProps) {
 
           </AnimatePresence>
 
-          {/* ГЛОБАЛЬНАЯ КНОПКА СОХРАНЕНИЯ (ВИДНА ВЕЗДЕ) */}
           <button
             onClick={handleSave}
             disabled={loading}
@@ -436,7 +430,6 @@ export default function Profile({ user, onLogout }: ProfileProps) {
 
         </div>
 
-        {/* ПРАВАЯ КОЛОНКА (ПРЕДПРОСМОТР) */}
         <div className="lg:col-span-4 space-y-8 hidden lg:block">
           <div className="sticky top-24 space-y-4">
             <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 px-2">Предпросмотр профиля</h3>
