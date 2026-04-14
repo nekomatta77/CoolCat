@@ -30,10 +30,10 @@ interface BetData {
 // КОНФИГУРАЦИЯ ЛАПКИ (Ручное позиционирование)
 // ------------------------------------------
 const PAW_CONFIG = {
-  scale: 2.5,        // Размер лапки (1 = 100%, 1.2 = 120% и т.д.)
-  x: -55,            // Смещение по оси X (влево/вправо)
-  y: 60,          // Смещение по оси Y (вверх/вниз)
-  baseRotation: -110 // Базовый поворот (разворачивает горизонтальную лапку вниз)
+  scale: 2.5,
+  x: -55,
+  y: 60,
+  baseRotation: -110 
 };
 
 const WHEEL_PATTERN = [
@@ -65,12 +65,12 @@ export default function WheelX({ user }: WheelXProps) {
   
   const [gameState, setGameState] = useState<'betting' | 'spinning'>('betting');
   const [timeLeft, setTimeLeft] = useState(20);
+  const [endTime, setEndTime] = useState<number | null>(null); // Хранит время конца ставок
   const [rotation, setRotation] = useState(0);
   const [lastWinInfo, setLastWinInfo] = useState<{ mult: number, payout: number } | null>(null);
 
   const wheelRotValue = useMotionValue(0);
   
-  // Расчет физики лапки
   const pawRotation = useTransform(wheelRotValue, (r) => {
     const sliceAngle = 360 / 32;
     const normalizedRot = (Math.abs(r) % sliceAngle);
@@ -83,7 +83,6 @@ export default function WheelX({ user }: WheelXProps) {
         const snapProgress = (progress - 0.85) / 0.15;
         flickRotation = 22 * (1 - snapProgress); 
     }
-    // Складываем базовый поворот из конфига с анимацией
     return PAW_CONFIG.baseRotation + flickRotation;
   });
 
@@ -121,19 +120,17 @@ export default function WheelX({ user }: WheelXProps) {
     return () => unsubscribeBets();
   }, [user.uid]);
 
+  // СЛУШАТЕЛЬ БАЗЫ ДАННЫХ
   useEffect(() => {
     const unsubscribeGame = onSnapshot(doc(db, 'live', 'wheelx'), (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.data();
         
         setGameState(data.gameState);
-        setTimeLeft(data.timeLeft || 0);
-
-        if (data.gameState === 'betting' && data.history && data.history.length > 0) {
-          setHistory(data.history);
-        }
 
         if (data.gameState === 'betting') {
+          if (data.history && data.history.length > 0) setHistory(data.history);
+          setEndTime(data.bettingEndsAt || null); // Получаем timestamp от сервера
           hasSpunRef.current = false;
           setLastWinInfo(null);
         } 
@@ -162,6 +159,26 @@ export default function WheelX({ user }: WheelXProps) {
     });
     return () => unsubscribeGame();
   }, []); 
+
+  // ЛОКАЛЬНЫЙ ТАЙМЕР (Плавный, независимый от задержек сети)
+  useEffect(() => {
+    if (gameState !== 'betting' || !endTime) {
+        if (gameState === 'spinning') setTimeLeft(0);
+        return;
+    }
+
+    const tick = () => {
+        const now = Date.now();
+        // Разница в секундах между концом ставок и текущим временем
+        const diff = Math.ceil((endTime - now) / 1000);
+        setTimeLeft(Math.max(0, diff));
+    };
+
+    tick(); // Обновляем немедленно
+    const interval = setInterval(tick, 200); // Проверяем 5 раз в секунду для идеальной плавности
+    
+    return () => clearInterval(interval);
+  }, [gameState, endTime]);
 
   useEffect(() => {
     if (gameState === 'spinning' && hasSpunRef.current) {
@@ -275,16 +292,15 @@ export default function WheelX({ user }: WheelXProps) {
            </div>
         </div>
 
-        {/* Окно колеса (Срезает нижнюю половину) */}
+        {/* Окно колеса */}
         <div className="relative w-full max-w-[800px] mx-auto h-[220px] sm:h-[350px] mt-4 overflow-hidden flex justify-center">
           
-          {/* Лапка (Стрелка) с ручным конфигом */}
           <motion.img
               src="/assets/wheelx/paw_wheel.webp"
               alt="Pointer"
               style={{ 
                   rotate: pawRotation, 
-                  originY: 0.2, // Точка вращения у основания лапки
+                  originY: 0.2, 
                   originX: 0.5,
                   x: PAW_CONFIG.x,
                   y: PAW_CONFIG.y,
@@ -293,12 +309,10 @@ export default function WheelX({ user }: WheelXProps) {
               className="absolute top-0 w-16 sm:w-24 drop-shadow-2xl z-40"
           />
 
-          {/* Гигантское колесо */}
           <motion.div
             style={{ rotate: wheelRotValue }}
             className="absolute bottom-0 translate-y-1/2 w-[420px] h-[420px] sm:w-[680px] sm:h-[680px] rounded-full shadow-[0_10px_50px_rgba(0,0,0,0.2)] bg-slate-900 border-[16px] sm:border-[24px] border-slate-800 z-10"
           >
-            {/* Отрисовка секторов через SVG */}
             <svg viewBox="0 0 100 100" className="absolute inset-0 w-full h-full">
               <g transform="translate(50,50)">
                 {WHEEL_PATTERN.map((slice, i) => (
@@ -346,7 +360,6 @@ export default function WheelX({ user }: WheelXProps) {
             </svg>
           </motion.div>
 
-          {/* Центральный Хаб */}
           <div className="absolute bottom-0 translate-y-1/2 w-28 h-28 sm:w-48 sm:h-48 bg-white rounded-full z-30 border-[6px] sm:border-[10px] border-slate-100 shadow-[0_0_40px_rgba(0,0,0,0.15)] flex flex-col items-center justify-start pt-3 sm:pt-6">
             {gameState === 'betting' ? (
               <>
