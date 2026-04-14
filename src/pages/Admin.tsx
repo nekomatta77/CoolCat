@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { UserProfile, PromoCode } from '../types';
-import { doc, updateDoc, getDocs, query, collection, addDoc, deleteDoc, orderBy, setDoc } from 'firebase/firestore';
+import { doc, updateDoc, getDocs, query, collection, addDoc, deleteDoc, orderBy, setDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Users, Ticket, Plus, List, Zap, Search, Ban, Trash2, Cat, CheckCircle2, AlertCircle, Copy, X, ShieldAlert, RefreshCw, ArrowRight, RotateCcw } from 'lucide-react';
+import { Users, Ticket, Plus, List, Zap, Search, Ban, Trash2, Cat, CheckCircle2, AlertCircle, Copy, X, ShieldAlert, RefreshCw, ArrowRight, RotateCcw, Globe } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 
@@ -37,7 +37,7 @@ const LEVEL_REQUIREMENTS = [
 ];
 
 export default function Admin({ user }: AdminProps) {
-  const [activeTab, setActiveTab] = useState<'users' | 'promo'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'promo' | 'global'>('users');
   const [promoTab, setPromoTab] = useState<'create' | 'list' | 'generator'>('create');
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [promoCodes, setPromoCodes] = useState<PromoCode[]>([]);
@@ -46,6 +46,7 @@ export default function Admin({ user }: AdminProps) {
   const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
 
   const [userActionModal, setUserActionModal] = useState<{ userTarget: UserProfile, action: UserActionType } | null>(null);
+  const [globalActionModal, setGlobalActionModal] = useState<'clear_history' | null>(null);
   const [editingUsers, setEditingUsers] = useState<Record<string, { balance?: number; level?: number; rank?: 'user'|'vip'|'admin' }>>({});
   const [editConfirmModal, setEditConfirmModal] = useState<EditConfirmData | null>(null);
   const [newPromoId, setNewPromoId] = useState<string | null>(null);
@@ -65,12 +66,13 @@ export default function Admin({ user }: AdminProps) {
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      const userSnap = await getDocs(collection(db, 'users'));
-      setUsers(userSnap.docs.map(doc => ({ ...doc.data(), uid: doc.id } as UserProfile)));
-      
-      const promoSnap = await getDocs(query(collection(db, 'promoCodes'), orderBy('createdAt', 'desc')));
-      setPromoCodes(promoSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as PromoCode)));
-      
+      if (activeTab === 'users') {
+        const userSnap = await getDocs(collection(db, 'users'));
+        setUsers(userSnap.docs.map(doc => ({ ...doc.data(), uid: doc.id } as UserProfile)));
+      } else if (activeTab === 'promo') {
+        const promoSnap = await getDocs(query(collection(db, 'promoCodes'), orderBy('createdAt', 'desc')));
+        setPromoCodes(promoSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as PromoCode)));
+      }
       setLoading(false);
     };
     fetchData();
@@ -84,6 +86,47 @@ export default function Admin({ user }: AdminProps) {
     } catch (error) {
       console.error('Update user error:', error);
       setNotification({ message: 'Ошибка обновления пользователя', type: 'error' });
+    }
+  };
+
+  const clearGameHistory = async () => {
+    try {
+      // 1. Удаляем все сессии игр (gameSessions)
+      const sessionsSnap = await getDocs(collection(db, 'gameSessions'));
+      const docs = sessionsSnap.docs;
+      
+      const chunks = [];
+      for (let i = 0; i < docs.length; i += 450) {
+          chunks.push(docs.slice(i, i + 450));
+      }
+
+      for (const chunk of chunks) {
+          const batch = writeBatch(db);
+          chunk.forEach(doc => batch.delete(doc.ref));
+          await batch.commit();
+      }
+
+      // 2. Сбрасываем визуальную историю колеса (последние множители)
+      await setDoc(doc(db, 'live', 'wheelx'), {
+          history: [],
+          gameState: 'betting',
+          timeLeft: 20
+      }, { merge: true });
+
+      // 3. Жестко удаляем все зависшие ставки со стола (если бэкенд выключен или глюканул)
+      const betsSnap = await getDocs(collection(db, 'live', 'wheelx', 'bets'));
+      if (!betsSnap.empty) {
+          const betsBatch = writeBatch(db);
+          betsSnap.forEach(b => betsBatch.delete(b.ref));
+          await betsBatch.commit();
+      }
+
+      setNotification({ message: `Очищено: ${docs.length} игр, история колеса и ставки!`, type: 'success' });
+    } catch (e) {
+      console.error(e);
+      setNotification({ message: 'Ошибка при очистке истории', type: 'error' });
+    } finally {
+      setGlobalActionModal(null);
     }
   };
 
@@ -117,7 +160,6 @@ export default function Admin({ user }: AdminProps) {
         await handleUpdateUser(userTarget.uid, { wagerRequirement: 0 });
         setNotification({ message: `Отыгрыш игрока ${targetName} обнулен!`, type: 'success' });
       }
-      // НОВАЯ ФУНКЦИЯ: АННУЛИРОВАТЬ УРОВЕНЬ
       else if (action === 'reset_level') {
         await handleUpdateUser(userTarget.uid, { 
           level: 0,
@@ -223,6 +265,28 @@ export default function Admin({ user }: AdminProps) {
   const filteredUsers = users.filter(u => (u.nickname || '').toLowerCase().includes((search || '').toLowerCase()));
 
   const getModalContent = () => {
+    if (globalActionModal === 'clear_history') {
+      return (
+        <div className="flex flex-col items-center text-center space-y-5 md:space-y-6">
+           <div className="w-16 h-16 md:w-20 md:h-20 rounded-3xl flex items-center justify-center shadow-xl bg-red-100 text-red-500 shadow-red-100">
+             <Trash2 className="w-8 h-8 md:w-10 md:h-10" />
+           </div>
+           <div className="space-y-2">
+             <h3 className="text-xl md:text-2xl font-black text-slate-900">Очистка истории</h3>
+             <p className="text-slate-500 font-medium text-sm md:text-base leading-relaxed">
+               Вы уверены, что хотите безвозвратно удалить <span className="font-bold text-red-500">всю историю ставок, игр и очистить стол рулетки</span>? 
+             </p>
+           </div>
+           <div className="flex flex-col-reverse md:flex-row gap-3 w-full pt-2 md:pt-4">
+             <button onClick={() => setGlobalActionModal(null)} className="w-full py-4 bg-slate-50 hover:bg-slate-100 text-slate-600 font-black rounded-2xl transition-all">Отмена</button>
+             <button onClick={clearGameHistory} className="w-full py-4 text-white font-black rounded-2xl transition-all shadow-lg bg-red-500 hover:bg-red-600 shadow-red-200">
+               Да, очистить
+             </button>
+           </div>
+        </div>
+      );
+    }
+
     if (editConfirmModal) {
       return (
         <div className="flex flex-col items-center text-center space-y-5 md:space-y-6">
@@ -264,7 +328,7 @@ export default function Admin({ user }: AdminProps) {
       unblock: { title: 'Разблокировка аккаунта', color: 'emerald', icon: CheckCircle2, text: 'разблокировать' },
       delete: { title: 'Удаление аккаунта', color: 'red', icon: Trash2, text: 'навсегда удалить' },
       reset_wager: { title: 'Обнуление отыгрыша', color: 'brand', icon: RefreshCw, text: 'обнулить отыгрыш (вагер) для' },
-      reset_level: { title: 'Сброс уровня', color: 'amber', icon: RotateCcw, text: 'полностью обнулить уровень, опыт и депозиты' } // Конфиг новой кнопки
+      reset_level: { title: 'Сброс уровня', color: 'amber', icon: RotateCcw, text: 'полностью обнулить уровень, опыт и депозиты' }
     };
 
     const cfg = config[action];
@@ -313,7 +377,7 @@ export default function Admin({ user }: AdminProps) {
     <div className="max-w-[90rem] mx-auto space-y-6 md:space-y-8 pb-12 relative px-2 md:px-0">
       
       <AnimatePresence>
-        {(userActionModal || editConfirmModal) && (
+        {(userActionModal || editConfirmModal || globalActionModal) && (
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -327,7 +391,7 @@ export default function Admin({ user }: AdminProps) {
               className="bg-white rounded-[2.5rem] p-6 md:p-8 max-w-md w-full shadow-2xl border border-slate-100 relative mx-4"
             >
               <button 
-                onClick={() => { setUserActionModal(null); setEditConfirmModal(null); }}
+                onClick={() => { setUserActionModal(null); setEditConfirmModal(null); setGlobalActionModal(null); }}
                 className="absolute top-4 right-4 md:top-6 md:right-6 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all"
               >
                 <X className="w-6 h-6" />
@@ -366,11 +430,11 @@ export default function Admin({ user }: AdminProps) {
           )}
         </AnimatePresence>
 
-        <div className="flex bg-slate-50 p-1.5 rounded-2xl border border-slate-100 w-full md:w-auto">
+        <div className="flex flex-wrap md:flex-nowrap bg-slate-50 p-1.5 rounded-2xl border border-slate-100 w-full md:w-auto">
           <button
             onClick={() => setActiveTab('users')}
             className={cn(
-              "flex-1 md:flex-none px-4 md:px-6 py-3 rounded-xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2",
+              "flex-1 md:flex-none px-3 md:px-6 py-3 rounded-xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2",
               activeTab === 'users' ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
             )}
           >
@@ -379,17 +443,63 @@ export default function Admin({ user }: AdminProps) {
           <button
             onClick={() => setActiveTab('promo')}
             className={cn(
-              "flex-1 md:flex-none px-4 md:px-6 py-3 rounded-xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2",
+              "flex-1 md:flex-none px-3 md:px-6 py-3 rounded-xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2",
               activeTab === 'promo' ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
             )}
           >
             <Ticket className="w-4 h-4" /> <span className="hidden sm:inline">Промокоды</span>
           </button>
+          <button
+            onClick={() => setActiveTab('global')}
+            className={cn(
+              "flex-1 md:flex-none px-3 md:px-6 py-3 rounded-xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2",
+              activeTab === 'global' ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
+            )}
+          >
+            <Globe className="w-4 h-4" /> <span className="hidden sm:inline">Глобальные</span>
+          </button>
         </div>
       </header>
 
       <AnimatePresence mode="wait">
-        {activeTab === 'users' ? (
+        
+        {/* Вкладка: Глобальные переменные */}
+        {activeTab === 'global' && (
+          <motion.div key="global" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-6 md:space-y-8 max-w-7xl mx-auto">
+            <div className="bg-white p-5 md:p-8 lg:p-12 rounded-[2rem] md:rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/50">
+              <div className="mb-6 md:mb-8 text-center md:text-left">
+                <h2 className="text-xl md:text-3xl font-black text-slate-900 tracking-tighter">Глобальные настройки</h2>
+                <p className="text-slate-500 text-xs md:text-sm font-medium mt-2">Управление системными данными и коллекциями базы данных.</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                
+                {/* Карточка: Очистка истории */}
+                <div className="bg-slate-50 p-6 md:p-8 rounded-[1.5rem] md:rounded-[2rem] border border-slate-100 flex flex-col justify-between group hover:border-red-200 transition-colors">
+                  <div className="mb-6 md:mb-8">
+                    <div className="w-12 h-12 bg-red-100 rounded-2xl flex items-center justify-center mb-4 text-red-500 group-hover:scale-110 transition-transform">
+                      <Trash2 className="w-6 h-6" />
+                    </div>
+                    <h3 className="text-lg md:text-xl font-black text-slate-900 mb-2">История игр</h3>
+                    <p className="text-xs md:text-sm text-slate-500 leading-relaxed">
+                      Полностью удаляет коллекцию <code className="bg-slate-200 px-1 py-0.5 rounded text-slate-700">gameSessions</code>, а также очищает все зависшие ставки со стола в WheelX и визуальную историю.
+                    </p>
+                  </div>
+                  <button 
+                    onClick={() => setGlobalActionModal('clear_history')} 
+                    className="w-full py-4 bg-white text-red-500 border-2 border-red-100 hover:bg-red-500 hover:text-white hover:border-red-500 rounded-xl font-black text-xs md:text-sm uppercase tracking-widest transition-all shadow-sm flex items-center justify-center gap-2"
+                  >
+                    Очистить базу игр
+                  </button>
+                </div>
+                
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Вкладка: Пользователи */}
+        {activeTab === 'users' && (
           <motion.div key="users" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-4 md:space-y-6">
             <div className="max-w-7xl mx-auto bg-white p-3 md:p-4 rounded-[1.5rem] md:rounded-[2rem] border border-slate-100 shadow-lg shadow-slate-200/50 flex items-center gap-3 md:gap-4 focus-within:border-brand-300 transition-colors">
               <div className="w-10 h-10 md:w-12 md:h-12 bg-slate-50 rounded-xl md:rounded-2xl flex items-center justify-center shrink-0">
@@ -447,7 +557,6 @@ export default function Admin({ user }: AdminProps) {
                         <RefreshCw className="w-4 h-4" /> <span className="lg:hidden text-[10px] uppercase font-bold tracking-widest">Отыгрыш</span>
                       </button>
                       
-                      {/* НОВАЯ КНОПКА: СБРОС УРОВНЯ */}
                       <button onClick={() => setUserActionModal({ userTarget: u, action: 'reset_level' })} className="flex-1 lg:flex-none py-2.5 px-3 md:p-3 rounded-xl bg-amber-50 text-amber-500 hover:bg-amber-500 hover:text-white transition-all shadow-sm flex items-center justify-center gap-2" title="Аннулировать уровень">
                         <RotateCcw className="w-4 h-4" /> <span className="lg:hidden text-[10px] uppercase font-bold tracking-widest">Уровень</span>
                       </button>
@@ -461,60 +570,29 @@ export default function Admin({ user }: AdminProps) {
                     </div>
                   </div>
                   
-                  {/* ОБНОВЛЕННАЯ СЕТКА ИНПУТОВ (6 КОЛОНОК) */}
                   <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 md:gap-6">
-                    
-                    {/* РАНГ */}
                     <div className="space-y-2 relative">
                       <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400 pl-1">Ранг</p>
-                      <select
-                        value={editingUsers[u.uid]?.rank ?? (u.rank || 'user')}
-                        onChange={(e) => setEditingUsers({...editingUsers, [u.uid]: {...(editingUsers[u.uid]||{}), rank: e.target.value as any}})}
-                        className="w-full bg-slate-50 hover:bg-slate-100 focus:bg-white border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-3 font-black text-slate-900 text-sm md:text-base outline-none transition-all shadow-inner appearance-none cursor-pointer uppercase"
-                      >
-                        <option value="user">User</option>
-                        <option value="vip">VIP</option>
-                        <option value="admin">Admin</option>
+                      <select value={editingUsers[u.uid]?.rank ?? (u.rank || 'user')} onChange={(e) => setEditingUsers({...editingUsers, [u.uid]: {...(editingUsers[u.uid]||{}), rank: e.target.value as any}})} className="w-full bg-slate-50 hover:bg-slate-100 focus:bg-white border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-3 font-black text-slate-900 text-sm md:text-base outline-none transition-all shadow-inner appearance-none cursor-pointer uppercase">
+                        <option value="user">User</option><option value="vip">VIP</option><option value="admin">Admin</option>
                       </select>
                     </div>
-
-                    {/* УРОВЕНЬ */}
                     <div className="space-y-2 relative">
                       <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400 pl-1">Уровень</p>
-                      <input
-                        type="number"
-                        min="0"
-                        max="15"
-                        value={editingUsers[u.uid]?.level ?? (u.level ?? 0)}
-                        onChange={(e) => setEditingUsers({...editingUsers, [u.uid]: {...(editingUsers[u.uid]||{}), level: Number(e.target.value)}})}
-                        className="w-full bg-slate-50 hover:bg-slate-100 focus:bg-white border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-3 font-black text-slate-900 text-sm md:text-base outline-none transition-all shadow-inner"
-                      />
+                      <input type="number" min="0" max="15" value={editingUsers[u.uid]?.level ?? (u.level ?? 0)} onChange={(e) => setEditingUsers({...editingUsers, [u.uid]: {...(editingUsers[u.uid]||{}), level: Number(e.target.value)}})} className="w-full bg-slate-50 hover:bg-slate-100 focus:bg-white border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-3 font-black text-slate-900 text-sm md:text-base outline-none transition-all shadow-inner" />
                     </div>
-
-                    {/* БАЛАНС */}
                     <div className="space-y-2 relative">
                       <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400 pl-1">Баланс (CAT)</p>
-                      <input
-                        type="number"
-                        value={editingUsers[u.uid]?.balance ?? u.balance}
-                        onChange={(e) => setEditingUsers({...editingUsers, [u.uid]: {...(editingUsers[u.uid]||{}), balance: Number(e.target.value)}})}
-                        className="w-full bg-slate-50 hover:bg-slate-100 focus:bg-white border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-3 font-black text-slate-900 text-sm md:text-base outline-none transition-all shadow-inner"
-                      />
+                      <input type="number" value={editingUsers[u.uid]?.balance ?? u.balance} onChange={(e) => setEditingUsers({...editingUsers, [u.uid]: {...(editingUsers[u.uid]||{}), balance: Number(e.target.value)}})} className="w-full bg-slate-50 hover:bg-slate-100 focus:bg-white border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-3 font-black text-slate-900 text-sm md:text-base outline-none transition-all shadow-inner" />
                     </div>
-
-                    {/* ВАГЕР (Сохраняется по onBlur) */}
                     <div className="space-y-2">
                       <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400 pl-1 text-brand-500">Отыгрыш</p>
                       <input type="number" key={`wager-${u.uid}-${u.wagerRequirement}`} defaultValue={u.wagerRequirement || 0} onBlur={(e) => handleUpdateUser(u.uid, { wagerRequirement: Number(e.target.value) })} className="w-full bg-brand-50/50 hover:bg-brand-50 focus:bg-white border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-3 font-black text-brand-700 text-sm md:text-base outline-none transition-all shadow-inner" />
                     </div>
-
-                    {/* ПАРОЛЬ (Сохраняется по onBlur) */}
                     <div className="space-y-2">
                       <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400 pl-1">Пароль</p>
                       <input type="text" defaultValue={u.password || 'N/A'} onBlur={(e) => handleUpdateUser(u.uid, { password: e.target.value })} className="w-full bg-slate-50 hover:bg-slate-100 focus:bg-white border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-3 font-bold text-slate-900 text-sm md:text-base outline-none transition-all shadow-inner" />
                     </div>
-
-                    {/* СТАТИСТИКА */}
                     <div className="space-y-2 col-span-2 md:col-span-1">
                       <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400 pl-1">Статистика</p>
                       <div className="flex flex-row items-center gap-4 text-xs md:text-sm font-black text-slate-500 bg-slate-50 border border-slate-100 px-4 py-3 rounded-xl w-full h-[46px] md:h-[52px]">
@@ -535,7 +613,10 @@ export default function Admin({ user }: AdminProps) {
               )}
             </div>
           </motion.div>
-        ) : (
+        )}
+
+        {/* Вкладка: Промокоды */}
+        {activeTab === 'promo' && (
           <motion.div key="promo" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-6 md:space-y-8 max-w-7xl mx-auto">
             <div className="grid grid-cols-3 md:flex bg-white p-1.5 rounded-[1.5rem] md:rounded-[2rem] border border-slate-100 shadow-lg shadow-slate-200/50 w-full md:w-fit gap-1 md:gap-2">
               <button onClick={() => setPromoTab('create')} className={cn("px-2 md:px-8 py-3 rounded-xl font-black text-[9px] md:text-xs uppercase tracking-widest transition-all flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2", promoTab === 'create' ? 'bg-brand-50 text-brand-600' : 'text-slate-400 hover:text-brand-600')}>

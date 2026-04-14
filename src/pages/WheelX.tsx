@@ -1,7 +1,7 @@
 // src/pages/WheelX.tsx
 import { useState, useEffect, useRef } from 'react';
 import { UserProfile } from '../types';
-import { doc, updateDoc, increment, addDoc, collection, onSnapshot } from 'firebase/firestore';
+import { doc, updateDoc, increment, setDoc, collection, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Trophy, Coins, History, Timer, ShieldCheck, Flame, Users, Plus, Minus } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -14,6 +14,17 @@ function cn(...inputs: ClassValue[]) {
 
 interface WheelXProps {
   user: UserProfile;
+}
+
+// Интерфейс для хранения ставок из БД
+interface BetData {
+  userId: string;
+  nickname: string;
+  avatar: string;
+  black: number;
+  blue: number;
+  pink: number;
+  orange: number;
 }
 
 const WHEEL_PATTERN = [
@@ -39,11 +50,14 @@ export default function WheelX({ user }: WheelXProps) {
   const [globalBet, setGlobalBet] = useState('10');
   const currentBetNum = parseFloat(globalBet.replace(',', '.')) || 0;
 
+  // Все ставки всех игроков текущего раунда из БД
+  const [allBets, setAllBets] = useState<BetData[]>([]);
+  // Личные ставки (синхронизируются с БД)
   const [myBets, setMyBets] = useState({ black: 0, blue: 0, pink: 0, orange: 0 });
   const [history, setHistory] = useState<number[]>([]);
   
   const [gameState, setGameState] = useState<'betting' | 'spinning'>('betting');
-  const [timeLeft, setTimeLeft] = useState(30);
+  const [timeLeft, setTimeLeft] = useState(20);
   const [rotation, setRotation] = useState(0);
   const [lastWinInfo, setLastWinInfo] = useState<{ mult: number, payout: number } | null>(null);
 
@@ -54,8 +68,38 @@ export default function WheelX({ user }: WheelXProps) {
 
   const hasSpunRef = useRef(false);
 
+  // 1. Подписка на ВСЕ СТАВКИ текущего раунда
   useEffect(() => {
-    const unsubscribe = onSnapshot(doc(db, 'live', 'wheelx'), (snapshot) => {
+    const betsRef = collection(db, 'live', 'wheelx', 'bets');
+    const unsubscribeBets = onSnapshot(betsRef, (snapshot) => {
+      const betsList: BetData[] = [];
+      let myCurrentBets = { black: 0, blue: 0, pink: 0, orange: 0 };
+
+      snapshot.forEach((doc) => {
+        const data = doc.data() as Omit<BetData, 'userId'>;
+        betsList.push({ userId: doc.id, ...data } as BetData);
+
+        // Если это документ текущего юзера, сохраняем его ставки в myBets
+        if (doc.id === user.uid) {
+          myCurrentBets = {
+            black: data.black || 0,
+            blue: data.blue || 0,
+            pink: data.pink || 0,
+            orange: data.orange || 0
+          };
+        }
+      });
+
+      setAllBets(betsList);
+      setMyBets(myCurrentBets); // Восстанавливает ставки при F5
+    });
+
+    return () => unsubscribeBets();
+  }, [user.uid]);
+
+  // 2. Подписка на СОСТОЯНИЕ ИГРЫ
+  useEffect(() => {
+    const unsubscribeGame = onSnapshot(doc(db, 'live', 'wheelx'), (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.data();
         
@@ -76,59 +120,49 @@ export default function WheelX({ user }: WheelXProps) {
           const winningIndex = data.winningIndex;
           const winningSlice = WHEEL_PATTERN[winningIndex];
           
+          // Фиксируем нашу ставку на момент начала вращения, чтобы показать попап
+          const betPlacedAtSpin = myBetsRef.current[winningSlice.type as keyof typeof myBetsRef.current] || 0;
+          
           setRotation(prev => {
               const currentSpins = Math.floor(prev / 360);
               const nextSpins = currentSpins + 10;
               return (nextSpins * 360) + (winningIndex * (360 / 32));
           });
 
-          // Таймер 5 секунд на саму анимацию кручения
+          // Таймер 5 секунд на анимацию
           setTimeout(() => {
-            handlePayout(winningSlice);
+            // Начисления баланса тут БОЛЬШЕ НЕТ. Это делает бэкенд на VPS.
+            // Фронтенд просто показывает красивый UI если мы выиграли.
+            if (betPlacedAtSpin > 0) {
+              const expectedPayout = betPlacedAtSpin * winningSlice.mult;
+              setLastWinInfo({ mult: winningSlice.mult, payout: expectedPayout });
+            }
             
             setHistory(prev => [winningSlice.mult, ...prev].slice(0, 10));
-
-            // Даем время полюбоваться на результат перед обнулением ставок
-            setTimeout(() => {
-              setMyBets({ black: 0, blue: 0, pink: 0, orange: 0 });
-            }, 3000);
           }, 5000);
         }
       }
     });
-    return () => unsubscribe();
-  }, []); // Пустой массив зависимостей, чтобы подписка сработала 1 раз
+    return () => unsubscribeGame();
+  }, []); 
 
-  const handlePayout = async (winningSlice: typeof WHEEL_PATTERN[0]) => {
-    const betPlaced = myBetsRef.current[winningSlice.type as keyof typeof myBetsRef.current];
-    if (betPlaced > 0) {
-      const payout = betPlaced * winningSlice.mult;
-      setLastWinInfo({ mult: winningSlice.mult, payout });
-      try {
-        await updateDoc(doc(db, 'users', user.uid), {
-          balance: increment(payout),
-          xp: increment(betPlaced / 10)
-        });
-        await addDoc(collection(db, 'gameSessions'), { 
-          userId: user.uid, 
-          gameType: 'wheelx', 
-          bet: betPlaced, 
-          multiplier: winningSlice.mult, 
-          payout, 
-          timestamp: new Date().toISOString(), 
-          nickname: user.nickname 
-        });
-      } catch (e) {
-        console.error("Ошибка при начислении выигрыша", e);
-      }
-    }
-  };
-
+  // 3. НОВАЯ ЛОГИКА СТАВОК (отправляем в БД)
   const placeBet = async (color: 'black' | 'blue' | 'pink' | 'orange') => {
     if (gameState !== 'betting' || currentBetNum <= 0 || currentBetNum > user.balance) return;
+    
     try {
+      // Списываем баланс юзера
       await updateDoc(doc(db, 'users', user.uid), { balance: increment(-currentBetNum) });
-      setMyBets(prev => ({ ...prev, [color]: prev[color] + currentBetNum }));
+      
+      // Записываем ставку в общую БД ставок стола
+      const betRef = doc(db, 'live', 'wheelx', 'bets', user.uid);
+      await setDoc(betRef, {
+        [color]: increment(currentBetNum),
+        nickname: user.nickname,
+        avatar: user.avatar,
+        timestamp: serverTimestamp()
+      }, { merge: true }); // merge: true обязателен, чтобы не затереть ставки на другие цвета
+
     } catch (e) {
       console.error('Ошибка ставки', e);
     }
@@ -139,8 +173,18 @@ export default function WheelX({ user }: WheelXProps) {
   }: { 
     type: 'black'|'blue'|'pink'|'orange', mult: number, titleColor: string, btnClass: string 
   }) => {
-    const currentPool = myBets[type];
-    const playersList = currentPool > 0 ? [{ nick: user.nickname, avatar: user.avatar, bet: currentPool }] : [];
+    
+    // Собираем всех игроков, кто поставил на этот цвет
+    const playersList = allBets
+      .filter(b => (b[type as keyof BetData] as number) > 0)
+      .map(b => ({
+        nick: b.nickname,
+        avatar: b.avatar,
+        bet: b[type as keyof BetData] as number
+      }))
+      .sort((a, b) => b.bet - a.bet); // Сортируем: кто больше поставил, тот выше
+
+    const currentPool = playersList.reduce((sum, p) => sum + p.bet, 0);
 
     return (
       <div className="bg-white rounded-xl sm:rounded-2xl p-2 sm:p-4 flex flex-col gap-2 sm:gap-4 border border-slate-100 shadow-md sm:shadow-lg shadow-slate-200/50 relative overflow-hidden h-[200px] sm:h-[280px]">
