@@ -131,8 +131,6 @@ export default function WheelX({ user }: WheelXProps) {
 
           // Таймер 5 секунд на анимацию
           setTimeout(() => {
-            // Начисления баланса тут БОЛЬШЕ НЕТ. Это делает бэкенд на VPS.
-            // Фронтенд просто показывает красивый UI если мы выиграли.
             if (betPlacedAtSpin > 0) {
               const expectedPayout = betPlacedAtSpin * winningSlice.mult;
               setLastWinInfo({ mult: winningSlice.mult, payout: expectedPayout });
@@ -150,6 +148,11 @@ export default function WheelX({ user }: WheelXProps) {
   const placeBet = async (color: 'black' | 'blue' | 'pink' | 'orange') => {
     if (gameState !== 'betting' || currentBetNum <= 0 || currentBetNum > user.balance) return;
     
+    // Запрашиваем права на системные уведомления именно по клику (браузеры это любят)
+    if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission().catch(() => {});
+    }
+    
     try {
       // Списываем баланс юзера
       await updateDoc(doc(db, 'users', user.uid), { balance: increment(-currentBetNum) });
@@ -161,7 +164,7 @@ export default function WheelX({ user }: WheelXProps) {
         nickname: user.nickname,
         avatar: user.avatar,
         timestamp: serverTimestamp()
-      }, { merge: true }); // merge: true обязателен, чтобы не затереть ставки на другие цвета
+      }, { merge: true });
 
     } catch (e) {
       console.error('Ошибка ставки', e);
@@ -182,7 +185,7 @@ export default function WheelX({ user }: WheelXProps) {
         avatar: b.avatar,
         bet: b[type as keyof BetData] as number
       }))
-      .sort((a, b) => b.bet - a.bet); // Сортируем: кто больше поставил, тот выше
+      .sort((a, b) => b.bet - a.bet); 
 
     const currentPool = playersList.reduce((sum, p) => sum + p.bet, 0);
 

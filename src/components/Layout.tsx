@@ -38,6 +38,11 @@ export default function Layout({ children, user, onLogout }: LayoutProps) {
   useEffect(() => {
     if (!user?.uid) return;
 
+    // Первичный мягкий запрос на пуш-уведомления (дополнительно дублируется при ставке)
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => {});
+    }
+
     // Запрос на последнюю игровую сессию пользователя
     const q = query(
       collection(db, 'gameSessions'),
@@ -58,16 +63,33 @@ export default function Layout({ children, user, onLogout }: LayoutProps) {
           const data = change.doc.data();
 
           // Показываем уведомление только для выигрышей (payout > 0)
-          // И только если мы НЕ на странице самой игры (чтобы не мешать игровому процессу)
-          if (data.payout > 0 && location.pathname !== '/wheelx') {
-            setWinNotification({
-              game: data.gameType,
-              payout: data.payout,
-              mult: data.multiplier
-            });
+          if (data.payout > 0) {
+            
+            // 1. СИСТЕМНОЕ УВЕДОМЛЕНИЕ (если вкладка браузера скрыта/свернута)
+            if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
+              const notif = new Notification(`🎉 Крутой Кот: Выигрыш!`, {
+                body: `Сумма: ${data.payout.toFixed(0)} CAT\nМножитель: ${data.multiplier}X`,
+                icon: '/assets/CoolCat_trophey.webp'
+              });
+              
+              // При клике на пуш - перекидываем обратно на вкладку
+              notif.onclick = () => {
+                window.focus();
+                notif.close();
+              };
+            }
 
-            if (timerRef.current) clearTimeout(timerRef.current);
-            timerRef.current = setTimeout(() => setWinNotification(null), 6000);
+            // 2. ВНУТРИИГРОВОЕ УВЕДОМЛЕНИЕ (если мы НЕ на странице самой игры)
+            if (location.pathname !== '/wheelx') {
+              setWinNotification({
+                game: data.gameType,
+                payout: data.payout,
+                mult: data.multiplier
+              });
+
+              if (timerRef.current) clearTimeout(timerRef.current);
+              timerRef.current = setTimeout(() => setWinNotification(null), 6000);
+            }
           }
         }
       });
@@ -96,31 +118,33 @@ export default function Layout({ children, user, onLogout }: LayoutProps) {
       <AnimatePresence>
         {winNotification && (
           <motion.div
-            initial={{ y: -100, x: '-50%', opacity: 0 }}
-            animate={{ y: 20, x: '-50%', opacity: 1 }}
-            exit={{ y: -100, x: '-50%', opacity: 0 }}
+            initial={{ y: -150, x: '-50%', opacity: 0, scale: 0.9 }}
+            animate={{ y: 24, x: '-50%', opacity: 1, scale: 1 }}
+            exit={{ y: -150, x: '-50%', opacity: 0, scale: 0.9 }}
             transition={{ type: 'spring', damping: 15, stiffness: 200 }}
-            className="fixed left-1/2 z-[9999] w-[90%] max-w-[400px] bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] border-2 border-emerald-400 p-4 flex items-center gap-4 overflow-hidden"
+            className="fixed top-0 left-1/2 z-[9999] w-[92%] sm:w-[400px] bg-white rounded-2xl shadow-[0_20px_60px_rgba(16,185,129,0.2)] border-2 border-emerald-400 p-3 sm:p-4 flex items-center gap-3 sm:gap-4 overflow-hidden"
           >
-            {/* Декоративный фон */}
-            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-full -mr-16 -mt-16 opacity-50" />
+            {/* Декоративные свечения на фоне уведомления */}
+            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-100 rounded-full blur-2xl -mr-16 -mt-16 opacity-60 pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-24 h-24 bg-brand-100 rounded-full blur-xl -ml-10 -mb-10 opacity-50 pointer-events-none" />
             
-            <div className="relative w-12 h-12 bg-emerald-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-200 shrink-0">
-              <Trophy className="w-7 h-7 text-white" />
+            <div className="relative w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-tr from-emerald-500 to-emerald-400 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-300/50 shrink-0 border border-emerald-300">
+              <Trophy className="w-6 h-6 sm:w-7 sm:h-7 text-white drop-shadow-sm" />
             </div>
 
-            <div className="flex-1 relative">
-              <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500 mb-0.5">Новый выигрыш!</h4>
-              <p className="text-sm sm:text-base font-black text-slate-900">
-                Выигрыш WheelX <span className="text-emerald-600">{winNotification.payout.toFixed(0)}</span> и {winNotification.mult}X
+            <div className="flex-1 relative z-10">
+              <h4 className="text-[10px] sm:text-xs font-black uppercase tracking-[0.15em] text-emerald-500 mb-0.5 drop-shadow-sm">Успешный улов!</h4>
+              <p className="text-sm sm:text-base font-black text-slate-800 leading-tight">
+                Выигрыш WheelX <span className="text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-md ml-1">{winNotification.payout.toFixed(0)} CAT</span>
               </p>
+              <p className="text-[10px] sm:text-xs font-bold text-slate-400 mt-1">Множитель: <span className="text-slate-600">{winNotification.mult}X</span></p>
             </div>
 
             <button 
               onClick={() => setWinNotification(null)}
-              className="relative p-2 text-slate-300 hover:text-slate-500 hover:bg-slate-50 rounded-lg transition-all"
+              className="relative z-10 p-2 sm:p-2.5 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </motion.div>
         )}
