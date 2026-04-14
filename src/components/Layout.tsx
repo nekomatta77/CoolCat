@@ -1,10 +1,9 @@
-// src/components/Layout.tsx
 import { ReactNode, useState, useEffect, useRef } from 'react';
 import Header from './Header';
 import Sidebar from './Sidebar';
 import Chat from './Chat';
 import { UserProfile } from '../types';
-import { Home, Gift, User, Plus, MessageCircle, Trophy, X } from 'lucide-react';
+import { Home, Gift, User, Plus, MessageCircle, Trophy, X, Coins } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -29,23 +28,17 @@ export default function Layout({ children, user, onLogout }: LayoutProps) {
   const [modalType, setModalType] = useState<'deposit' | 'withdraw' | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
 
-  // Глобальное уведомление о победе
+  // Состояние уведомления о выигрыше
   const [winNotification, setWinNotification] = useState<{ game: string, payout: number, mult: number } | null>(null);
   
-  // Рефы для контроля состояния без вызова лишних ререндеров
-  const locationRef = useRef(location.pathname);
   const initialLoadRef = useRef(true);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Синхронизируем locationRef с текущим путем
-  useEffect(() => {
-    locationRef.current = location.pathname;
-  }, [location.pathname]);
-
-  // Слушатель новых выигрышей в реальном времени
+  // Слушаем новые выигрыши в реальном времени
   useEffect(() => {
     if (!user?.uid) return;
 
+    // Запрос на последнюю игровую сессию пользователя
     const q = query(
       collection(db, 'gameSessions'),
       where('userId', '==', user.uid),
@@ -54,7 +47,7 @@ export default function Layout({ children, user, onLogout }: LayoutProps) {
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      // Игнорируем первую загрузку, чтобы не показывать старые победы при входе на сайт
+      // Пропускаем старые записи при первой загрузке страницы
       if (initialLoadRef.current) {
         initialLoadRef.current = false;
         return;
@@ -63,23 +56,18 @@ export default function Layout({ children, user, onLogout }: LayoutProps) {
       snapshot.docChanges().forEach((change) => {
         if (change.type === 'added') {
           const data = change.doc.data();
-          const gamePath = `/${data.gameType}`; 
 
-          // Показываем уведомление, только если это победа и мы НЕ находимся на странице этой игры
-          if (data.payout > 0 && locationRef.current !== gamePath) {
+          // Показываем уведомление только для выигрышей (payout > 0)
+          // И только если мы НЕ на странице самой игры (чтобы не мешать игровому процессу)
+          if (data.payout > 0 && location.pathname !== '/wheelx') {
             setWinNotification({
               game: data.gameType,
               payout: data.payout,
               mult: data.multiplier
             });
 
-            // Очищаем предыдущий таймер, если игрок выиграл дважды подряд очень быстро
             if (timerRef.current) clearTimeout(timerRef.current);
-            
-            // Автоматически скрываем через 5 секунд
-            timerRef.current = setTimeout(() => {
-              setWinNotification(null);
-            }, 5000);
+            timerRef.current = setTimeout(() => setWinNotification(null), 6000);
           }
         }
       });
@@ -89,7 +77,7 @@ export default function Layout({ children, user, onLogout }: LayoutProps) {
       unsubscribe();
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [user?.uid]);
+  }, [user?.uid, location.pathname]);
 
   const mobileNavLeft = [
     { icon: Home, path: '/' },
@@ -101,51 +89,38 @@ export default function Layout({ children, user, onLogout }: LayoutProps) {
     { icon: User, path: '/profile', id: 'profile' },
   ];
 
-  // Маппинг названий игр для красивого вывода
-  const getGameName = (gameId: string) => {
-    const names: Record<string, string> = {
-      'wheelx': 'WheelX',
-      'dice': 'Dice',
-      'mines': 'Mines',
-      'keno': 'Keno'
-    };
-    return names[gameId.toLowerCase()] || gameId;
-  };
-
   return (
-    <div className="flex min-h-screen bg-slate-50 font-sans text-slate-900 relative">
+    <div className="flex min-h-screen bg-slate-50 font-sans text-slate-900">
       
-      {/* ГЛОБАЛЬНОЕ УВЕДОМЛЕНИЕ О ПОБЕДЕ */}
+      {/* КРАСИВОЕ УВЕДОМЛЕНИЕ О ВЫИГРЫШЕ (TOP CENTER) */}
       <AnimatePresence>
         {winNotification && (
           <motion.div
-            initial={{ opacity: 0, y: -50, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -20, scale: 0.9 }}
-            className="fixed top-4 md:top-6 left-4 right-4 md:left-auto md:right-6 z-[200] bg-white rounded-2xl md:rounded-3xl shadow-2xl border border-brand-100 p-4 md:p-5 flex items-center gap-4 max-w-md w-auto md:w-96 overflow-hidden"
+            initial={{ y: -100, x: '-50%', opacity: 0 }}
+            animate={{ y: 20, x: '-50%', opacity: 1 }}
+            exit={{ y: -100, x: '-50%', opacity: 0 }}
+            transition={{ type: 'spring', damping: 15, stiffness: 200 }}
+            className="fixed left-1/2 z-[9999] w-[90%] max-w-[400px] bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] border-2 border-emerald-400 p-4 flex items-center gap-4 overflow-hidden"
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-brand-50 to-transparent opacity-50 pointer-events-none" />
+            {/* Декоративный фон */}
+            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-full -mr-16 -mt-16 opacity-50" />
             
-            <div className="w-12 h-12 md:w-14 md:h-14 bg-gradient-to-tr from-brand-500 to-brand-400 rounded-xl md:rounded-2xl flex items-center justify-center shadow-lg shadow-brand-200 shrink-0 relative z-10">
-              <Trophy className="w-6 h-6 md:w-7 md:h-7 text-white" />
-            </div>
-            
-            <div className="flex-1 relative z-10 pr-6">
-              <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-brand-500 mb-0.5">Ваша ставка сыграла!</p>
-              <p className="text-sm md:text-base font-black text-slate-900 leading-tight">
-                Победа в {getGameName(winNotification.game)}
-              </p>
-              <div className="flex items-center gap-2 mt-1.5">
-                <span className="text-sm md:text-base font-black text-emerald-500">+{winNotification.payout.toFixed(0)} CAT</span>
-                <span className="text-[10px] md:text-xs font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md">x{winNotification.mult}</span>
-              </div>
+            <div className="relative w-12 h-12 bg-emerald-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-200 shrink-0">
+              <Trophy className="w-7 h-7 text-white" />
             </div>
 
-            <button
+            <div className="flex-1 relative">
+              <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500 mb-0.5">Новый выигрыш!</h4>
+              <p className="text-sm sm:text-base font-black text-slate-900">
+                Выигрыш WheelX <span className="text-emerald-600">{winNotification.payout.toFixed(0)}</span> и {winNotification.mult}X
+              </p>
+            </div>
+
+            <button 
               onClick={() => setWinNotification(null)}
-              className="absolute top-3 right-3 text-slate-300 hover:text-slate-500 hover:bg-slate-50 p-1.5 rounded-lg transition-all z-10"
+              className="relative p-2 text-slate-300 hover:text-slate-500 hover:bg-slate-50 rounded-lg transition-all"
             >
-              <X className="w-4 h-4" />
+              <X className="w-5 h-5" />
             </button>
           </motion.div>
         )}
