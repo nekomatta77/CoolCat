@@ -3,13 +3,13 @@ import Header from './Header';
 import Sidebar from './Sidebar';
 import Chat from './Chat';
 import { UserProfile } from '../types';
-import { Home, Gift, User, Plus, MessageCircle, Trophy, X, Coins } from 'lucide-react';
+import { Home, Gift, User, Plus, MessageCircle, Trophy, X } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import DepositModal from './DepositModal';
 import { motion, AnimatePresence } from 'motion/react';
-import { collection, query, where, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 
 function cn(...inputs: ClassValue[]) {
@@ -28,78 +28,63 @@ export default function Layout({ children, user, onLogout }: LayoutProps) {
   const [modalType, setModalType] = useState<'deposit' | 'withdraw' | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
 
-  // Состояние уведомления о выигрыше
-  const [winNotification, setWinNotification] = useState<{ game: string, payout: number, mult: number } | null>(null);
+  // Состояние для нашей "таблички-оповещалки"
+  const [winNotification, setWinNotification] = useState<{ payout: number, mult: number, game: string } | null>(null);
   
-  const initialLoadRef = useRef(true);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Создаем Ref для location, чтобы не перезапускать useEffect при смене страниц
+  const locationRef = useRef(location.pathname);
+  useEffect(() => {
+    locationRef.current = location.pathname;
+  }, [location.pathname]);
 
-  // Слушаем новые выигрыши в реальном времени
+  // ГЛОБАЛЬНЫЙ СЛУШАТЕЛЬ ВЫИГРЫШЕЙ (Запускается 1 раз при входе)
   useEffect(() => {
     if (!user?.uid) return;
 
-    // Первичный мягкий запрос на пуш-уведомления (дополнительно дублируется при ставке)
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission().catch(() => {});
-    }
+    // Запоминаем время монтирования приложения. Слушаем только то, что произошло ПОСЛЕ
+    const mountTime = new Date().toISOString();
 
-    // Запрос на последнюю игровую сессию пользователя
+    console.log("🚀 Слушатель выигрышей запущен для:", user.uid);
+
     const q = query(
       collection(db, 'gameSessions'),
       where('userId', '==', user.uid),
-      orderBy('timestamp', 'desc'),
-      limit(1)
+      where('timestamp', '>', mountTime)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      // Пропускаем старые записи при первой загрузке страницы
-      if (initialLoadRef.current) {
-        initialLoadRef.current = false;
-        return;
-      }
-
       snapshot.docChanges().forEach((change) => {
         if (change.type === 'added') {
           const data = change.doc.data();
+          
+          console.log("🔥 ПОЙМАНА НОВАЯ ИГРОВАЯ СЕССИЯ:", data);
 
-          // Показываем уведомление только для выигрышей (payout > 0)
-          if (data.payout > 0) {
-            
-            // 1. СИСТЕМНОЕ УВЕДОМЛЕНИЕ (если вкладка браузера скрыта/свернута)
-            if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
-              const notif = new Notification(`🎉 Крутой Кот: Выигрыш!`, {
-                body: `Сумма: ${data.payout.toFixed(0)} CAT\nМножитель: ${data.multiplier}X`,
-                icon: '/assets/CoolCat_trophey.webp'
-              });
-              
-              // При клике на пуш - перекидываем обратно на вкладку
-              notif.onclick = () => {
-                window.focus();
-                notif.close();
-              };
-            }
+          // Показываем, только если выигрыш > 0 и мы НЕ на странице самой игры WheelX
+          if (data.payout > 0 && locationRef.current !== '/wheelx') {
+            setWinNotification({
+              payout: data.payout,
+              mult: data.multiplier || 0,
+              game: data.gameType || 'WheelX'
+            });
 
-            // 2. ВНУТРИИГРОВОЕ УВЕДОМЛЕНИЕ (если мы НЕ на странице самой игры)
-            if (location.pathname !== '/wheelx') {
-              setWinNotification({
-                game: data.gameType,
-                payout: data.payout,
-                mult: data.multiplier
-              });
-
-              if (timerRef.current) clearTimeout(timerRef.current);
-              timerRef.current = setTimeout(() => setWinNotification(null), 6000);
-            }
+            // Автоматически скрываем через 7 секунд
+            if (timerRef.current) clearTimeout(timerRef.current);
+            timerRef.current = setTimeout(() => setWinNotification(null), 7000);
           }
         }
       });
+    }, (error) => {
+      // ❗️ ЕСЛИ ТАБЛИЧКА НЕ ПОЯВЛЯЕТСЯ - ОШИБКА БУДЕТ ЗДЕСЬ ❗️
+      console.error("❌ ОШИБКА СЛУШАТЕЛЯ FIRESTORE (Возможно нужен индекс):", error);
     });
 
     return () => {
       unsubscribe();
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [user?.uid, location.pathname]);
+  }, [user?.uid]);
 
   const mobileNavLeft = [
     { icon: Home, path: '/' },
@@ -114,37 +99,44 @@ export default function Layout({ children, user, onLogout }: LayoutProps) {
   return (
     <div className="flex min-h-screen bg-slate-50 font-sans text-slate-900">
       
-      {/* КРАСИВОЕ УВЕДОМЛЕНИЕ О ВЫИГРЫШЕ (TOP CENTER) */}
+      {/* 🌟 МАКСИМАЛЬНО ЗАМЕТНАЯ ТАБЛИЧКА-ОПОВЕЩАЛКА */}
       <AnimatePresence>
         {winNotification && (
           <motion.div
-            initial={{ y: -150, x: '-50%', opacity: 0, scale: 0.9 }}
-            animate={{ y: 24, x: '-50%', opacity: 1, scale: 1 }}
-            exit={{ y: -150, x: '-50%', opacity: 0, scale: 0.9 }}
-            transition={{ type: 'spring', damping: 15, stiffness: 200 }}
-            className="fixed top-0 left-1/2 z-[9999] w-[92%] sm:w-[400px] bg-white rounded-2xl shadow-[0_20px_60px_rgba(16,185,129,0.2)] border-2 border-emerald-400 p-3 sm:p-4 flex items-center gap-3 sm:gap-4 overflow-hidden"
+            initial={{ y: -150, opacity: 0, scale: 0.8 }}
+            animate={{ y: 24, opacity: 1, scale: 1 }}
+            exit={{ y: -150, opacity: 0, scale: 0.8, filter: 'blur(10px)' }}
+            transition={{ type: 'spring', damping: 14, stiffness: 200 }}
+            className="fixed top-2 right-4 left-4 sm:left-auto sm:right-8 z-[99999] w-auto sm:w-[400px] bg-slate-900 rounded-3xl shadow-[0_30px_60px_-15px_rgba(16,185,129,0.5)] border-2 border-emerald-500 p-1.5 flex items-center gap-3 overflow-hidden cursor-pointer hover:scale-[1.02] transition-transform"
+            onClick={() => setWinNotification(null)}
           >
-            {/* Декоративные свечения на фоне уведомления */}
-            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-100 rounded-full blur-2xl -mr-16 -mt-16 opacity-60 pointer-events-none" />
-            <div className="absolute bottom-0 left-0 w-24 h-24 bg-brand-100 rounded-full blur-xl -ml-10 -mb-10 opacity-50 pointer-events-none" />
+            {/* Яркие эффекты свечения на фоне */}
+            <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-500 rounded-full blur-[50px] -mr-16 -mt-16 opacity-30 pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-32 h-32 bg-brand-500 rounded-full blur-[40px] -ml-10 -mb-10 opacity-20 pointer-events-none" />
             
-            <div className="relative w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-tr from-emerald-500 to-emerald-400 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-300/50 shrink-0 border border-emerald-300">
-              <Trophy className="w-6 h-6 sm:w-7 sm:h-7 text-white drop-shadow-sm" />
+            <div className="relative w-14 h-14 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/50 shrink-0 border border-emerald-300 ml-2">
+              <Trophy className="w-8 h-8 text-white drop-shadow-md animate-bounce" style={{ animationDuration: '2s' }} />
             </div>
 
-            <div className="flex-1 relative z-10">
-              <h4 className="text-[10px] sm:text-xs font-black uppercase tracking-[0.15em] text-emerald-500 mb-0.5 drop-shadow-sm">Успешный улов!</h4>
-              <p className="text-sm sm:text-base font-black text-slate-800 leading-tight">
-                Выигрыш WheelX <span className="text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-md ml-1">{winNotification.payout.toFixed(0)} CAT</span>
+            <div className="flex-1 relative py-2 px-1">
+              <h4 className="text-[10px] font-black uppercase tracking-[0.25em] text-emerald-400 mb-0.5">Успешный улов!</h4>
+              <p className="text-base sm:text-lg font-black text-white leading-none">
+                Выиграл <span className="text-emerald-400">+{winNotification.payout.toFixed(0)}</span> CAT
               </p>
-              <p className="text-[10px] sm:text-xs font-bold text-slate-400 mt-1">Множитель: <span className="text-slate-600">{winNotification.mult}X</span></p>
+              <div className="flex items-center gap-2 mt-1.5">
+                 <span className="bg-slate-800 border border-slate-700 text-slate-300 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                    {winNotification.game === 'wheelx' ? 'WheelX' : winNotification.game}
+                 </span>
+                 <span className="bg-emerald-500/20 border border-emerald-500/50 text-emerald-400 text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider shadow-[0_0_10px_rgba(16,185,129,0.3)]">
+                    {winNotification.mult}X
+                 </span>
+              </div>
             </div>
 
             <button 
-              onClick={() => setWinNotification(null)}
-              className="relative z-10 p-2 sm:p-2.5 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all"
+              className="relative p-3 text-slate-400 hover:text-white transition-colors mr-1"
             >
-              <X className="w-4 h-4 sm:w-5 sm:h-5" />
+              <X className="w-5 h-5" />
             </button>
           </motion.div>
         )}
@@ -155,7 +147,6 @@ export default function Layout({ children, user, onLogout }: LayoutProps) {
         <Sidebar user={user} />
       </div>
 
-      {/* Mobile Overlay */}
       {isSidebarOpen && (
         <div 
           className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[60] lg:hidden"
@@ -163,7 +154,6 @@ export default function Layout({ children, user, onLogout }: LayoutProps) {
         />
       )}
 
-      {/* Mobile Sidebar */}
       <div className={cn(
         "fixed inset-y-0 left-0 w-64 bg-white z-[70] transform transition-transform duration-300 ease-in-out lg:hidden",
         isSidebarOpen ? "translate-x-0" : "-translate-x-full"
@@ -186,7 +176,6 @@ export default function Layout({ children, user, onLogout }: LayoutProps) {
         </main>
       </div>
 
-      {/* BOTTOM NAVIGATION (MOBILE) */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-slate-100 px-6 py-2 flex items-center justify-between lg:hidden z-50">
         {mobileNavLeft.map((item) => {
           const isActive = location.pathname === item.path;
@@ -230,7 +219,6 @@ export default function Layout({ children, user, onLogout }: LayoutProps) {
         onClose={() => setModalType(null)} 
       />
 
-      {/* ЧАТ */}
       <Chat user={user} isOpen={isChatOpen} setIsOpen={setIsChatOpen} />
 
     </div>
