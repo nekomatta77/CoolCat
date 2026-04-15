@@ -32,15 +32,32 @@ interface BetData {
 const PAW_CONFIG_PC = {
   scale: 1.8,
   x: 0,
-  y: 20, // Чуть сдвинули вверх под маску
+  y: -5,
   baseRotation: 0 
 };
 
 const PAW_CONFIG_MOBILE = {
   scale: 1.8,
   x: 0,
-  y: 10, // На телефонах тоже прячем под маску
+  y: 10,
   baseRotation: 0 
+};
+
+// ------------------------------------------
+// КОНФИГУРАЦИИ МАСКИ ДЛЯ ЛАПКИ (Прячет верхний срез)
+// ------------------------------------------
+const MASK_CONFIG_PC = {
+  width: 800,   // Ширина маски (можно ставить '100%')
+  height: 40,   // Высота маски
+  x: 0,         // Смещение влево/вправо
+  y: -33        // Смещение вверх/вниз
+};
+
+const MASK_CONFIG_MOBILE = {
+  width: 360,
+  height: 30,
+  x: 0,
+  y: -20
 };
 
 // ------------------------------------------
@@ -48,35 +65,58 @@ const PAW_CONFIG_MOBILE = {
 // ------------------------------------------
 const WHEEL_CONFIG_PC = {
   size: 680,
-  scale: 1,
+  scale: 1.015,
   x: 0,
   y: '50%' 
 };
 
 const WHEEL_CONFIG_MOBILE = {
-  size: 340, // Уменьшили размер колеса, чтобы плашка ставки была шире его
-  scale: 1, 
+  size: 320,
+  scale: 1.15, 
   x: 0,
   y: '50%'
 };
 
+// ------------------------------------------
+// КОНФИГУРАЦИИ ТАЙМЕРА И ЦЕНТРАЛЬНОГО ТЕКСТА
+// ------------------------------------------
+const CENTER_CONFIG_PC = {
+  timerScale: 1,
+  timerX: 0,
+  timerY: -25,
+  textScale: 1,
+  textX: 0,
+  textY: -20
+};
+
+const CENTER_CONFIG_MOBILE = {
+  timerScale: 1,
+  timerX: 0,
+  timerY: -15,
+  textScale: 0.85,
+  textX: 0,
+  textY: -15
+};
+
+const LOGO_COLOR_COOL = "#feb1d1";
+
 const WHEEL_PATTERN = [
-  { type: 'orange', mult: 30, color: '#f97316' }, { type: 'black', mult: 2, color: '#1e293b' },
-  { type: 'blue', mult: 3, color: '#3b82f6' }, { type: 'black', mult: 2, color: '#1e293b' },
-  { type: 'pink', mult: 5, color: '#ec4899' }, { type: 'black', mult: 2, color: '#1e293b' },
-  { type: 'blue', mult: 3, color: '#3b82f6' }, { type: 'black', mult: 2, color: '#1e293b' },
-  { type: 'pink', mult: 5, color: '#ec4899' }, { type: 'black', mult: 2, color: '#1e293b' },
-  { type: 'blue', mult: 3, color: '#3b82f6' }, { type: 'black', mult: 2, color: '#1e293b' },
-  { type: 'pink', mult: 5, color: '#ec4899' }, { type: 'black', mult: 2, color: '#1e293b' },
-  { type: 'blue', mult: 3, color: '#3b82f6' }, { type: 'black', mult: 2, color: '#1e293b' },
-  { type: 'blue', mult: 3, color: '#3b82f6' }, { type: 'black', mult: 2, color: '#1e293b' },
-  { type: 'pink', mult: 5, color: '#ec4899' }, { type: 'black', mult: 2, color: '#1e293b' },
-  { type: 'blue', mult: 3, color: '#3b82f6' }, { type: 'black', mult: 2, color: '#1e293b' },
-  { type: 'pink', mult: 5, color: '#ec4899' }, { type: 'black', mult: 2, color: '#1e293b' },
-  { type: 'blue', mult: 3, color: '#3b82f6' }, { type: 'black', mult: 2, color: '#1e293b' },
-  { type: 'pink', mult: 5, color: '#ec4899' }, { type: 'black', mult: 2, color: '#1e293b' },
-  { type: 'blue', mult: 3, color: '#3b82f6' }, { type: 'black', mult: 2, color: '#1e293b' },
-  { type: 'blue', mult: 3, color: '#3b82f6' }, { type: 'blue', mult: 3, color: '#3b82f6' }
+  { type: 'orange', mult: 30, color: 'url(#gradOrange)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
+  { type: 'blue', mult: 3, color: 'url(#gradBlue)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
+  { type: 'pink', mult: 5, color: 'url(#gradPink)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
+  { type: 'blue', mult: 3, color: 'url(#gradBlue)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
+  { type: 'pink', mult: 5, color: 'url(#gradPink)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
+  { type: 'blue', mult: 3, color: 'url(#gradBlue)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
+  { type: 'pink', mult: 5, color: 'url(#gradPink)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
+  { type: 'blue', mult: 3, color: 'url(#gradBlue)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
+  { type: 'pink', mult: 5, color: 'url(#gradPink)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
+  { type: 'blue', mult: 3, color: 'url(#gradBlue)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
+  { type: 'pink', mult: 5, color: 'url(#gradPink)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
+  { type: 'blue', mult: 3, color: 'url(#gradBlue)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
+  { type: 'pink', mult: 5, color: 'url(#gradPink)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
+  { type: 'blue', mult: 3, color: 'url(#gradBlue)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
+  { type: 'blue', mult: 3, color: 'url(#gradBlue)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
+  { type: 'blue', mult: 3, color: 'url(#gradBlue)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' }
 ];
 
 export default function WheelX({ user }: WheelXProps) {
@@ -101,7 +141,9 @@ export default function WheelX({ user }: WheelXProps) {
   }, []);
 
   const activePawConfig = isMobile ? PAW_CONFIG_MOBILE : PAW_CONFIG_PC;
+  const activeMaskConfig = isMobile ? MASK_CONFIG_MOBILE : MASK_CONFIG_PC;
   const activeWheelConfig = isMobile ? WHEEL_CONFIG_MOBILE : WHEEL_CONFIG_PC;
+  const activeCenterConfig = isMobile ? CENTER_CONFIG_MOBILE : CENTER_CONFIG_PC;
 
   const wheelRotValue = useMotionValue(0);
   
@@ -177,17 +219,13 @@ export default function WheelX({ user }: WheelXProps) {
           
           setRotation(prev => {
               const currentSpins = Math.floor(prev / 360);
-              // Увеличили количество оборотов для жесткого байта в начале
               const nextSpins = currentSpins + 20; 
               return (nextSpins * 360) + (winningIndex * (360 / 32));
           });
 
-          // Таймер 8 секунд подстраивается под длительность анимации
           setTimeout(() => {
-            if (betPlacedAtSpin > 0) {
-              const expectedPayout = betPlacedAtSpin * winningSlice.mult;
-              setLastWinInfo({ mult: winningSlice.mult, payout: expectedPayout });
-            }
+            const expectedPayout = betPlacedAtSpin * winningSlice.mult;
+            setLastWinInfo({ mult: winningSlice.mult, payout: expectedPayout });
             setHistory(prev => [winningSlice.mult, ...prev].slice(0, 10));
           }, 8000); 
         }
@@ -196,7 +234,6 @@ export default function WheelX({ user }: WheelXProps) {
     return () => unsubscribeGame();
   }, []); 
 
-  // СТАБИЛЬНЫЙ ЛОКАЛЬНЫЙ ТАЙМЕР НА 20 СЕКУНД (Исправлен баг 40 сек)
   useEffect(() => {
     if (gameState !== 'betting') {
         setTimeLeft(0);
@@ -219,7 +256,6 @@ export default function WheelX({ user }: WheelXProps) {
         animate(wheelRotValue, -rotation, {
             duration: 8, 
             type: "tween", 
-            // Экстремальная кривая Безье: мега-резкий старт и очень медленный байтерский конец
             ease: [0.05, 0.95, 0.1, 1] 
         });
     }
@@ -244,6 +280,15 @@ export default function WheelX({ user }: WheelXProps) {
 
     } catch (e) {
       console.error('Ошибка ставки', e);
+    }
+  };
+
+  const getWinPanelStyle = (mult: number) => {
+    switch(mult) {
+      case 30: return { bg: 'bg-gradient-to-br from-orange-400 to-orange-600', shadow: 'shadow-orange-500/50', border: 'border-orange-300/50' };
+      case 5: return { bg: 'bg-gradient-to-br from-pink-400 to-pink-600', shadow: 'shadow-pink-500/50', border: 'border-pink-300/50' };
+      case 3: return { bg: 'bg-gradient-to-br from-blue-400 to-blue-600', shadow: 'shadow-blue-500/50', border: 'border-blue-300/50' };
+      default: return { bg: 'bg-gradient-to-br from-slate-700 to-slate-900', shadow: 'shadow-slate-900/50', border: 'border-slate-500/50' };
     }
   };
 
@@ -330,7 +375,17 @@ export default function WheelX({ user }: WheelXProps) {
           style={{ clipPath: 'polygon(-50% -200%, 150% -200%, 150% 100%, -50% 100%)' }}
         >
           {/* МАСКА ДЛЯ ЛАПКИ: скрывает оторванный верх лапки под белым фоном */}
-          <div className="absolute top-[-10px] left-0 w-full h-[30px] sm:h-[40px] bg-white z-[45]"></div>
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 z-[45] pointer-events-none">
+              <motion.div
+                  className="bg-white"
+                  style={{
+                      width: activeMaskConfig.width,
+                      height: activeMaskConfig.height,
+                      x: activeMaskConfig.x,
+                      y: activeMaskConfig.y,
+                  }}
+              />
+          </div>
 
           <motion.img
               src="/assets/wheelx/paw_wheel.webp"
@@ -358,14 +413,33 @@ export default function WheelX({ user }: WheelXProps) {
             className="absolute bottom-0 rounded-full bg-slate-900 border-[16px] sm:border-[24px] border-slate-800 z-10"
           >
             <svg viewBox="0 0 100 100" className="absolute inset-0 w-full h-full">
+              <defs>
+                <linearGradient id="gradOrange" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#fb923c" />
+                  <stop offset="100%" stopColor="#c2410c" />
+                </linearGradient>
+                <linearGradient id="gradPink" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#f472b6" />
+                  <stop offset="100%" stopColor="#be185d" />
+                </linearGradient>
+                <linearGradient id="gradBlue" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#60a5fa" />
+                  <stop offset="100%" stopColor="#1d4ed8" />
+                </linearGradient>
+                <linearGradient id="gradBlack" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#334155" />
+                  <stop offset="100%" stopColor="#0f172a" />
+                </linearGradient>
+              </defs>
+
               <g transform="translate(50,50)">
                 {WHEEL_PATTERN.map((slice, i) => (
                   <path 
                     key={`slice-${i}`} 
                     d="M0,0 L-4.89,-49.76 A50,50 0 0,1 4.89,-49.76 Z" 
                     fill={slice.color} 
-                    stroke="rgba(0,0,0,0.15)"
-                    strokeWidth="0.3"
+                    stroke="rgba(0,0,0,0.2)"
+                    strokeWidth="0.4"
                     transform={`rotate(${i * 11.25})`} 
                   />
                 ))}
@@ -374,14 +448,14 @@ export default function WheelX({ user }: WheelXProps) {
                   <text
                     key={`txt-${i}`}
                     x="0"
-                    y="-36"
+                    y="-35"
                     fill="#ffffff"
-                    fontSize="5"
+                    fontSize="4.5"
                     fontWeight="900"
                     textAnchor="middle"
                     transform={`rotate(${i * 11.25})`}
-                    className="drop-shadow-md font-sans"
-                    style={{ letterSpacing: '-0.5px' }}
+                    className="font-sans"
+                    style={{ letterSpacing: '-0.2px', textShadow: '0px 1px 2px rgba(0,0,0,0.7)' }}
                   >
                     {slice.mult === 2 ? "" : `${slice.mult}x`}
                   </text>
@@ -391,10 +465,10 @@ export default function WheelX({ user }: WheelXProps) {
                   <circle
                     key={`pin-${i}`}
                     cx="0"
-                    cy="-47"
+                    cy="-47.5"
                     r="1.2"
                     fill="#cbd5e1"
-                    stroke="#334155"
+                    stroke="#1e293b"
                     strokeWidth="0.4"
                     transform={`rotate(${i * 11.25})`}
                     className="shadow-inner"
@@ -406,18 +480,28 @@ export default function WheelX({ user }: WheelXProps) {
 
           <div className="absolute bottom-0 translate-y-1/2 w-28 h-28 sm:w-48 sm:h-48 bg-white rounded-full z-30 border-[6px] sm:border-[10px] border-slate-100 flex flex-col items-center justify-start pt-3 sm:pt-6">
             {gameState === 'betting' ? (
-              <>
-                  <span className="text-3xl sm:text-5xl font-black text-slate-800 leading-none tracking-tighter">{timeLeft}</span>
-                  <span className="text-[9px] sm:text-[11px] uppercase tracking-widest text-slate-400 font-bold mt-1">Секунд</span>
-              </>
+              <motion.div 
+                style={{ scale: activeCenterConfig.timerScale, x: activeCenterConfig.timerX, y: activeCenterConfig.timerY }}
+                className="flex items-center justify-center h-full pb-6 sm:pb-12"
+              >
+                  <span className="text-4xl sm:text-6xl font-black text-slate-800 leading-none tracking-tighter">{timeLeft}</span>
+              </motion.div>
             ) : (
               <motion.div 
-                animate={{ scale: [1, 1.1, 1] }} 
+                animate={{ scale: [activeCenterConfig.textScale, activeCenterConfig.textScale * 1.05, activeCenterConfig.textScale] }} 
                 transition={{ repeat: Infinity, duration: 1 }}
-                className="flex flex-col items-center justify-center h-full pb-6 sm:pb-12"
+                style={{ x: activeCenterConfig.textX, y: activeCenterConfig.textY }}
+                className="flex items-center justify-center h-full pb-6 sm:pb-12"
               >
-                <span className="text-brand-500 font-black text-xs sm:text-lg uppercase tracking-tighter">Cool</span>
-                <span className="text-slate-800 font-black text-xs sm:text-lg uppercase tracking-tighter -mt-1 sm:-mt-2">Cat</span>
+                <span className="text-2xl sm:text-4xl font-black tracking-tighter block relative">
+                  <span className="absolute inset-0 z-0 drop-shadow-sm" style={{ WebkitTextStroke: '6px #5c2f3c', color: 'transparent' }} aria-hidden="true">
+                    CoolCat
+                  </span>
+                  <span className="relative z-10">
+                    <span style={{ color: LOGO_COLOR_COOL }}>Cool</span>
+                    <span className="text-white">Cat</span>
+                  </span>
+                </span>
               </motion.div>
             )}
           </div>
@@ -425,14 +509,34 @@ export default function WheelX({ user }: WheelXProps) {
           <AnimatePresence mode="wait">
               {lastWinInfo && (
                 <motion.div
-                  initial={{ scale: 0.5, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1, y: -20 }}
-                  exit={{ scale: 0.5, opacity: 0 }}
-                  className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none"
+                  initial={{ scale: 0, opacity: 0, y: 0 }}
+                  animate={{ scale: 1, opacity: 1, y: -40 }}
+                  exit={{ scale: 0.5, opacity: 0, y: -60 }}
+                  transition={{ type: "spring", damping: 14, stiffness: 120 }}
+                  className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[60] pointer-events-none flex flex-col items-center"
                 >
-                  <div className="bg-white/90 backdrop-blur-md px-6 sm:px-10 py-4 sm:py-8 rounded-3xl shadow-2xl border-4 border-emerald-400 text-center">
-                      <p className="text-xs sm:text-sm font-black text-slate-500 uppercase tracking-widest mb-1">Выиграл</p>
-                      <p className="text-4xl sm:text-6xl font-black text-emerald-500 drop-shadow-sm">{lastWinInfo.mult}x</p>
+                  <div className={cn("absolute inset-0 blur-3xl opacity-60 rounded-full", getWinPanelStyle(lastWinInfo.mult).bg)} />
+
+                  <div className={cn(
+                      "relative px-8 py-5 sm:px-12 sm:py-6 rounded-[2.5rem] text-center border-[3px] shadow-2xl flex flex-col items-center",
+                      getWinPanelStyle(lastWinInfo.mult).bg, 
+                      getWinPanelStyle(lastWinInfo.mult).border, 
+                      getWinPanelStyle(lastWinInfo.mult).shadow
+                  )}>
+                      <p className="text-[9px] sm:text-[11px] font-black text-white/80 uppercase tracking-[0.3em] mb-1 drop-shadow-md">Выпало</p>
+                      <span className="text-5xl sm:text-7xl font-black text-white drop-shadow-[0_4px_4px_rgba(0,0,0,0.3)] leading-none">
+                        {lastWinInfo.mult}x
+                      </span>
+
+                      {lastWinInfo.payout > 0 && (
+                          <motion.div 
+                              initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.2, type: "spring" }}
+                              className="mt-3 bg-black/25 backdrop-blur-sm rounded-2xl px-5 py-2 flex items-center gap-2 border border-white/20 shadow-inner"
+                          >
+                              <Coins className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-400 drop-shadow-md" />
+                              <span className="text-sm sm:text-lg font-black text-white">+{lastWinInfo.payout.toFixed(0)}</span>
+                          </motion.div>
+                      )}
                   </div>
                 </motion.div>
               )}
