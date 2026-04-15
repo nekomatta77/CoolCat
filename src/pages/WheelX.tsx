@@ -72,7 +72,7 @@ const WHEEL_CONFIG_PC = {
 
 const WHEEL_CONFIG_MOBILE = {
   size: 320,
-  scale: 1.15, 
+  scale: 1, 
   x: 0,
   y: '50%'
 };
