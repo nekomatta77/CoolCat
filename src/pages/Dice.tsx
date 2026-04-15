@@ -393,7 +393,7 @@ export default function Dice({ user }: DiceProps) {
                         win ? "bg-emerald-500 shadow-emerald-200/50" : "bg-rose-500 shadow-rose-200/50"
                       )}
                     >
-                      {win ? "Победа" : "Поражение"} <span className="ml-2 opacity-90">({Math.floor(result * maxNumber).toString().padStart(6, '0')})</span>
+                      {win ? "Выигрыш" : "Выпало:"} <span className="ml-2 opacity-90">{Math.floor(result * maxNumber).toString().padStart(6, '0')}</span>
                     </motion.div>
                   )}
                 </AnimatePresence>

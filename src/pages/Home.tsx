@@ -20,7 +20,7 @@ export default function Home({ user }: HomeProps) {
   const isMobile = useIsMobile();
   const trophyCfg = isMobile ? TROPHY_CONFIG.mobile : TROPHY_CONFIG.pc;
 
-  // Массив игр: обновили ссылку, название и id для WheelX
+  // Массив игр: обновили ссылку, название и id для WheelX + добавили Slots
   const games = [
     { 
       id: 'dice', 
@@ -53,13 +53,23 @@ export default function Home({ user }: HomeProps) {
       }
     },
     { 
-      id: 'wheelx',          // Изменили id с jackpot на wheelx
-      name: 'WheelX',        // Изменили отображаемое имя
-      image: '/assets/wheel_cat_original.webp', // 👈 ИЗМЕНЕНО ИЗОБРАЖЕНИЕ: обновлен путь
-      path: '/wheelx',       // 👈 ИСПРАВЛЕНА ССЫЛКА НА НОВЫЙ РОУТ
+      id: 'wheelx',
+      name: 'WheelX',
+      image: '/assets/wheel_cat_original.webp', 
+      path: '/wheelx', 
       config: { 
         pc: { x: 0, y: 5, scale: 1.4 },
         mobile: { x: 0, y: 10, scale: 1.6 }
+      }
+    },
+    { 
+      id: 'slots',          
+      name: 'Slots',        
+      image: '/assets/slot_cat_original.webp', 
+      path: '/slots',       
+      config: { 
+        pc: { x: 0, y: 0, scale: 1.8 },
+        mobile: { x: 0, y: 10, scale: 2.2 }
       }
     },
   ];
@@ -149,7 +159,6 @@ export default function Home({ user }: HomeProps) {
                       alt={game.name} 
                       className="w-full h-full object-contain drop-shadow-2xl group-hover:rotate-6 transition-transform duration-500" 
                       onError={(e) => {
-                        // Заменили DiceBear на стабильный локальный фоллбэк
                         (e.target as HTMLImageElement).src = '/assets/CoolCat_logo.webp';
                       }}
                     />

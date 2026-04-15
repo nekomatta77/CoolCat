@@ -13,6 +13,7 @@ import Dice from './pages/Dice';
 import Mines from './pages/Mines';
 import Keno from './pages/Keno';
 import WheelX from './pages/WheelX';
+import Slots from './pages/Slots';
 import FAQ from './pages/FAQ';
 import Bonuses from './pages/Bonuses';
 import Level from './pages/Level';
@@ -263,6 +264,7 @@ export default function App() {
           <Route path="/mines" element={<Mines user={user} />} />
           <Route path="/keno" element={<Keno user={user} />} />
           <Route path="/wheelx" element={<WheelX user={user} />} />
+          <Route path="/slots" element={<Slots user={user} />} />
           <Route path="/faq" element={<FAQ />} />
           <Route path="/bonuses" element={<Bonuses user={user} />} />
           <Route path="/level" element={<Level user={user} />} />
