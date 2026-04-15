@@ -32,14 +32,14 @@ interface BetData {
 const PAW_CONFIG_PC = {
   scale: 1.8,
   x: 0,
-  y: 0,
+  y: 20, // Чуть сдвинули вверх под маску
   baseRotation: 0 
 };
 
 const PAW_CONFIG_MOBILE = {
   scale: 1.8,
   x: 0,
-  y: 10,
+  y: 10, // На телефонах тоже прячем под маску
   baseRotation: 0 
 };
 
@@ -54,8 +54,8 @@ const WHEEL_CONFIG_PC = {
 };
 
 const WHEEL_CONFIG_MOBILE = {
-  size: 350,
-  scale: 1.05, 
+  size: 340, // Уменьшили размер колеса, чтобы плашка ставки была шире его
+  scale: 1, 
   x: 0,
   y: '50%'
 };
@@ -89,7 +89,6 @@ export default function WheelX({ user }: WheelXProps) {
   
   const [gameState, setGameState] = useState<'betting' | 'spinning'>('betting');
   const [timeLeft, setTimeLeft] = useState(20);
-  const [endTime, setEndTime] = useState<number | null>(null); 
   const [rotation, setRotation] = useState(0);
   const [lastWinInfo, setLastWinInfo] = useState<{ mult: number, payout: number } | null>(null);
 
@@ -166,7 +165,6 @@ export default function WheelX({ user }: WheelXProps) {
 
         if (data.gameState === 'betting') {
           if (data.history && data.history.length > 0) setHistory(data.history);
-          setEndTime(data.bettingEndsAt || null); 
           hasSpunRef.current = false;
           setLastWinInfo(null);
         } 
@@ -179,10 +177,12 @@ export default function WheelX({ user }: WheelXProps) {
           
           setRotation(prev => {
               const currentSpins = Math.floor(prev / 360);
-              const nextSpins = currentSpins + 12; 
+              // Увеличили количество оборотов для жесткого байта в начале
+              const nextSpins = currentSpins + 20; 
               return (nextSpins * 360) + (winningIndex * (360 / 32));
           });
 
+          // Таймер 8 секунд подстраивается под длительность анимации
           setTimeout(() => {
             if (betPlacedAtSpin > 0) {
               const expectedPayout = betPlacedAtSpin * winningSlice.mult;
@@ -196,30 +196,31 @@ export default function WheelX({ user }: WheelXProps) {
     return () => unsubscribeGame();
   }, []); 
 
+  // СТАБИЛЬНЫЙ ЛОКАЛЬНЫЙ ТАЙМЕР НА 20 СЕКУНД (Исправлен баг 40 сек)
   useEffect(() => {
-    if (gameState !== 'betting' || !endTime) {
-        if (gameState === 'spinning') setTimeLeft(0);
+    if (gameState !== 'betting') {
+        setTimeLeft(0);
         return;
     }
 
-    const tick = () => {
-        const now = Date.now();
-        const diff = Math.ceil((endTime - now) / 1000);
-        setTimeLeft(Math.max(0, diff));
-    };
-
-    tick(); 
-    const interval = setInterval(tick, 200); 
+    setTimeLeft(20);
+    const interval = setInterval(() => {
+        setTimeLeft(prev => {
+            if (prev <= 1) return 0;
+            return prev - 1;
+        });
+    }, 1000); 
     
     return () => clearInterval(interval);
-  }, [gameState, endTime]);
+  }, [gameState]);
 
   useEffect(() => {
     if (gameState === 'spinning' && hasSpunRef.current) {
         animate(wheelRotValue, -rotation, {
             duration: 8, 
             type: "tween", 
-            ease: [0.1, 0.9, 0.2, 1] 
+            // Экстремальная кривая Безье: мега-резкий старт и очень медленный байтерский конец
+            ease: [0.05, 0.95, 0.1, 1] 
         });
     }
   }, [rotation, gameState, wheelRotValue]);
@@ -303,10 +304,8 @@ export default function WheelX({ user }: WheelXProps) {
   return (
     <div className="max-w-[1200px] mx-auto space-y-6 sm:space-y-8 pb-12 overflow-visible">
       
-      {/* Единый монолитный блок */}
       <div className="bg-white rounded-none sm:rounded-[3rem] border-0 sm:border border-slate-100 shadow-xl shadow-slate-200/50 pt-4 sm:pt-8 relative overflow-visible flex flex-col">
         
-        {/* История */}
         <div className="w-full flex items-center justify-between mb-2 sm:mb-4 z-20 relative px-4 sm:px-8">
            <div className="flex flex-col gap-2">
                <span className="text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-widest pl-1">История</span>
@@ -326,12 +325,13 @@ export default function WheelX({ user }: WheelXProps) {
            </div>
         </div>
 
-        {/* Колесо с clipPath */}
         <div 
           className="relative w-full max-w-[800px] mx-auto h-[220px] sm:h-[350px] mt-2 flex justify-center"
           style={{ clipPath: 'polygon(-50% -200%, 150% -200%, 150% 100%, -50% 100%)' }}
         >
-          
+          {/* МАСКА ДЛЯ ЛАПКИ: скрывает оторванный верх лапки под белым фоном */}
+          <div className="absolute top-[-10px] left-0 w-full h-[30px] sm:h-[40px] bg-white z-[45]"></div>
+
           <motion.img
               src="/assets/wheelx/paw_wheel.webp"
               alt="Pointer"
@@ -355,7 +355,6 @@ export default function WheelX({ user }: WheelXProps) {
                 y: activeWheelConfig.y,
                 scale: activeWheelConfig.scale
             }}
-            // Убрана внешняя тень, чтобы белый фон оставался идеально белым
             className="absolute bottom-0 rounded-full bg-slate-900 border-[16px] sm:border-[24px] border-slate-800 z-10"
           >
             <svg viewBox="0 0 100 100" className="absolute inset-0 w-full h-full">
@@ -405,7 +404,6 @@ export default function WheelX({ user }: WheelXProps) {
             </svg>
           </motion.div>
 
-          {/* Втулка по центру - тоже без тени, чтобы было чисто */}
           <div className="absolute bottom-0 translate-y-1/2 w-28 h-28 sm:w-48 sm:h-48 bg-white rounded-full z-30 border-[6px] sm:border-[10px] border-slate-100 flex flex-col items-center justify-start pt-3 sm:pt-6">
             {gameState === 'betting' ? (
               <>
@@ -441,7 +439,6 @@ export default function WheelX({ user }: WheelXProps) {
           </AnimatePresence>
         </div>
 
-        {/* Плашка ставки (Убрали border-t-4, теперь полностью сливается с фоном) */}
         <div className={cn(
             "w-full bg-white relative z-20 px-4 sm:px-8 pb-6 sm:pb-10 pt-4 sm:pt-6 rounded-b-none sm:rounded-b-[3rem]",
             gameState !== 'betting' && "opacity-50 pointer-events-none"
@@ -476,7 +473,6 @@ export default function WheelX({ user }: WheelXProps) {
 
       </div>
 
-      {/* Карточки с выбором сектора ставки */}
       <div className={cn("grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 px-4 sm:px-0 mt-4 sm:mt-6", gameState !== 'betting' && "opacity-50 pointer-events-none")}>
           <BetCard type="black" mult={2} titleColor="text-slate-800" btnClass="bg-slate-800 hover:bg-slate-700" />
           <BetCard type="blue" mult={3} titleColor="text-blue-500" btnClass="bg-blue-500 hover:bg-blue-600" />
