@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { UserProfile } from '../types';
 import { doc, updateDoc, increment, setDoc, collection, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Users, Coins } from 'lucide-react';
+import { Users, Coins, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence, useMotionValue, useTransform, animate } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -74,10 +74,10 @@ export default function WheelX({ user }: WheelXProps) {
   const [timeLeft, setTimeLeft] = useState(20);
   const [rotation, setRotation] = useState(0);
   const [lastWinInfo, setLastWinInfo] = useState<{ mult: number, payout: number } | null>(null);
-
+  
+  const [betError, setBetError] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
   
-  // Адаптивная история
   const historyContainerRef = useRef<HTMLDivElement>(null);
   const [maxHistory, setMaxHistory] = useState(10);
 
@@ -92,15 +92,16 @@ export default function WheelX({ user }: WheelXProps) {
       if (historyContainerRef.current) {
         const width = historyContainerRef.current.clientWidth;
         const isMob = window.innerWidth < 640;
-        // Расчет ширины элемента: на телефоне 28px + 6px gap, на ПК 40px + 8px gap
-        const itemWidth = isMob ? 28 : 40; 
+        
+        const itemWidth = isMob ? 20 : 28; 
         const gap = isMob ? 6 : 8; 
-        const count = Math.floor((width + gap) / (itemWidth + gap));
+        
+        const count = Math.floor(width / (itemWidth + gap));
         setMaxHistory(Math.max(1, count));
       }
     };
 
-    setTimeout(updateHistoryCount, 100); // Небольшая задержка для загрузки DOM
+    setTimeout(updateHistoryCount, 100); 
     window.addEventListener('resize', updateHistoryCount);
     return () => window.removeEventListener('resize', updateHistoryCount);
   }, []);
@@ -185,12 +186,11 @@ export default function WheelX({ user }: WheelXProps) {
           });
 
           setTimeout(() => {
-            // Показываем плашку ТОЛЬКО если игрок сделал ставку на выигрышный цвет
             if (betPlacedAtSpin > 0) {
               const expectedPayout = betPlacedAtSpin * winningSlice.mult;
               setLastWinInfo({ mult: winningSlice.mult, payout: expectedPayout });
             } else {
-              setLastWinInfo(null); // Скрываем окно для тех, кто не ставил или проиграл
+              setLastWinInfo(null);
             }
             setHistory(prev => [winningSlice.mult, ...prev].slice(0, 30));
           }, 8000); 
@@ -254,6 +254,13 @@ export default function WheelX({ user }: WheelXProps) {
 
   const placeBet = async (color: 'black' | 'blue' | 'pink' | 'orange') => {
     if (gameState !== 'betting' || currentBetNum < 1 || currentBetNum > user.balance) return;
+    
+    const currentBetOnColor = myBetsRef.current[color] || 0;
+    if (currentBetOnColor + currentBetNum > 5000) {
+        setBetError(`Лимит ставки: не более 5000 CAT на один цвет! (Уже поставлено: ${currentBetOnColor})`);
+        setTimeout(() => setBetError(null), 3500);
+        return;
+    }
     
     if ('Notification' in window && Notification.permission === 'default') {
         Notification.requestPermission().catch(() => {});
@@ -338,32 +345,32 @@ export default function WheelX({ user }: WheelXProps) {
   };
 
   return (
-    <div className="max-w-[1200px] mx-auto space-y-6 sm:space-y-8 pb-12 overflow-visible">
+    <div className="max-w-[1200px] mx-auto space-y-6 sm:space-y-8 pb-12 overflow-visible relative">
       
-      <div className="bg-white rounded-none sm:rounded-[3rem] border-0 sm:border border-slate-100 shadow-xl shadow-slate-200/50 pt-4 sm:pt-8 relative overflow-visible flex flex-col">
-        
-        <div className="w-full flex items-center justify-between mb-2 sm:mb-4 z-20 relative px-4 sm:px-8">
-           <div className="flex flex-col gap-2 w-full overflow-hidden">
-               <span className="text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-widest pl-1">История</span>
-               {/* Адаптивный контейнер истории */}
-               <div ref={historyContainerRef} className="flex gap-1.5 sm:gap-2 w-full overflow-hidden">
-                  {history.slice(0, maxHistory).map((mult, i) => (
-                      <div key={i} className={cn(
-                          "w-7 h-7 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-[10px] sm:text-sm font-black text-white shadow-sm shrink-0",
-                          mult === 30 ? "bg-orange-500" :
-                          mult === 5 ? "bg-pink-500" :
-                          mult === 3 ? "bg-blue-500" : "bg-slate-800"
-                      )}>
-                          {mult}x
-                      </div>
-                  ))}
-                  {history.length === 0 && <span className="text-xs text-slate-400 font-bold ml-2">Ожидание...</span>}
-               </div>
-           </div>
-        </div>
+      <AnimatePresence>
+        {betError && (
+          <motion.div 
+            initial={{ opacity: 0, y: -50, scale: 0.9 }} 
+            animate={{ opacity: 1, y: 0, scale: 1 }} 
+            exit={{ opacity: 0, y: -50, scale: 0.9 }} 
+            className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] bg-white px-6 py-4 rounded-3xl shadow-2xl border-2 border-rose-200 flex items-center gap-4 min-w-[300px]"
+          >
+            <div className="w-12 h-12 bg-rose-100 rounded-xl flex items-center justify-center shrink-0">
+              <AlertCircle className="w-6 h-6 text-rose-500" />
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-rose-500 mb-0.5">Ошибка ставки</p>
+              <p className="text-sm sm:text-base font-black text-slate-900 leading-tight">{betError}</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
+      <div className="bg-white rounded-none sm:rounded-[3rem] border-0 sm:border border-slate-100 shadow-xl shadow-slate-200/50 pt-8 sm:pt-12 relative overflow-visible flex flex-col">
+        
+        {/* КОЛЕСО */}
         <div 
-          className="relative w-full max-w-[800px] mx-auto h-[220px] sm:h-[350px] mt-2 flex justify-center"
+          className="relative w-full max-w-[800px] mx-auto h-[220px] sm:h-[350px] flex justify-center"
           style={{ clipPath: 'polygon(-50% -200%, 150% -200%, 150% 100%, -50% 100%)' }}
         >
           <div className="absolute top-0 left-1/2 -translate-x-1/2 z-[45] pointer-events-none">
@@ -508,7 +515,6 @@ export default function WheelX({ user }: WheelXProps) {
                 >
                   <div className={cn("absolute inset-0 blur-3xl opacity-60 rounded-full", getWinPanelStyle(lastWinInfo.mult).bg)} />
 
-                  {/* НОВЫЙ ДИЗАЙН ПЛАШКИ: Широкий и короткий (flex-row) */}
                   <div className={cn(
                       "relative px-10 py-3 sm:px-14 sm:py-5 rounded-[2rem] sm:rounded-[2.5rem] border-[3px] shadow-2xl flex flex-row items-center gap-6 sm:gap-10 min-w-[280px] sm:min-w-[380px] justify-center",
                       getWinPanelStyle(lastWinInfo.mult).bg, 
@@ -537,8 +543,43 @@ export default function WheelX({ user }: WheelXProps) {
           </AnimatePresence>
         </div>
 
+        {/* ИСТОРИЯ ИГР (СНИЗУ КОЛЕСА, НЕ ЗАТЕМНЯЕТСЯ ПРИ СПИНЕ) */}
+        <div className="w-full bg-white relative z-20 px-4 sm:px-8 pt-4 sm:pt-6">
+            <div className="max-w-[1000px] mx-auto">
+                <div className="flex flex-col gap-2 w-full overflow-hidden">
+                    <span className="text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-widest pl-1">История игр</span>
+                    
+                    <div ref={historyContainerRef} className="flex gap-1.5 sm:gap-2 w-full overflow-hidden items-end h-10 sm:h-14">
+                        {history.slice(0, maxHistory).map((mult, i) => (
+                            <motion.div
+                                key={i} 
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ 
+                                    height: mult === 30 ? '100%' : mult === 5 ? '75%' : mult === 3 ? '55%' : '35%', 
+                                    opacity: 1 
+                                }}
+                                className={cn(
+                                    "w-5 sm:w-7 rounded-t-md sm:rounded-t-lg rounded-b-sm flex items-end justify-center pb-0.5 sm:pb-1 shrink-0 transition-colors",
+                                    mult === 30 ? "bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.4)]" :
+                                    mult === 5 ? "bg-pink-500 shadow-[0_0_10px_rgba(236,72,153,0.3)]" :
+                                    mult === 3 ? "bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.3)]" : "bg-slate-800"
+                                )}
+                            >
+                                <span className="text-[8px] sm:text-[10px] font-black text-white leading-none">{mult}x</span>
+                            </motion.div>
+                        ))}
+                        {history.length === 0 && <span className="text-xs text-slate-400 font-bold ml-2 pb-2">Ожидание...</span>}
+                    </div>
+                </div>
+            </div>
+            
+            {/* Тонкий красивый разделитель между историей и ставками */}
+            <div className="w-full h-[1px] bg-slate-100 max-w-[1000px] mx-auto mt-4 sm:mt-6"></div>
+        </div>
+
+        {/* ПАНЕЛЬ ВВОДА СТАВКИ (ЗАТЕМНЯЕТСЯ ПРИ СПИНЕ) */}
         <div className={cn(
-            "w-full bg-white relative z-20 px-4 sm:px-8 pb-6 sm:pb-10 pt-4 sm:pt-6 rounded-b-none sm:rounded-b-[3rem]",
+            "w-full bg-white relative z-20 px-4 sm:px-8 pb-6 sm:pb-10 pt-4 sm:pt-6 rounded-b-none sm:rounded-b-[3rem] transition-opacity duration-300",
             gameState !== 'betting' && "opacity-50 pointer-events-none"
         )}>
             <div className="flex flex-col md:flex-row gap-3 sm:gap-6 items-center max-w-[1000px] mx-auto">
