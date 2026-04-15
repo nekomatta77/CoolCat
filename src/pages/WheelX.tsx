@@ -27,76 +27,19 @@ interface BetData {
 }
 
 // ------------------------------------------
-// КОНФИГУРАЦИИ ЛАПКИ
+// КОНФИГУРАЦИИ
 // ------------------------------------------
-const PAW_CONFIG_PC = {
-  scale: 1.8,
-  x: 0,
-  y: -5,
-  baseRotation: 0 
-};
+const PAW_CONFIG_PC = { scale: 1.8, x: 0, y: -5, baseRotation: 0 };
+const PAW_CONFIG_MOBILE = { scale: 1.8, x: 0, y: 10, baseRotation: 0 };
 
-const PAW_CONFIG_MOBILE = {
-  scale: 1.8,
-  x: 0,
-  y: 10,
-  baseRotation: 0 
-};
+const MASK_CONFIG_PC = { width: 800, height: 40, x: 0, y: -33 };
+const MASK_CONFIG_MOBILE = { width: 360, height: 30, x: 0, y: -20 };
 
-// ------------------------------------------
-// КОНФИГУРАЦИИ МАСКИ ДЛЯ ЛАПКИ
-// ------------------------------------------
-const MASK_CONFIG_PC = {
-  width: 800,
-  height: 40,
-  x: 0,
-  y: -33
-};
+const WHEEL_CONFIG_PC = { size: 680, scale: 1.015, x: 0, y: '50%' };
+const WHEEL_CONFIG_MOBILE = { size: 320, scale: 1, x: 0, y: '50%' };
 
-const MASK_CONFIG_MOBILE = {
-  width: 360,
-  height: 30,
-  x: 0,
-  y: -20
-};
-
-// ------------------------------------------
-// КОНФИГУРАЦИИ КОЛЕСА
-// ------------------------------------------
-const WHEEL_CONFIG_PC = {
-  size: 680,
-  scale: 1.015,
-  x: 0,
-  y: '50%' 
-};
-
-const WHEEL_CONFIG_MOBILE = {
-  size: 320,
-  scale: 1, 
-  x: 0,
-  y: '50%'
-};
-
-// ------------------------------------------
-// КОНФИГУРАЦИИ ТАЙМЕРА И ЦЕНТРАЛЬНОГО ТЕКСТА
-// ------------------------------------------
-const CENTER_CONFIG_PC = {
-  timerScale: 1,
-  timerX: 0,
-  timerY: -25,
-  textScale: 1,
-  textX: 0,
-  textY: -20
-};
-
-const CENTER_CONFIG_MOBILE = {
-  timerScale: 1,
-  timerX: 0,
-  timerY: -15,
-  textScale: 0.85,
-  textX: 0,
-  textY: -15
-};
+const CENTER_CONFIG_PC = { timerScale: 1, timerX: 0, timerY: -25, textScale: 1, textX: 0, textY: -20 };
+const CENTER_CONFIG_MOBILE = { timerScale: 1, timerX: 0, timerY: -15, textScale: 0.85, textX: 0, textY: -15 };
 
 const LOGO_COLOR_COOL = "#feb1d1";
 
@@ -134,10 +77,32 @@ export default function WheelX({ user }: WheelXProps) {
 
   const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
   
+  // Адаптивная история
+  const historyContainerRef = useRef<HTMLDivElement>(null);
+  const [maxHistory, setMaxHistory] = useState(10);
+
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 640);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    const updateHistoryCount = () => {
+      if (historyContainerRef.current) {
+        const width = historyContainerRef.current.clientWidth;
+        const isMob = window.innerWidth < 640;
+        // Расчет ширины элемента: на телефоне 28px + 6px gap, на ПК 40px + 8px gap
+        const itemWidth = isMob ? 28 : 40; 
+        const gap = isMob ? 6 : 8; 
+        const count = Math.floor((width + gap) / (itemWidth + gap));
+        setMaxHistory(Math.max(1, count));
+      }
+    };
+
+    setTimeout(updateHistoryCount, 100); // Небольшая задержка для загрузки DOM
+    window.addEventListener('resize', updateHistoryCount);
+    return () => window.removeEventListener('resize', updateHistoryCount);
   }, []);
 
   const activePawConfig = isMobile ? PAW_CONFIG_MOBILE : PAW_CONFIG_PC;
@@ -153,12 +118,8 @@ export default function WheelX({ user }: WheelXProps) {
     const progress = normalizedRot / sliceAngle;
     
     let flickRotation = 0;
-    if (progress < 0.85) {
-        flickRotation = (progress / 0.85) * 22; 
-    } else {
-        const snapProgress = (progress - 0.85) / 0.15;
-        flickRotation = 22 * (1 - snapProgress); 
-    }
+    if (progress < 0.85) flickRotation = (progress / 0.85) * 22; 
+    else flickRotation = 22 * (1 - (progress - 0.85) / 0.15); 
     return flickRotation;
   });
 
@@ -224,9 +185,14 @@ export default function WheelX({ user }: WheelXProps) {
           });
 
           setTimeout(() => {
-            const expectedPayout = betPlacedAtSpin * winningSlice.mult;
-            setLastWinInfo({ mult: winningSlice.mult, payout: expectedPayout });
-            setHistory(prev => [winningSlice.mult, ...prev].slice(0, 10));
+            // Показываем плашку ТОЛЬКО если игрок сделал ставку на выигрышный цвет
+            if (betPlacedAtSpin > 0) {
+              const expectedPayout = betPlacedAtSpin * winningSlice.mult;
+              setLastWinInfo({ mult: winningSlice.mult, payout: expectedPayout });
+            } else {
+              setLastWinInfo(null); // Скрываем окно для тех, кто не ставил или проиграл
+            }
+            setHistory(prev => [winningSlice.mult, ...prev].slice(0, 30));
           }, 8000); 
         }
       }
@@ -261,7 +227,6 @@ export default function WheelX({ user }: WheelXProps) {
     }
   }, [rotation, gameState, wheelRotValue]);
 
-  // ЖЕЛЕЗОБЕТОННЫЕ ОБРАБОТЧИКИ СТАВОК ДЛЯ WHEELX
   const handleHalfBet = () => {
     if (gameState !== 'betting') return;
     let next = currentBetNum / 2;
@@ -378,12 +343,13 @@ export default function WheelX({ user }: WheelXProps) {
       <div className="bg-white rounded-none sm:rounded-[3rem] border-0 sm:border border-slate-100 shadow-xl shadow-slate-200/50 pt-4 sm:pt-8 relative overflow-visible flex flex-col">
         
         <div className="w-full flex items-center justify-between mb-2 sm:mb-4 z-20 relative px-4 sm:px-8">
-           <div className="flex flex-col gap-2">
+           <div className="flex flex-col gap-2 w-full overflow-hidden">
                <span className="text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-widest pl-1">История</span>
-               <div className="flex gap-1.5 sm:gap-2">
-                  {history.map((mult, i) => (
+               {/* Адаптивный контейнер истории */}
+               <div ref={historyContainerRef} className="flex gap-1.5 sm:gap-2 w-full overflow-hidden">
+                  {history.slice(0, maxHistory).map((mult, i) => (
                       <div key={i} className={cn(
-                          "w-7 h-7 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-[10px] sm:text-sm font-black text-white shadow-sm",
+                          "w-7 h-7 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-[10px] sm:text-sm font-black text-white shadow-sm shrink-0",
                           mult === 30 ? "bg-orange-500" :
                           mult === 5 ? "bg-pink-500" :
                           mult === 3 ? "bg-blue-500" : "bg-slate-800"
@@ -542,24 +508,27 @@ export default function WheelX({ user }: WheelXProps) {
                 >
                   <div className={cn("absolute inset-0 blur-3xl opacity-60 rounded-full", getWinPanelStyle(lastWinInfo.mult).bg)} />
 
+                  {/* НОВЫЙ ДИЗАЙН ПЛАШКИ: Широкий и короткий (flex-row) */}
                   <div className={cn(
-                      "relative px-8 py-5 sm:px-12 sm:py-6 rounded-[2.5rem] text-center border-[3px] shadow-2xl flex flex-col items-center",
+                      "relative px-10 py-3 sm:px-14 sm:py-5 rounded-[2rem] sm:rounded-[2.5rem] border-[3px] shadow-2xl flex flex-row items-center gap-6 sm:gap-10 min-w-[280px] sm:min-w-[380px] justify-center",
                       getWinPanelStyle(lastWinInfo.mult).bg, 
                       getWinPanelStyle(lastWinInfo.mult).border, 
                       getWinPanelStyle(lastWinInfo.mult).shadow
                   )}>
-                      <p className="text-[9px] sm:text-[11px] font-black text-white/80 uppercase tracking-[0.3em] mb-1 drop-shadow-md">Выпало</p>
-                      <span className="text-5xl sm:text-7xl font-black text-white drop-shadow-[0_4px_4px_rgba(0,0,0,0.3)] leading-none">
-                        {lastWinInfo.mult}x
-                      </span>
+                      <div className="flex flex-col items-start">
+                          <p className="text-[10px] sm:text-[12px] font-black text-white/80 uppercase tracking-[0.2em] mb-0.5 drop-shadow-md">Победа</p>
+                          <span className="text-4xl sm:text-6xl font-black text-white drop-shadow-[0_4px_4px_rgba(0,0,0,0.3)] leading-none">
+                            {lastWinInfo.mult}x
+                          </span>
+                      </div>
 
                       {lastWinInfo.payout > 0 && (
                           <motion.div 
                               initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.2, type: "spring" }}
-                              className="mt-3 bg-black/25 backdrop-blur-sm rounded-2xl px-5 py-2 flex items-center gap-2 border border-white/20 shadow-inner"
+                              className="bg-black/25 backdrop-blur-sm rounded-[1rem] sm:rounded-2xl px-4 py-2 sm:px-6 sm:py-3 flex items-center gap-2 border border-white/20 shadow-inner"
                           >
-                              <Coins className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-400 drop-shadow-md" />
-                              <span className="text-sm sm:text-lg font-black text-white">+{lastWinInfo.payout.toFixed(0)}</span>
+                              <Coins className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-400 drop-shadow-md" />
+                              <span className="text-lg sm:text-2xl font-black text-white">+{lastWinInfo.payout.toFixed(0)}</span>
                           </motion.div>
                       )}
                   </div>
