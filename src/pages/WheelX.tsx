@@ -30,10 +30,10 @@ interface BetData {
 // КОНФИГУРАЦИИ ЛАПКИ
 // ------------------------------------------
 const PAW_CONFIG_PC = {
-  scale: 2.5,
-  x: -55,
-  y: 60,
-  baseRotation: -110 
+  scale: 1.8,
+  x: 0,
+  y: 0,
+  baseRotation: 0 
 };
 
 const PAW_CONFIG_MOBILE = {
