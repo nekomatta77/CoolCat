@@ -88,14 +88,11 @@ export default function Keno({ user }: KenoProps) {
   const [fastMode, setFastMode] = useState(false);
 
   const isProcessing = useRef(false);
-  
-  // Реф для контейнера с лапками
   const ribbonScrollRef = useRef<HTMLDivElement>(null);
 
-  // Функция прокрутки стрелочками
   const scrollRibbon = (direction: 'left' | 'right') => {
     if (ribbonScrollRef.current) {
-      const amount = 250; // На сколько пикселей скроллить
+      const amount = 250;
       ribbonScrollRef.current.scrollBy({ left: direction === 'left' ? -amount : amount, behavior: 'smooth' });
     }
   };
@@ -139,20 +136,26 @@ export default function Keno({ user }: KenoProps) {
     setSelected(nums);
   };
 
+  // ЖЕЛЕЗОБЕТОННЫЕ ОБРАБОТЧИКИ СТАВОК ДЛЯ KENO
   const handleHalfBet = () => {
     if (gameState === 'drawing') return;
     const current = parseFloat(betInput.replace(',', '.')) || 0;
-    setBetInput(Math.max(1, Number((current / 2).toFixed(2))).toString());
+    let next = current / 2;
+    if (next < 1) next = 1;
+    setBetInput(Number(next.toFixed(2)).toString());
   };
 
   const handleDoubleBet = () => {
     if (gameState === 'drawing') return;
     const current = parseFloat(betInput.replace(',', '.')) || 0;
-    setBetInput(Number((current * 2).toFixed(2)).toString());
+    let next = current * 2;
+    if (next > user.balance) next = user.balance;
+    if (next < 1) next = 1;
+    setBetInput(Number(next.toFixed(2)).toString());
   };
 
   const handlePlay = async () => {
-    if (bet > user.balance || bet <= 0 || selected.length === 0 || isProcessing.current) return;
+    if (bet > user.balance || bet < 1 || selected.length === 0 || isProcessing.current) return;
     isProcessing.current = true;
     
     try {
@@ -376,12 +379,10 @@ export default function Keno({ user }: KenoProps) {
             )}
           </AnimatePresence>
 
-          {/* ЛЕНТА ЛАПОК (На ПК со стрелочками и прижата к левому краю) */}
           <div className="w-full min-h-[70px] sm:min-h-[80px] lg:min-h-[140px] mb-4 sm:mb-6 border-b border-slate-100 pb-2 sm:pb-3 lg:pb-5 flex flex-col justify-end relative z-20">
             {selected.length > 0 && (
               <div className="relative w-full group flex items-center">
                 
-                {/* Левая стрелка навигации (ПК) */}
                 <button 
                   onClick={() => scrollRibbon('left')}
                   className="hidden lg:flex absolute left-0 z-30 w-10 h-10 bg-white/90 backdrop-blur-sm border border-slate-200 rounded-full items-center justify-center text-slate-400 hover:text-brand-600 hover:border-brand-300 shadow-md transition-all opacity-0 group-hover:opacity-100 -ml-3"
@@ -389,7 +390,6 @@ export default function Keno({ user }: KenoProps) {
                   <ChevronLeft className="w-6 h-6" />
                 </button>
 
-                {/* Контейнер лапок: убран padding слева (pr-4 lg:pr-12), чтобы лапка была от самого левого края */}
                 <div 
                   ref={ribbonScrollRef}
                   className="flex items-end justify-start gap-1.5 sm:gap-2 lg:gap-4 overflow-x-auto w-full pr-4 lg:pr-12 pt-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden scroll-smooth"
@@ -431,7 +431,6 @@ export default function Keno({ user }: KenoProps) {
                   })}
                 </div>
 
-                {/* Правая стрелка навигации (ПК) */}
                 <button 
                   onClick={() => scrollRibbon('right')}
                   className="hidden lg:flex absolute right-0 z-30 w-10 h-10 bg-white/90 backdrop-blur-sm border border-slate-200 rounded-full items-center justify-center text-slate-400 hover:text-brand-600 hover:border-brand-300 shadow-md transition-all opacity-0 group-hover:opacity-100 -mr-3"
@@ -443,7 +442,6 @@ export default function Keno({ user }: KenoProps) {
             )}
           </div>
 
-          {/* Игровое поле */}
           <div className="grid grid-cols-8 lg:grid-cols-10 gap-1.5 sm:gap-2 lg:gap-3 w-full relative z-10">
             {Array.from({ length: 40 }, (_, i) => i + 1).map((num) => {
               const isSelected = selected.includes(num);
@@ -485,7 +483,6 @@ export default function Keno({ user }: KenoProps) {
 
         </div>
 
-        {/* ПАНЕЛЬ СТАВОК */}
         <div className="order-2 lg:order-1 lg:col-span-4 bg-white sm:bg-white/100 rounded-t-[2rem] sm:rounded-[3rem] border-t sm:border border-slate-200 sm:border-slate-100 shadow-[0_-15px_40px_-15px_rgba(0,0,0,0.15)] sm:shadow-xl sm:shadow-slate-200/50 p-4 sm:p-6 lg:p-8 flex flex-col gap-4 sm:gap-6 justify-between sticky bottom-0 z-50 max-h-[60vh] sm:max-h-none overflow-y-auto sm:overflow-visible transition-all [scrollbar-width:none]">
           
           <div className="space-y-4 lg:space-y-6">
@@ -509,14 +506,15 @@ export default function Keno({ user }: KenoProps) {
                     disabled={gameState === 'drawing'}
                     onChange={(e) => {
                       const val = e.target.value.replace(',', '.');
-                      if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                      if (val === '' || /^\d*\.?\d{0,2}$/.test(val)) {
                         setBetInput(val);
                       }
                     }}
                     onBlur={() => {
-                      const val = parseFloat(betInput.replace(',', '.'));
-                      if (isNaN(val) || val <= 0) setBetInput('1');
-                      else setBetInput(val.toString());
+                      let val = parseFloat(betInput.replace(',', '.'));
+                      if (isNaN(val) || val < 1) val = 1;
+                      else if (val > user.balance) val = Math.max(1, user.balance);
+                      setBetInput(Number(val.toFixed(2)).toString());
                     }}
                     className="w-full bg-transparent font-black text-slate-900 text-lg sm:text-xl outline-none disabled:opacity-50 px-2 sm:px-3 min-w-0"
                   />
@@ -616,7 +614,7 @@ export default function Keno({ user }: KenoProps) {
           <div className="pt-2 lg:pt-0 flex flex-col gap-2 lg:gap-3">
             <button
               onClick={handlePlay}
-              disabled={loading || bet > user.balance || bet <= 0 || selected.length === 0 || gameState === 'drawing'}
+              disabled={loading || bet > user.balance || bet < 1 || selected.length === 0 || gameState === 'drawing'}
               className="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-black rounded-[1.2rem] sm:rounded-[1.5rem] transition-all shadow-xl shadow-brand-200 uppercase tracking-widest text-sm sm:text-base flex items-center justify-center gap-2 py-3.5 sm:py-5 active:scale-[0.98]"
             >
               {gameState === 'drawing' ? (

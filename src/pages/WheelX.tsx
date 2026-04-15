@@ -44,13 +44,13 @@ const PAW_CONFIG_MOBILE = {
 };
 
 // ------------------------------------------
-// КОНФИГУРАЦИИ МАСКИ ДЛЯ ЛАПКИ (Прячет верхний срез)
+// КОНФИГУРАЦИИ МАСКИ ДЛЯ ЛАПКИ
 // ------------------------------------------
 const MASK_CONFIG_PC = {
-  width: 800,   // Ширина маски (можно ставить '100%')
-  height: 40,   // Высота маски
-  x: 0,         // Смещение влево/вправо
-  y: -33        // Смещение вверх/вниз
+  width: 800,
+  height: 40,
+  x: 0,
+  y: -33
 };
 
 const MASK_CONFIG_MOBILE = {
@@ -261,8 +261,34 @@ export default function WheelX({ user }: WheelXProps) {
     }
   }, [rotation, gameState, wheelRotValue]);
 
+  // ЖЕЛЕЗОБЕТОННЫЕ ОБРАБОТЧИКИ СТАВОК ДЛЯ WHEELX
+  const handleHalfBet = () => {
+    if (gameState !== 'betting') return;
+    let next = currentBetNum / 2;
+    if (next < 1) next = 1;
+    setGlobalBet(Number(next.toFixed(2)).toString());
+  };
+
+  const handleDoubleBet = () => {
+    if (gameState !== 'betting') return;
+    let next = currentBetNum * 2;
+    if (next > user.balance) next = user.balance;
+    if (next < 1) next = 1;
+    setGlobalBet(Number(next.toFixed(2)).toString());
+  };
+
+  const handleMinBet = () => {
+    if (gameState !== 'betting') return;
+    setGlobalBet('1');
+  };
+
+  const handleMaxBet = () => {
+    if (gameState !== 'betting') return;
+    setGlobalBet(Math.max(1, Number(user.balance.toFixed(2))).toString());
+  };
+
   const placeBet = async (color: 'black' | 'blue' | 'pink' | 'orange') => {
-    if (gameState !== 'betting' || currentBetNum <= 0 || currentBetNum > user.balance) return;
+    if (gameState !== 'betting' || currentBetNum < 1 || currentBetNum > user.balance) return;
     
     if ('Notification' in window && Notification.permission === 'default') {
         Notification.requestPermission().catch(() => {});
@@ -374,7 +400,6 @@ export default function WheelX({ user }: WheelXProps) {
           className="relative w-full max-w-[800px] mx-auto h-[220px] sm:h-[350px] mt-2 flex justify-center"
           style={{ clipPath: 'polygon(-50% -200%, 150% -200%, 150% 100%, -50% 100%)' }}
         >
-          {/* МАСКА ДЛЯ ЛАПКИ: скрывает оторванный верх лапки под белым фоном */}
           <div className="absolute top-0 left-1/2 -translate-x-1/2 z-[45] pointer-events-none">
               <motion.div
                   className="bg-white"
@@ -552,25 +577,30 @@ export default function WheelX({ user }: WheelXProps) {
                     <span className="absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm sm:text-lg">₽</span>
                     <input
                         type="text"
+                        inputMode="decimal"
                         value={globalBet}
-                        onChange={(e) => setGlobalBet(e.target.value.replace(',', '.'))}
+                        disabled={gameState !== 'betting'}
+                        onChange={(e) => {
+                            const val = e.target.value.replace(',', '.');
+                            if (val === '' || /^\d*\.?\d{0,2}$/.test(val)) {
+                                setGlobalBet(val);
+                            }
+                        }}
+                        onBlur={() => {
+                            let val = parseFloat(globalBet.replace(',', '.'));
+                            if (isNaN(val) || val < 1) val = 1;
+                            else if (val > user.balance) val = Math.max(1, user.balance);
+                            setGlobalBet(Number(val.toFixed(2)).toString());
+                        }}
                         className="w-full bg-slate-50 text-slate-900 text-base sm:text-xl font-black rounded-xl py-3 sm:py-4 pl-10 sm:pl-12 pr-4 outline-none border-2 border-slate-100 focus:border-brand-500 transition-all shadow-inner"
                     />
                 </div>
                 
                 <div className="flex w-full md:w-1/2 gap-1.5 sm:gap-2">
-                    <button onClick={() => setGlobalBet((currentBetNum / 2).toString())} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-xs sm:text-sm py-3 sm:py-4 rounded-xl transition-colors">
-                        /2
-                    </button>
-                    <button onClick={() => setGlobalBet((currentBetNum * 2).toString())} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-xs sm:text-sm py-3 sm:py-4 rounded-xl transition-colors">
-                        X2
-                    </button>
-                    <button onClick={() => setGlobalBet('10')} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-xs sm:text-sm py-3 sm:py-4 rounded-xl transition-colors">
-                        MIN
-                    </button>
-                    <button onClick={() => setGlobalBet(user.balance.toString())} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-xs sm:text-sm py-3 sm:py-4 rounded-xl transition-colors">
-                        MAX
-                    </button>
+                    <button onClick={handleHalfBet} disabled={gameState !== 'betting'} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-xs sm:text-sm py-3 sm:py-4 rounded-xl transition-colors disabled:opacity-50">/2</button>
+                    <button onClick={handleDoubleBet} disabled={gameState !== 'betting'} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-xs sm:text-sm py-3 sm:py-4 rounded-xl transition-colors disabled:opacity-50">X2</button>
+                    <button onClick={handleMinBet} disabled={gameState !== 'betting'} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-xs sm:text-sm py-3 sm:py-4 rounded-xl transition-colors disabled:opacity-50">MIN</button>
+                    <button onClick={handleMaxBet} disabled={gameState !== 'betting'} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-xs sm:text-sm py-3 sm:py-4 rounded-xl transition-colors disabled:opacity-50">MAX</button>
                 </div>
             </div>
         </div>

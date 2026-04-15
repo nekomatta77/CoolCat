@@ -75,20 +75,26 @@ export default function Mines({ user }: MinesProps) {
     }
   };
 
+  // ЖЕЛЕЗОБЕТОННЫЕ ОБРАБОТЧИКИ СТАВОК ДЛЯ MINES
   const handleHalfBet = () => {
     if (gameState === 'playing') return;
     const current = parseFloat(betInput.replace(',', '.')) || 0;
-    setBetInput(Math.max(1, Number((current / 2).toFixed(2))).toString());
+    let next = current / 2;
+    if (next < 1) next = 1;
+    setBetInput(Number(next.toFixed(2)).toString());
   };
 
   const handleDoubleBet = () => {
     if (gameState === 'playing') return;
     const current = parseFloat(betInput.replace(',', '.')) || 0;
-    setBetInput(Number((current * 2).toFixed(2)).toString());
+    let next = current * 2;
+    if (next > user.balance) next = user.balance;
+    if (next < 1) next = 1;
+    setBetInput(Number(next.toFixed(2)).toString());
   };
 
   const startGame = async () => {
-    if (bet > user.balance || bet <= 0 || isProcessing.current) return;
+    if (bet > user.balance || bet < 1 || isProcessing.current) return;
     isProcessing.current = true;
 
     try {
@@ -383,7 +389,6 @@ export default function Mines({ user }: MinesProps) {
           </div>
         </div>
 
-        {/* ПАНЕЛЬ СТАВОК (ЛИПКАЯ СНИЗУ НА МОБИЛКАХ) */}
         <div className="order-2 lg:order-1 lg:col-span-4 bg-white sm:bg-white/100 rounded-t-[2rem] sm:rounded-[3rem] border-t sm:border border-slate-200 sm:border-slate-100 shadow-[0_-15px_40px_-15px_rgba(0,0,0,0.15)] sm:shadow-xl sm:shadow-slate-200/50 p-4 sm:p-6 lg:p-8 flex flex-col gap-4 sm:gap-6 justify-between sticky bottom-0 z-50 max-h-[60vh] sm:max-h-none overflow-y-auto sm:overflow-visible transition-all [scrollbar-width:none]">
           
           <div className="space-y-4 lg:space-y-8">
@@ -405,14 +410,15 @@ export default function Mines({ user }: MinesProps) {
                     disabled={gameState === 'playing'}
                     onChange={(e) => {
                       const val = e.target.value.replace(',', '.');
-                      if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                      if (val === '' || /^\d*\.?\d{0,2}$/.test(val)) {
                         setBetInput(val);
                       }
                     }}
                     onBlur={() => {
-                      const val = parseFloat(betInput.replace(',', '.'));
-                      if (isNaN(val) || val <= 0) setBetInput('1');
-                      else setBetInput(val.toString());
+                      let val = parseFloat(betInput.replace(',', '.'));
+                      if (isNaN(val) || val < 1) val = 1;
+                      else if (val > user.balance) val = Math.max(1, user.balance);
+                      setBetInput(Number(val.toFixed(2)).toString());
                     }}
                     className="w-full bg-transparent font-black text-slate-900 text-lg sm:text-xl outline-none disabled:opacity-50 px-2 sm:px-1 min-w-0"
                   />
@@ -537,7 +543,7 @@ export default function Mines({ user }: MinesProps) {
 
                   <button
                     onClick={startGame}
-                    disabled={bet > user.balance || bet <= 0}
+                    disabled={bet > user.balance || bet < 1}
                     className="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-black rounded-[1.2rem] sm:rounded-[1.5rem] transition-all shadow-xl shadow-brand-200 uppercase tracking-[0.2em] text-sm sm:text-base flex items-center justify-center gap-3 py-3.5 sm:py-5 active:scale-[0.98]"
                   >
                     {gameState === 'idle' ? 'Начать игру' : 'Играть снова'} <Play className="w-5 h-5 fill-current" />

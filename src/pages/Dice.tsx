@@ -55,16 +55,32 @@ export default function Dice({ user }: DiceProps) {
   const multiplier = (100 / activeChance).toFixed(2);
   const potentialWinAmount = bet * parseFloat(multiplier);
 
+  // ЖЕЛЕЗОБЕТОННЫЕ ОБРАБОТЧИКИ СТАВОК ДЛЯ DICE
   const handleHalfBet = () => {
     if (loading) return;
     const current = parseFloat(betInput.replace(',', '.')) || 0;
-    setBetInput(Number((current / 2).toFixed(2)).toString());
+    let next = current / 2;
+    if (next < 1) next = 1;
+    setBetInput(Number(next.toFixed(2)).toString());
   };
 
   const handleDoubleBet = () => {
     if (loading) return;
     const current = parseFloat(betInput.replace(',', '.')) || 0;
-    setBetInput(Number((current * 2).toFixed(2)).toString());
+    let next = current * 2;
+    if (next > user.balance) next = user.balance;
+    if (next < 1) next = 1;
+    setBetInput(Number(next.toFixed(2)).toString());
+  };
+
+  const handleMinBet = () => {
+    if (loading) return;
+    setBetInput('1');
+  };
+
+  const handleMaxBet = () => {
+    if (loading) return;
+    setBetInput(Math.max(1, Number(user.balance.toFixed(2))).toString());
   };
 
   const handlePlay = async (type: 'under' | 'over' = 'under') => {
@@ -149,7 +165,6 @@ export default function Dice({ user }: DiceProps) {
         return a;
       }, 'Кошачье чутье');
 
-      // ИСПРАВЛЕНИЕ: ДОБАВЛЕНЫ НЕДОСТАЮЩИЕ АЧИВКИ ИЗ СПИСКА
       if (isWin && activeChance <= 1 && bet >= 15) {
         processAch('dice_sniper', 1, a => { a.progress = 1; return a; }, 'Снайпер');
       }
@@ -269,25 +284,25 @@ export default function Dice({ user }: DiceProps) {
                         disabled={loading}
                         onChange={(e) => {
                           const val = e.target.value.replace(',', '.');
-                          if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                          if (val === '' || /^\d*\.?\d{0,2}$/.test(val)) {
                             setBetInput(val);
                           }
                         }}
                         onBlur={() => {
-                          if (betInput === '') return;
-                          const val = parseFloat(betInput.replace(',', '.'));
-                          if (isNaN(val) || val < 0) setBetInput('');
-                          else setBetInput(val.toString());
+                          let val = parseFloat(betInput.replace(',', '.'));
+                          if (isNaN(val) || val < 1) val = 1;
+                          else if (val > user.balance) val = Math.max(1, user.balance);
+                          setBetInput(Number(val.toFixed(2)).toString());
                         }}
                         className="w-full bg-transparent font-black text-slate-900 text-lg sm:text-2xl outline-none disabled:opacity-50 min-w-0"
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-1.5 w-full">
+                  <div className="grid grid-cols-4 gap-1.5 w-full">
+                    <button onClick={handleMinBet} disabled={loading} className="bg-slate-50 hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 border border-slate-100 rounded-xl py-2 text-[10px] font-black text-slate-500 transition-all shadow-sm disabled:opacity-50">МИН</button>
                     <button onClick={handleHalfBet} disabled={loading} className="bg-slate-50 hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 border border-slate-100 rounded-xl py-2 text-[10px] font-black text-slate-500 transition-all shadow-sm disabled:opacity-50">/2</button>
                     <button onClick={handleDoubleBet} disabled={loading} className="bg-slate-50 hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 border border-slate-100 rounded-xl py-2 text-[10px] font-black text-slate-500 transition-all shadow-sm disabled:opacity-50">X2</button>
-                    <button onClick={() => setBetInput('1')} disabled={loading} className="bg-slate-50 hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 border border-slate-100 rounded-xl py-2 text-[10px] font-black text-slate-500 transition-all shadow-sm disabled:opacity-50">МИН</button>
-                    <button onClick={() => setBetInput(user.balance.toString())} disabled={loading} className="bg-slate-50 hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 border border-slate-100 rounded-xl py-2 text-[10px] font-black text-slate-500 transition-all shadow-sm disabled:opacity-50">МАКС</button>
+                    <button onClick={handleMaxBet} disabled={loading} className="bg-slate-50 hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 border border-slate-100 rounded-xl py-2 text-[10px] font-black text-slate-500 transition-all shadow-sm disabled:opacity-50">МАКС</button>
                   </div>
                 </div>
 
@@ -308,24 +323,24 @@ export default function Dice({ user }: DiceProps) {
                         disabled={loading} 
                         onChange={e => {
                           const val = e.target.value.replace(',', '.');
-                          if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                          if (val === '' || /^\d*\.?\d{0,2}$/.test(val)) {
                             setChance(val);
                           }
                         }}
                         onBlur={() => {
-                          if (chance === '') return;
-                          const val = parseFloat(String(chance).replace(',', '.'));
-                          if (isNaN(val)) setChance(50);
-                          else setChance(Math.min(95, Math.max(1, val)));
+                          let val = parseFloat(String(chance).replace(',', '.'));
+                          if (isNaN(val)) val = 50;
+                          else val = Math.min(95, Math.max(1, val));
+                          setChance(Number(val.toFixed(2)).toString());
                         }}
                         className="w-full bg-transparent font-black text-slate-900 text-lg sm:text-2xl outline-none disabled:opacity-50 min-w-0" 
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-1.5 w-full">
+                  <div className="grid grid-cols-4 gap-1.5 w-full">
+                    <button onClick={() => setChance(1)} disabled={loading} className="bg-slate-50 hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 border border-slate-100 rounded-xl py-2 text-[10px] font-black text-slate-500 transition-all shadow-sm disabled:opacity-50">МИН</button>
                     <button onClick={() => setChance(Math.max(1, Number((activeChance / 2).toFixed(2))))} disabled={loading} className="bg-slate-50 hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 border border-slate-100 rounded-xl py-2 text-[10px] font-black text-slate-500 transition-all shadow-sm disabled:opacity-50">/2</button>
                     <button onClick={() => setChance(Math.min(95, Number((activeChance * 2).toFixed(2))))} disabled={loading} className="bg-slate-50 hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 border border-slate-100 rounded-xl py-2 text-[10px] font-black text-slate-500 transition-all shadow-sm disabled:opacity-50">X2</button>
-                    <button onClick={() => setChance(1)} disabled={loading} className="bg-slate-50 hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 border border-slate-100 rounded-xl py-2 text-[10px] font-black text-slate-500 transition-all shadow-sm disabled:opacity-50">МИН</button>
                     <button onClick={() => setChance(95)} disabled={loading} className="bg-slate-50 hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 border border-slate-100 rounded-xl py-2 text-[10px] font-black text-slate-500 transition-all shadow-sm disabled:opacity-50">МАКС</button>
                   </div>
                 </div>
@@ -347,7 +362,7 @@ export default function Dice({ user }: DiceProps) {
                   <div className="text-center text-xs sm:text-sm font-bold text-slate-400 pb-1">
                     0 - {underTarget}
                   </div>
-                  <button onClick={() => handlePlay('under')} disabled={loading || bet > user.balance || bet <= 0} className="relative overflow-hidden bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white py-2.5 sm:py-3 px-4 rounded-[1rem] sm:rounded-[1.2rem] transition-all shadow-md shadow-brand-200 active:scale-[0.98] flex flex-row items-center justify-center gap-1.5 sm:gap-2">
+                  <button onClick={() => handlePlay('under')} disabled={loading || bet > user.balance || bet < 1} className="relative overflow-hidden bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white py-2.5 sm:py-3 px-4 rounded-[1rem] sm:rounded-[1.2rem] transition-all shadow-md shadow-brand-200 active:scale-[0.98] flex flex-row items-center justify-center gap-1.5 sm:gap-2">
                     <ArrowDownCircle className="w-4 h-4 sm:w-5 sm:h-5 opacity-80" />
                     <span className="text-xs sm:text-sm font-black uppercase tracking-widest mt-0.5">Меньше</span>
                   </button>
@@ -357,7 +372,7 @@ export default function Dice({ user }: DiceProps) {
                   <div className="text-center text-xs sm:text-sm font-bold text-slate-400 pb-1">
                     {overTarget} - 999999
                   </div>
-                  <button onClick={() => handlePlay('over')} disabled={loading || bet > user.balance || bet <= 0} className="relative overflow-hidden bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white py-2.5 sm:py-3 px-4 rounded-[1rem] sm:rounded-[1.2rem] transition-all shadow-md shadow-slate-300 active:scale-[0.98] flex flex-row items-center justify-center gap-1.5 sm:gap-2">
+                  <button onClick={() => handlePlay('over')} disabled={loading || bet > user.balance || bet < 1} className="relative overflow-hidden bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white py-2.5 sm:py-3 px-4 rounded-[1rem] sm:rounded-[1.2rem] transition-all shadow-md shadow-slate-300 active:scale-[0.98] flex flex-row items-center justify-center gap-1.5 sm:gap-2">
                     <span className="text-xs sm:text-sm font-black uppercase tracking-widest mt-0.5">Больше</span>
                     <ArrowUpCircle className="w-4 h-4 sm:w-5 sm:h-5 opacity-80" />
                   </button>
@@ -463,31 +478,31 @@ export default function Dice({ user }: DiceProps) {
                     disabled={loading}
                     onChange={(e) => {
                       const val = e.target.value.replace(',', '.');
-                      if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                      if (val === '' || /^\d*\.?\d{0,2}$/.test(val)) {
                         setBetInput(val);
                       }
                     }}
                     onBlur={() => {
-                      if (betInput === '') return;
-                      const val = parseFloat(betInput.replace(',', '.'));
-                      if (isNaN(val) || val < 0) setBetInput('');
-                      else setBetInput(val.toString());
+                      let val = parseFloat(betInput.replace(',', '.'));
+                      if (isNaN(val) || val < 1) val = 1;
+                      else if (val > user.balance) val = Math.max(1, user.balance);
+                      setBetInput(Number(val.toFixed(2)).toString());
                     }}
                     className="w-full bg-transparent font-black text-slate-900 text-xl sm:text-2xl outline-none disabled:opacity-50 min-w-0 text-left"
                   />
                 </div>
               </div>
               <div className="grid grid-cols-4 gap-1.5 sm:gap-2 w-full">
-                <button onClick={() => setBetInput('1')} disabled={loading} className="bg-slate-50 hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 border border-slate-100 rounded-xl py-2 sm:py-2.5 text-[10px] sm:text-[11px] font-black text-slate-500 transition-all shadow-sm disabled:opacity-50">МИН</button>
+                <button onClick={handleMinBet} disabled={loading} className="bg-slate-50 hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 border border-slate-100 rounded-xl py-2 sm:py-2.5 text-[10px] sm:text-[11px] font-black text-slate-500 transition-all shadow-sm disabled:opacity-50">МИН</button>
                 <button onClick={handleHalfBet} disabled={loading} className="bg-slate-50 hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 border border-slate-100 rounded-xl py-2 sm:py-2.5 text-[10px] sm:text-[11px] font-black text-slate-500 transition-all shadow-sm disabled:opacity-50">/2</button>
                 <button onClick={handleDoubleBet} disabled={loading} className="bg-slate-50 hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 border border-slate-100 rounded-xl py-2 sm:py-2.5 text-[10px] sm:text-[11px] font-black text-slate-500 transition-all shadow-sm disabled:opacity-50">X2</button>
-                <button onClick={() => setBetInput(user.balance.toString())} disabled={loading} className="bg-slate-50 hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 border border-slate-100 rounded-xl py-2 sm:py-2.5 text-[10px] sm:text-[11px] font-black text-slate-500 transition-all shadow-sm disabled:opacity-50">МАКС</button>
+                <button onClick={handleMaxBet} disabled={loading} className="bg-slate-50 hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 border border-slate-100 rounded-xl py-2 sm:py-2.5 text-[10px] sm:text-[11px] font-black text-slate-500 transition-all shadow-sm disabled:opacity-50">МАКС</button>
               </div>
             </div>
           </div>
 
           <div className="max-w-md mx-auto w-full">
-            <button onClick={() => handlePlay('under')} disabled={loading || bet > user.balance || bet <= 0} className="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-black py-5 rounded-[1.5rem] transition-all shadow-lg shadow-brand-200 uppercase tracking-widest text-sm flex items-center justify-center gap-2 active:scale-[0.98]">
+            <button onClick={() => handlePlay('under')} disabled={loading || bet > user.balance || bet < 1} className="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-black py-5 rounded-[1.5rem] transition-all shadow-lg shadow-brand-200 uppercase tracking-widest text-sm flex items-center justify-center gap-2 active:scale-[0.98]">
               СДЕЛАТЬ СТАВКУ
             </button>
           </div>
