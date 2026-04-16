@@ -30,7 +30,6 @@ export interface SlotSymbol {
   transforms?: Record<number, TransformConfig>;
 }
 
-// Настройки mobile сильно уменьшены, так как теперь барабаны на телефоне будут низкими (по горизонтали)
 const SLOT_SYMBOLS: SlotSymbol[] = [
   // === ВЫСОКООПЛАЧИВАЕМЫЕ СИМВОЛЫ (КОТЫ) ===
   { 
@@ -146,6 +145,10 @@ export default function Slots({ user }: SlotsProps) {
   const [spinId, setSpinId] = useState(0);
   const [debugSymbol, setDebugSymbol] = useState<string>('none');
   
+  // НОВЫЕ СТЕЙТЫ
+  const [hasStarted, setHasStarted] = useState(false); // Для приветственного экрана
+  const [spinSpeed, setSpinSpeed] = useState<1 | 2 | 3>(2); // Скорость кручения (по умолчанию 2 - как было)
+  
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -212,6 +215,11 @@ export default function Slots({ user }: SlotsProps) {
     setIsSpinning(true);
     setLastWin(0);
 
+    // Определяем время ожидания до завершения спина в зависимости от скорости
+    let spinDuration = 1000; // По умолчанию (скорость 2)
+    if (spinSpeed === 1) spinDuration = 2200; // Долгий спин (по очереди)
+    if (spinSpeed === 3) spinDuration = 400;  // Турбо спин
+
     try {
       if (debugSymbol !== 'none') {
         const forcedGrid: SlotSymbol[][] = [];
@@ -225,7 +233,7 @@ export default function Slots({ user }: SlotsProps) {
         setSpinId(prev => prev + 1);
         setGrid(forcedGrid);
         
-        setTimeout(() => setIsSpinning(false), 800);
+        setTimeout(() => setIsSpinning(false), spinDuration);
         return;
       }
 
@@ -251,7 +259,7 @@ export default function Slots({ user }: SlotsProps) {
           setLastWin(result.win);
         }
         setIsSpinning(false);
-      }, 1000);
+      }, spinDuration);
 
     } catch (error) {
       console.error("Spin error:", error);
@@ -261,9 +269,31 @@ export default function Slots({ user }: SlotsProps) {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[85vh] p-2 md:p-4 font-sans bg-[#0a0a0c]">
-      {/* КОРПУС АВТОМАТА: p-2 для смартфонов, чтобы сэкономить место и сделать его "шире" */}
       <div className="w-full max-w-6xl bg-gradient-to-b from-gray-900 to-black p-2 md:p-6 rounded-[16px] md:rounded-[40px] border-t-2 md:border-t-4 border-yellow-500 shadow-[0_10px_30px_rgba(0,0,0,0.8)] relative overflow-hidden">
         
+        {/* ПРИВЕТСТВЕННЫЙ ЭКРАН (OVERLAY) */}
+        <AnimatePresence>
+          {!hasStarted && (
+            <motion.div 
+              initial={{ opacity: 1 }}
+              exit={{ opacity: 0, backdropFilter: 'blur(0px)' }}
+              transition={{ duration: 0.5 }}
+              // Абсолютное позиционирование поверх всего автомата, z-50 перекрывает кнопки
+              className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/40 backdrop-blur-md rounded-[16px] md:rounded-[40px]"
+            >
+              <h1 className="text-5xl md:text-7xl font-black text-white italic tracking-tighter mb-8 drop-shadow-[0_5px_15px_rgba(0,0,0,1)]">
+                CAT HOUSE
+              </h1>
+              <button 
+                onClick={() => setHasStarted(true)}
+                className="px-10 py-5 bg-gradient-to-t from-yellow-600 to-yellow-400 text-black text-2xl md:text-3xl font-black rounded-2xl shadow-[0_10px_40px_rgba(202,138,4,0.5)] hover:scale-105 active:scale-95 transition-all uppercase tracking-widest"
+              >
+                Играть
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* ШАПКА АВТОМАТА */}
         <div className="flex justify-between items-end mb-2 md:mb-6 px-1 md:px-4 relative z-20">
           <div>
@@ -276,9 +306,7 @@ export default function Slots({ user }: SlotsProps) {
           </div>
         </div>
 
-        {/* ИГРОВОЕ ПОЛЕ: Ключевое изменение здесь. 
-            h-[220px] - делает рамку слота строго горизонтальной (широкой и низкой) на смартфонах.
-            md:h-[600px] - оставляет слоты высокими и крупными на ПК. */}
+        {/* ИГРОВОЕ ПОЛЕ */}
         <div className="grid grid-cols-6 gap-[2px] md:gap-2 bg-black/80 p-1 md:p-3 rounded-xl md:rounded-3xl border md:border-2 border-white/5 h-[220px] sm:h-[280px] md:h-[600px] relative z-10">
           {grid.map((reel, rIdx) => (
             <div key={rIdx} className="relative w-full h-full rounded-md md:rounded-xl bg-black/40">
@@ -298,21 +326,46 @@ export default function Slots({ user }: SlotsProps) {
 
                   const shouldClip = isEnlarged && sym.hasBig && sym.id !== 'slots_meinkun';
 
+                  // ЛОГИКА АНИМАЦИИ ЗАВИСИТ ОТ СКОРОСТИ (spinSpeed)
+                  let animDuration = 0.4;
+                  let animDelay = rIdx * 0.1;
+                  let animType = 'tween';
+                  let startY = -800;
+                  let animBounce: number | undefined = undefined;
+
+                  if (spinSpeed === 1) {
+                    // Медленно, строго по очереди
+                    animDuration = 0.6;
+                    animDelay = rIdx * 0.3; 
+                  } else if (spinSpeed === 2) {
+                    // Как было (средняя скорость)
+                    animDuration = 0.4;
+                    animDelay = rIdx * 0.1;
+                  } else if (spinSpeed === 3) {
+                    // Турбо! Появляются моментально и слегка пружинят
+                    animDuration = 0.2;
+                    animDelay = rIdx * 0.02; // Почти одновременно
+                    animType = 'spring';
+                    animBounce = 0.4; // Эффект дерганья
+                    startY = -150; // Падают с меньшей высоты
+                  }
+
                   return (
                     <motion.div
                       key={`${spinId}-${rIdx}-${sIdx}`}
-                      initial={{ y: -800, filter: 'blur(4px)' }}
+                      initial={{ y: startY, filter: spinSpeed === 3 ? 'blur(2px)' : 'blur(4px)' }}
                       animate={{ y: 0, filter: 'blur(0px)' }}
                       exit={{ y: 800, filter: 'blur(4px)' }}
                       transition={{ 
-                        type: 'tween', 
-                        duration: 0.4, 
-                        ease: "easeOut",
-                        delay: rIdx * 0.1
+                        type: animType as any, 
+                        duration: animDuration, 
+                        ease: spinSpeed === 3 ? undefined : "easeOut",
+                        bounce: animBounce,
+                        delay: animDelay
                       }}
                       className={`absolute rounded-[4px] md:rounded-[12px] border-b-[2px] md:border-b-[6px] border-t border-white/10 shadow-xl flex items-center justify-center ${sym.c} ${shouldClip ? 'overflow-hidden' : ''}`}
                       style={{
-                        height: `calc(${heightPct}% - 2px)`, // минимальный отступ на мобилках
+                        height: `calc(${heightPct}% - 2px)`, 
                         top: `calc(${sIdx * heightPct}% + 1px)`, 
                         left: '1px',
                         right: '1px'
@@ -349,19 +402,31 @@ export default function Slots({ user }: SlotsProps) {
             <button onClick={() => setBet(bet + 10)} disabled={isSpinning || debugSymbol !== 'none'} className="w-10 h-10 md:w-14 md:h-14 rounded-md md:rounded-xl bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-white font-bold text-lg md:text-xl transition-colors">+</button>
           </div>
 
-          <div className="h-10 md:h-16 flex items-center justify-center w-full md:w-48">
-            <select 
-              value={debugSymbol} 
-              onChange={(e) => setDebugSymbol(e.target.value)}
-              className="w-full bg-black/60 border border-yellow-500/50 text-yellow-400 font-bold p-2 md:p-3 rounded-lg md:rounded-xl outline-none hover:border-yellow-500 transition-colors cursor-pointer text-xs md:text-base"
+          <div className="flex items-center gap-2 w-full md:w-auto">
+            {/* КНОПКА ПЕРЕКЛЮЧЕНИЯ СКОРОСТИ */}
+            <button 
+              onClick={() => setSpinSpeed(prev => prev === 3 ? 1 : (prev + 1) as 1 | 2 | 3)}
+              disabled={isSpinning}
+              className="flex-1 md:flex-none w-full md:w-32 bg-black/60 border border-white/10 text-white font-bold p-2 md:p-3 rounded-lg md:rounded-xl hover:bg-gray-800 transition-colors text-xs md:text-sm flex flex-col items-center justify-center disabled:opacity-50"
             >
-              <option value="none">🕹️ Обычная игра</option>
-              <optgroup label="Тест: Картинки">
-                {SLOT_SYMBOLS.map(sym => (
-                  <option key={sym.id} value={sym.id}>{sym.e} {sym.id.replace('slots_', '')}</option>
-                ))}
-              </optgroup>
-            </select>
+              <span className="text-gray-500 text-[8px] md:text-[10px] uppercase">Скорость</span>
+              <span>{spinSpeed === 1 ? '🐢 Норм' : spinSpeed === 2 ? '⚡ Быстро' : '🚀 Турбо'}</span>
+            </button>
+
+            <div className="flex-1 md:flex-none h-10 md:h-16 flex items-center justify-center w-full md:w-48">
+              <select 
+                value={debugSymbol} 
+                onChange={(e) => setDebugSymbol(e.target.value)}
+                className="w-full h-full bg-black/60 border border-yellow-500/50 text-yellow-400 font-bold px-1 md:p-3 rounded-lg md:rounded-xl outline-none hover:border-yellow-500 transition-colors cursor-pointer text-[10px] md:text-base"
+              >
+                <option value="none">🕹️ Обычная игра</option>
+                <optgroup label="Тест: Картинки">
+                  {SLOT_SYMBOLS.map(sym => (
+                    <option key={sym.id} value={sym.id}>{sym.e} {sym.id.replace('slots_', '')}</option>
+                  ))}
+                </optgroup>
+              </select>
+            </div>
           </div>
 
           <button 
