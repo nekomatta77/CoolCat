@@ -74,25 +74,35 @@ const SLOT_SYMBOLS: SlotSymbol[] = [
   
   // === БУКВЫ ===
   { id: 'slots_a', weight: 12, mult: [0, 0, 0.2, 0.5, 1, 2], e: 'A', c: 'bg-red-500/20 border-red-600',
-    transforms: { 2: {scale: 0.8}, 3: {scale: 0.8}, 4: {scale: 0.8}, 5: {scale: 0.8}, 6: {scale: 0.8}, 7: {scale: 0.8} } 
+    transforms: { 
+      2: { scale: 1.8, y: 0 }, 3: { scale: 1.5, y: 0 }, 4: { scale: 1.7, y: -2 }, 
+      5: { scale: 1.8, y: 0 },  6: { scale: 2, y: 0 },  7: { scale: 2.5, y: 0 } 
+    } 
   },
   { id: 'slots_k', weight: 14, mult: [0, 0, 0.2, 0.4, 0.8, 1.5], e: 'K', c: 'bg-orange-500/20 border-orange-600',
-    transforms: { 2: {scale: 0.8}, 3: {scale: 0.8}, 4: {scale: 0.8}, 5: {scale: 0.8}, 6: {scale: 0.8}, 7: {scale: 0.8} }
+    transforms: { 
+      2: { scale: 1.7, y: 0 }, 3: { scale: 1.5, y: 0 }, 4: { scale: 1.6, y: 0 }, 
+      5: { scale: 2, y: 0 },  6: { scale: 2, y: 0 },  7: { scale: 2.4, y: 0 } 
+    }
   },
   { id: 'slots_q', weight: 16, mult: [0, 0, 0.1, 0.2, 0.5, 1], e: 'Q', c: 'bg-green-500/20 border-green-600',
-    transforms: { 2: {scale: 0.8}, 3: {scale: 0.8}, 4: {scale: 0.8}, 5: {scale: 0.8}, 6: {scale: 0.8}, 7: {scale: 0.8} }
+    transforms: { 
+      2: { scale: 1.6, y: 0 }, 3: { scale: 1.4, y: 0 }, 4: { scale: 1.45, y: 0 }, 
+      5: { scale: 1.6, y: 0 },  6: { scale: 1.7, y: 0 },  7: { scale: 1.9, y: 0 } 
+    }
   },
   
   // === СПЕЦИАЛЬНЫЕ ===
   { id: 'slots_fishbone', weight: 4, isWild: true, e: 'W', c: 'bg-teal-500/20 border-teal-500',
     transforms: {
-      2: { scale: 1.15, y: -5 }, 3: { scale: 1.20, y: -5 }, 4: { scale: 1.25, y: -5 }, 
-      5: { scale: 1.30, y: -5 }, 6: { scale: 1.35, y: -5 }, 7: { scale: 1.40, y: -5 },
+      2: { scale: 1.8, y: 0 }, 3: { scale: 1.6, y: 0 }, 4: { scale: 1.7, y: 0 }, 
+      5: { scale: 1.9, y: 0 },  6: { scale: 2, y: 0 }, 7: { scale: 2.2, y: 0 },
     }
   },
   { id: 'slots_food', weight: 3, isBonus: true, e: 'B', c: 'bg-pink-500/20 border-pink-500',
     transforms: {
-      2: { scale: 1.1 }, 3: { scale: 1.1 }, 4: { scale: 1.15 }, 5: { scale: 1.15 }, 6: { scale: 1.2 }, 7: { scale: 1.2 }
+      2: { scale: 1.9, y: 0 }, 3: { scale: 1.7, y: 0 }, 4: { scale: 1.8, y: 0 }, 
+      5: { scale: 1.9, y: 0 },  6: { scale: 2.2, y: 0 }, 7: { scale: 2.4, y: 0 }
     }
   }
 ];
@@ -109,7 +119,6 @@ export default function Slots({ user }: SlotsProps) {
   const [lastWin, setLastWin] = useState(0);
   const [spinId, setSpinId] = useState(0);
 
-  // СТЕЙТ ДЛЯ ДЕБАГА: хранит ID выбранного для настройки символа
   const [debugSymbol, setDebugSymbol] = useState<string>('none');
 
   useEffect(() => {
@@ -164,16 +173,15 @@ export default function Slots({ user }: SlotsProps) {
   };
 
   const spin = async () => {
-    if (balance < bet && debugSymbol === 'none') return; // В режиме дебага игнорируем баланс
+    if (balance < bet && debugSymbol === 'none') return;
     if (isSpinning) return;
     setIsSpinning(true);
     setLastWin(0);
 
     try {
-      // === ЛОГИКА ДЕБАГ-РЕЖИМА ===
       if (debugSymbol !== 'none') {
         const forcedGrid: SlotSymbol[][] = [];
-        const forcedSizes = [2, 3, 4, 5, 6, 7]; // Принудительно генерируем все 6 размеров
+        const forcedSizes = [2, 3, 4, 5, 6, 7]; 
         const targetSymbol = SLOT_SYMBOLS.find(s => s.id === debugSymbol) || SLOT_SYMBOLS[0];
         
         for (let i = 0; i < 6; i++) {
@@ -183,11 +191,9 @@ export default function Slots({ user }: SlotsProps) {
         setSpinId(prev => prev + 1);
         setGrid(forcedGrid);
         
-        // В дебаге деньги не снимаем, выигрыши не начисляем
         setTimeout(() => setIsSpinning(false), 800);
         return;
       }
-      // ============================
 
       await updateDoc(doc(db, 'users', user.uid), { balance: increment(-bet) });
 
@@ -221,22 +227,26 @@ export default function Slots({ user }: SlotsProps) {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[85vh] p-4 font-sans bg-[#0a0a0c]">
-      <div className="w-full max-w-6xl bg-gradient-to-b from-gray-900 to-black p-6 rounded-[40px] border-t-4 border-yellow-500 shadow-[0_20px_50px_rgba(0,0,0,0.8)]">
+      {/* КОРПУС АВТОМАТА: Добавлен relative и overflow-hidden, чтобы за пределы автомата ничего не вылетало */}
+      <div className="w-full max-w-6xl bg-gradient-to-b from-gray-900 to-black p-6 rounded-[40px] border-t-4 border-yellow-500 shadow-[0_20px_50px_rgba(0,0,0,0.8)] relative overflow-hidden">
         
-        <div className="flex justify-between items-end mb-6 px-4">
+        {/* ШАПКА: relative z-20, чтобы картинки пролетали ЗА надписью */}
+        <div className="flex justify-between items-end mb-6 px-4 relative z-20">
           <div>
-            <h2 className="text-4xl font-black text-white italic tracking-tighter leading-none">CAT HOUSE</h2>
-            <span className="text-yellow-500 font-bold text-xs tracking-widest uppercase">HD Megaways</span>
+            <h2 className="text-4xl font-black text-white italic tracking-tighter leading-none drop-shadow-md">CAT HOUSE</h2>
+            <span className="text-yellow-500 font-bold text-xs tracking-widest uppercase drop-shadow-sm">HD Megaways</span>
           </div>
-          <div className="bg-black/50 px-4 py-2 rounded-2xl border border-white/5 text-right">
+          <div className="bg-black/50 px-4 py-2 rounded-2xl border border-white/5 text-right shadow-md">
             <span className="text-gray-500 text-[10px] block font-bold uppercase">Баланс</span>
             <span className="text-2xl font-black text-green-400">{balance.toFixed(2)} ₽</span>
           </div>
         </div>
 
-        <div className="grid grid-cols-6 gap-2 bg-black/80 p-3 rounded-3xl border-2 border-white/5 h-[600px] overflow-hidden">
+        {/* ИГРОВОЕ ПОЛЕ: Убран overflow-hidden, добавлен relative z-10 */}
+        <div className="grid grid-cols-6 gap-2 bg-black/80 p-3 rounded-3xl border-2 border-white/5 h-[600px] relative z-10">
           {grid.map((reel, rIdx) => (
-            <div key={rIdx} className="relative w-full h-full rounded-xl bg-black/40 overflow-hidden">
+            // БАРАБАН: Тоже убран overflow-hidden
+            <div key={rIdx} className="relative w-full h-full rounded-xl bg-black/40">
               <AnimatePresence>
                 {reel.map((sym, sIdx) => {
                   const rowsCount = reel.length; 
@@ -248,6 +258,9 @@ export default function Slots({ user }: SlotsProps) {
                   const scale = config.scale !== undefined ? config.scale : 1;
                   const x = config.x || 0;
                   const y = config.y || 0;
+
+                  // ЛОГИКА ОБРЕЗКИ: Обрезаем большие плашки, ЕСЛИ это не Мейн-кун
+                  const shouldClip = isEnlarged && sym.hasBig && sym.id !== 'slots_meinkun';
 
                   return (
                     <motion.div
@@ -261,7 +274,8 @@ export default function Slots({ user }: SlotsProps) {
                         ease: "easeOut",
                         delay: rIdx * 0.1
                       }}
-                      className={`absolute rounded-[12px] border-b-[6px] border-t border-white/10 shadow-xl flex items-center justify-center ${sym.c}`}
+                      // Добавляем overflow-hidden ТОЛЬКО если shouldClip === true
+                      className={`absolute rounded-[12px] border-b-[6px] border-t border-white/10 shadow-xl flex items-center justify-center ${sym.c} ${shouldClip ? 'overflow-hidden' : ''}`}
                       style={{
                         height: `calc(${heightPct}% - 8px)`,
                         top: `calc(${sIdx * heightPct}% + 4px)`, 
@@ -289,8 +303,9 @@ export default function Slots({ user }: SlotsProps) {
           ))}
         </div>
 
-        <div className="mt-8 flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-4 bg-white/5 p-2 rounded-2xl border border-white/10 w-full md:w-auto">
+        {/* ПАНЕЛЬ УПРАВЛЕНИЯ: relative z-20, картинки падают ЗА эту панель! */}
+        <div className="mt-8 flex flex-col md:flex-row items-center justify-between gap-6 relative z-20 bg-gray-900/50 p-4 rounded-3xl backdrop-blur-sm border border-white/5">
+          <div className="flex items-center gap-4 bg-black/40 p-2 rounded-2xl border border-white/10 w-full md:w-auto">
             <button onClick={() => setBet(Math.max(10, bet - 10))} disabled={isSpinning || debugSymbol !== 'none'} className="w-14 h-14 rounded-xl bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-white font-bold text-xl transition-colors">-</button>
             <div className="text-center min-w-[120px]">
               <span className="text-gray-500 text-[10px] block font-bold uppercase tracking-wider">Ставка</span>
@@ -300,11 +315,10 @@ export default function Slots({ user }: SlotsProps) {
           </div>
 
           <div className="h-16 flex items-center justify-center w-full md:w-48">
-            {/* ВЫБОР СИМВОЛА ДЛЯ ТЕСТА */}
             <select 
               value={debugSymbol} 
               onChange={(e) => setDebugSymbol(e.target.value)}
-              className="bg-gray-800 border-2 border-yellow-500/50 text-yellow-400 font-bold p-3 rounded-xl outline-none hover:border-yellow-500 transition-colors cursor-pointer"
+              className="bg-black/60 border-2 border-yellow-500/50 text-yellow-400 font-bold p-3 rounded-xl outline-none hover:border-yellow-500 transition-colors cursor-pointer"
             >
               <option value="none">🕹️ Обычная игра</option>
               <optgroup label="Тест: Картинки">
