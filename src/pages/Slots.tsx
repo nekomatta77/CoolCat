@@ -1,5 +1,5 @@
 // src/pages/Slots.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { db } from '../firebase';
 import { doc, onSnapshot, updateDoc, increment } from 'firebase/firestore';
 import { UserProfile } from '../types';
@@ -137,6 +137,9 @@ interface SlotsProps {
 }
 
 export default function Slots({ user }: SlotsProps) {
+  // === ДОБАВЛЕН REF ДЛЯ КОНТЕЙНЕРА ===
+  const containerRef = useRef<HTMLDivElement>(null);
+  
   const [balance, setBalance] = useState(user.balance);
   const [bet, setBet] = useState(10);
   const [grid, setGrid] = useState<SlotSymbol[][]>([]);
@@ -145,9 +148,8 @@ export default function Slots({ user }: SlotsProps) {
   const [spinId, setSpinId] = useState(0);
   const [debugSymbol, setDebugSymbol] = useState<string>('none');
   
-  // НОВЫЕ СТЕЙТЫ
-  const [hasStarted, setHasStarted] = useState(false); // Для приветственного экрана
-  const [spinSpeed, setSpinSpeed] = useState<1 | 2 | 3>(2); // Скорость кручения (по умолчанию 2 - как было)
+  const [hasStarted, setHasStarted] = useState(false);
+  const [spinSpeed, setSpinSpeed] = useState<1 | 2 | 3>(2);
   
   const [isMobile, setIsMobile] = useState(false);
 
@@ -209,16 +211,54 @@ export default function Slots({ user }: SlotsProps) {
     return { win: totalWin };
   };
 
+  // === НОВЫЕ ФУНКЦИИ ВХОДА/ВЫХОДА ИЗ FULLSCREEN ===
+  const startGame = async () => {
+    setHasStarted(true);
+    
+    // Запрос полноэкранного режима браузера
+    try {
+      const elem = containerRef.current as any;
+      if (elem) {
+        if (elem.requestFullscreen) {
+          await elem.requestFullscreen();
+        } else if (elem.webkitRequestFullscreen) {
+          await elem.webkitRequestFullscreen(); // Safari
+        } else if (elem.msRequestFullscreen) {
+          await elem.msRequestFullscreen(); // IE11
+        }
+      }
+    } catch (err) {
+      console.log("Обычный браузерный полноэкранный режим не поддерживается или отклонен", err);
+    }
+  };
+
+  const exitGame = async () => {
+    setHasStarted(false);
+    
+    // Выход из полноэкранного режима браузера
+    try {
+      const doc = document as any;
+      if (doc.fullscreenElement || doc.webkitFullscreenElement) {
+        if (doc.exitFullscreen) {
+          await doc.exitFullscreen();
+        } else if (doc.webkitExitFullscreen) {
+          await doc.webkitExitFullscreen();
+        }
+      }
+    } catch (err) {
+      console.log("Ошибка выхода из полноэкранного режима", err);
+    }
+  };
+
   const spin = async () => {
     if (balance < bet && debugSymbol === 'none') return;
     if (isSpinning) return;
     setIsSpinning(true);
     setLastWin(0);
 
-    // Определяем время ожидания до завершения спина в зависимости от скорости
-    let spinDuration = 1000; // По умолчанию (скорость 2)
-    if (spinSpeed === 1) spinDuration = 2200; // Долгий спин (по очереди)
-    if (spinSpeed === 3) spinDuration = 400;  // Турбо спин
+    let spinDuration = 1000;
+    if (spinSpeed === 1) spinDuration = 2200; 
+    if (spinSpeed === 3) spinDuration = 400;  
 
     try {
       if (debugSymbol !== 'none') {
@@ -268,7 +308,27 @@ export default function Slots({ user }: SlotsProps) {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[85vh] p-2 md:p-4 font-sans bg-[#0a0a0c]">
+    // Главный контейнер. Меняет классы при старте на полноэкранные (fixed, 100dvh)
+    <div 
+      ref={containerRef}
+      className={`font-sans bg-[#0a0a0c] transition-all duration-300 ${
+        hasStarted 
+          ? 'fixed inset-0 z-[9999] w-full h-[100dvh] flex flex-col items-center justify-center p-2 md:p-4 overflow-y-auto overflow-x-hidden' 
+          : 'flex flex-col items-center justify-center min-h-[85vh] p-2 md:p-4 relative'
+      }`}
+    >
+      
+      {/* КНОПКА ЗАКРЫТИЯ: видна только во время игры (в полноэкранном режиме) */}
+      {hasStarted && (
+        <button 
+          onClick={exitGame}
+          className="absolute top-2 right-2 md:top-6 md:right-6 z-[10000] w-8 h-8 md:w-12 md:h-12 flex items-center justify-center bg-gray-900/80 hover:bg-red-500/80 text-white rounded-full border border-white/20 shadow-lg backdrop-blur-sm transition-colors cursor-pointer"
+          title="Вернуться на сайт"
+        >
+          <span className="text-xl md:text-2xl font-bold">✕</span>
+        </button>
+      )}
+
       <div className="w-full max-w-6xl bg-gradient-to-b from-gray-900 to-black p-2 md:p-6 rounded-[16px] md:rounded-[40px] border-t-2 md:border-t-4 border-yellow-500 shadow-[0_10px_30px_rgba(0,0,0,0.8)] relative overflow-hidden">
         
         {/* ПРИВЕТСТВЕННЫЙ ЭКРАН (OVERLAY) */}
@@ -278,14 +338,14 @@ export default function Slots({ user }: SlotsProps) {
               initial={{ opacity: 1 }}
               exit={{ opacity: 0, backdropFilter: 'blur(0px)' }}
               transition={{ duration: 0.5 }}
-              // Абсолютное позиционирование поверх всего автомата, z-50 перекрывает кнопки
               className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/40 backdrop-blur-md rounded-[16px] md:rounded-[40px]"
             >
-              <h1 className="text-5xl md:text-7xl font-black text-white italic tracking-tighter mb-8 drop-shadow-[0_5px_15px_rgba(0,0,0,1)]">
+              <h1 className="text-5xl md:text-7xl font-black text-white italic tracking-tighter mb-8 drop-shadow-[0_5px_15px_rgba(0,0,0,1)] text-center">
                 CAT HOUSE
               </h1>
+              {/* При клике вызываем startGame вместо обычного setHasStarted */}
               <button 
-                onClick={() => setHasStarted(true)}
+                onClick={startGame}
                 className="px-10 py-5 bg-gradient-to-t from-yellow-600 to-yellow-400 text-black text-2xl md:text-3xl font-black rounded-2xl shadow-[0_10px_40px_rgba(202,138,4,0.5)] hover:scale-105 active:scale-95 transition-all uppercase tracking-widest"
               >
                 Играть
@@ -326,7 +386,6 @@ export default function Slots({ user }: SlotsProps) {
 
                   const shouldClip = isEnlarged && sym.hasBig && sym.id !== 'slots_meinkun';
 
-                  // ЛОГИКА АНИМАЦИИ ЗАВИСИТ ОТ СКОРОСТИ (spinSpeed)
                   let animDuration = 0.4;
                   let animDelay = rIdx * 0.1;
                   let animType = 'tween';
@@ -334,20 +393,17 @@ export default function Slots({ user }: SlotsProps) {
                   let animBounce: number | undefined = undefined;
 
                   if (spinSpeed === 1) {
-                    // Медленно, строго по очереди
                     animDuration = 0.6;
                     animDelay = rIdx * 0.3; 
                   } else if (spinSpeed === 2) {
-                    // Как было (средняя скорость)
                     animDuration = 0.4;
                     animDelay = rIdx * 0.1;
                   } else if (spinSpeed === 3) {
-                    // Турбо! Появляются моментально и слегка пружинят
                     animDuration = 0.2;
-                    animDelay = rIdx * 0.02; // Почти одновременно
+                    animDelay = rIdx * 0.02; 
                     animType = 'spring';
-                    animBounce = 0.4; // Эффект дерганья
-                    startY = -150; // Падают с меньшей высоты
+                    animBounce = 0.4; 
+                    startY = -150; 
                   }
 
                   return (
@@ -403,7 +459,6 @@ export default function Slots({ user }: SlotsProps) {
           </div>
 
           <div className="flex items-center gap-2 w-full md:w-auto">
-            {/* КНОПКА ПЕРЕКЛЮЧЕНИЯ СКОРОСТИ */}
             <button 
               onClick={() => setSpinSpeed(prev => prev === 3 ? 1 : (prev + 1) as 1 | 2 | 3)}
               disabled={isSpinning}
