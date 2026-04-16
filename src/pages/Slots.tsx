@@ -7,11 +7,10 @@ import { motion, AnimatePresence } from 'motion/react';
 
 const ASSETS_URL = "https://raw.githubusercontent.com/nekomatta77/whatsacas/main/";
 
-// НОВЫЙ ИНТЕРФЕЙС: Удобная настройка трансформации
 export interface TransformConfig {
-  x?: number;     // Сдвиг вправо/влево (в пикселях)
-  y?: number;     // Сдвиг вниз/вверх (в пикселях)
-  scale?: number; // Масштаб (1 - обычный, 1.2 - больше на 20%, 0.8 - меньше на 20%)
+  x?: number;
+  y?: number;
+  scale?: number;
 }
 
 export interface SlotSymbol {
@@ -24,51 +23,83 @@ export interface SlotSymbol {
   isBonus?: boolean;
   hasBig?: boolean;
   
-  // Удобные поля для настройки позиций
-  transform?: TransformConfig;      // Для обычных плашек (4-7 символов)
-  transformBig?: TransformConfig;   // Для больших плашек (2-3 символа)
+  // АБСОЛЮТНАЯ НАСТРОЙКА: Ключ - это количество символов на барабане (от 2 до 7)
+  transforms?: Record<number, TransformConfig>;
 }
 
 const SLOT_SYMBOLS: SlotSymbol[] = [
-  // === ВЫСОКООПЛАЧИВАЕМЫЕ СИМВОЛЫ ===
+  // === ВЫСОКООПЛАЧИВАЕМЫЕ СИМВОЛЫ (КОТЫ) ===
   { 
     id: 'slots_meinkun', weight: 2, mult: [0, 0, 2, 5, 10, 25], e: 'М', c: 'bg-yellow-500/20 border-yellow-600', hasBig: true,
-    // Настраиваем Мейн-куна
-    transform: { scale: 2, y: 15 }, 
-    transformBig: { scale: 1.05, y: 10 }
+    transforms: {
+      2: { scale: 1.10, y: 0 }, // 2 символа на барабане (самая большая плашка)
+      3: { scale: 2, y: 0 }, // 3 символа на барабане
+      4: { scale: 1.35, y: 0 }, // 4 символа на барабане (средняя плашка)
+      5: { scale: 1.6, y: -8 },  // 5 символов на барабане
+      6: { scale: 1.7, y: -8 },  // 6 символов на барабане
+      7: { scale: 1.7, y: -5.5 },  // 7 символов на барабане (самая мелкая плашка)
+    }
   },
   { 
     id: 'slots_sphinx', weight: 4, mult: [0, 0, 1.5, 3, 8, 15], e: 'С', c: 'bg-purple-500/20 border-purple-600', hasBig: true,
-    // Сфинкс чуть меньше и сдвинут вправо
-    transform: { scale: 0.9, x: 5 },
-    transformBig: { scale: 0.95 }
+    transforms: {
+      2: { scale: 1.05, y: -10, x: 2 },
+      3: { scale: 1.10, y: -8, x: 2 },
+      4: { scale: 1.25, y: -6, x: 4 },
+      5: { scale: 1.30, y: -5, x: 4 },
+      6: { scale: 1.35, y: -4, x: 5 },
+      7: { scale: 1.40, y: -3, x: 5 },
+    }
   },
   { 
     id: 'slots_british', weight: 6, mult: [0, 0, 1, 2, 5, 10], e: 'Б', c: 'bg-blue-500/20 border-blue-600', hasBig: true,
-    // Британца оставляем по умолчанию (пустые настройки = масштаб 1, сдвиг 0)
+    transforms: {
+      2: { scale: 1.05, y: -8 },
+      3: { scale: 1.10, y: -6 },
+      4: { scale: 1.20, y: -5 },
+      5: { scale: 1.25, y: -4 },
+      6: { scale: 1.30, y: -3 },
+      7: { scale: 1.35, y: -2 },
+    }
   },
   { 
     id: 'slots_black', weight: 8, mult: [0, 0, 0.5, 1, 2, 5], e: 'Ч', c: 'bg-gray-700/20 border-gray-600', hasBig: true,
-    transform: { scale: 1.15 } // Просто делаем больше
+    transforms: {
+      2: { scale: 1.10, y: -10 },
+      3: { scale: 1.15, y: -8 },
+      4: { scale: 1.30, y: -8 },
+      5: { scale: 1.35, y: -6 },
+      6: { scale: 1.40, y: -5 },
+      7: { scale: 1.45, y: -4 },
+    }
   },
   
-  // === БУКВЫ ===
+  // === БУКВЫ (Для букв можно задать одну настройку для всех размеров, или расписать) ===
   { id: 'slots_a', weight: 12, mult: [0, 0, 0.2, 0.5, 1, 2], e: 'A', c: 'bg-red-500/20 border-red-600',
-    transform: { scale: 0.8 } 
+    transforms: { 2: {scale: 0.8}, 3: {scale: 0.8}, 4: {scale: 0.8}, 5: {scale: 0.8}, 6: {scale: 0.8}, 7: {scale: 0.8} } 
   },
   { id: 'slots_k', weight: 14, mult: [0, 0, 0.2, 0.4, 0.8, 1.5], e: 'K', c: 'bg-orange-500/20 border-orange-600',
-    transform: { scale: 0.8 }
+    transforms: { 2: {scale: 0.8}, 3: {scale: 0.8}, 4: {scale: 0.8}, 5: {scale: 0.8}, 6: {scale: 0.8}, 7: {scale: 0.8} }
   },
   { id: 'slots_q', weight: 16, mult: [0, 0, 0.1, 0.2, 0.5, 1], e: 'Q', c: 'bg-green-500/20 border-green-600',
-    transform: { scale: 0.8 }
+    transforms: { 2: {scale: 0.8}, 3: {scale: 0.8}, 4: {scale: 0.8}, 5: {scale: 0.8}, 6: {scale: 0.8}, 7: {scale: 0.8} }
   },
   
   // === СПЕЦИАЛЬНЫЕ ===
   { id: 'slots_fishbone', weight: 4, isWild: true, e: 'W', c: 'bg-teal-500/20 border-teal-500',
-    transform: { scale: 1.2 }
+    transforms: {
+      2: { scale: 1.15, y: -5 },
+      3: { scale: 1.20, y: -5 },
+      4: { scale: 1.25, y: -5 },
+      5: { scale: 1.30, y: -5 },
+      6: { scale: 1.35, y: -5 },
+      7: { scale: 1.40, y: -5 },
+    }
   },
   { id: 'slots_food', weight: 3, isBonus: true, e: 'B', c: 'bg-pink-500/20 border-pink-500',
-    transform: { scale: 1.1 }
+    transforms: {
+      2: { scale: 1.1 }, 3: { scale: 1.1 }, 4: { scale: 1.15 }, 5: { scale: 1.15 }, 6: { scale: 1.2 }, 7: { scale: 1.2 }
+    }
   }
 ];
 
@@ -191,17 +222,17 @@ export default function Slots({ user }: SlotsProps) {
             <div key={rIdx} className="relative w-full h-full rounded-xl bg-black/40 overflow-hidden">
               <AnimatePresence>
                 {reel.map((sym, sIdx) => {
-                  const isEnlarged = reel.length <= 3;
+                  const rowsCount = reel.length; // От 2 до 7 символов
+                  const isEnlarged = rowsCount <= 3;
                   const imagePath = (isEnlarged && sym.hasBig) ? `${sym.id}_big.webp` : `${sym.id}.webp`;
-                  const heightPct = 100 / reel.length; 
+                  const heightPct = 100 / rowsCount; 
                   
-                  // Читаем удобные настройки
-                  const config = (isEnlarged && sym.transformBig) ? sym.transformBig : sym.transform;
+                  // МАГИЯ ЗДЕСЬ: Достаем настройки именно для ТЕКУЩЕГО размера плашки
+                  const config = sym.transforms?.[rowsCount] || {};
                   
-                  // Задаем значения по умолчанию, если параметры не указаны
-                  const scale = config?.scale !== undefined ? config.scale : 1;
-                  const x = config?.x || 0;
-                  const y = config?.y || 0;
+                  const scale = config.scale !== undefined ? config.scale : 1;
+                  const x = config.x || 0;
+                  const y = config.y || 0;
 
                   return (
                     <motion.div
@@ -215,7 +246,7 @@ export default function Slots({ user }: SlotsProps) {
                         ease: "easeOut",
                         delay: rIdx * 0.1
                       }}
-                      className={`absolute rounded-[12px] border-b-[6px] border-t border-white/10 shadow-xl flex items-center justify-center overflow-hidden ${sym.c}`}
+                      className={`absolute rounded-[12px] border-b-[6px] border-t border-white/10 shadow-xl flex items-center justify-center ${sym.c}`}
                       style={{
                         height: `calc(${heightPct}% - 8px)`,
                         top: `calc(${sIdx * heightPct}% + 4px)`, 
@@ -226,8 +257,7 @@ export default function Slots({ user }: SlotsProps) {
                       <img 
                         src={`${ASSETS_URL}${imagePath}`} 
                         alt={sym.id}
-                        className={`object-contain drop-shadow-xl transition-transform duration-300 ${isEnlarged ? 'w-full h-full p-2' : 'w-4/5 h-4/5 p-1'}`}
-                        // Применяем настройки
+                        className={`relative z-10 object-contain drop-shadow-xl transition-transform duration-300 ${isEnlarged ? 'w-full h-full p-2' : 'w-4/5 h-4/5 p-1'}`}
                         style={{ transform: `translate(${x}px, ${y}px) scale(${scale})` }}
                         draggable="false"
                         onError={(e) => {
