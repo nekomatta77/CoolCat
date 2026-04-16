@@ -22,8 +22,6 @@ export interface SlotSymbol {
   isWild?: boolean;
   isBonus?: boolean;
   hasBig?: boolean;
-  
-  // АБСОЛЮТНАЯ НАСТРОЙКА: Ключ - это количество символов на барабане (от 2 до 7)
   transforms?: Record<number, TransformConfig>;
 }
 
@@ -32,49 +30,49 @@ const SLOT_SYMBOLS: SlotSymbol[] = [
   { 
     id: 'slots_meinkun', weight: 2, mult: [0, 0, 2, 5, 10, 25], e: 'М', c: 'bg-yellow-500/20 border-yellow-600', hasBig: true,
     transforms: {
-      2: { scale: 1.10, y: 0 }, // 2 символа на барабане (самая большая плашка)
-      3: { scale: 2, y: 0 }, // 3 символа на барабане
-      4: { scale: 1.35, y: 0 }, // 4 символа на барабане (средняя плашка)
-      5: { scale: 1.6, y: -8 },  // 5 символов на барабане
-      6: { scale: 1.7, y: -8 },  // 6 символов на барабане
-      7: { scale: 1.7, y: -5.5 },  // 7 символов на барабане (самая мелкая плашка)
+      2: { scale: 2.3, x: 10, y: 10 }, 
+      3: { scale: 1.9, y: -5 }, 
+      4: { scale: 1.4, y: -2 }, 
+      5: { scale: 1.6, y: -7 },  
+      6: { scale: 1.6, y: -5 },  
+      7: { scale: 1.70, y: -6 },  
     }
   },
   { 
     id: 'slots_sphinx', weight: 4, mult: [0, 0, 1.5, 3, 8, 15], e: 'С', c: 'bg-purple-500/20 border-purple-600', hasBig: true,
     transforms: {
-      2: { scale: 1.05, y: -10, x: 2 },
-      3: { scale: 1.10, y: -8, x: 2 },
-      4: { scale: 1.25, y: -6, x: 4 },
-      5: { scale: 1.30, y: -5, x: 4 },
-      6: { scale: 1.35, y: -4, x: 5 },
-      7: { scale: 1.40, y: -3, x: 5 },
+      2: { scale: 2.5, y: -4, x: -5 },
+      3: { scale: 1.6, y: -2, x: -36 },
+      4: { scale: 1.4, y: -2, x: 4 },
+      5: { scale: 1.5, y: -3, x: 4 },
+      6: { scale: 1.6, y: -6, x: 5 },
+      7: { scale: 1.7, y: -6, x: 5 },
     }
   },
   { 
     id: 'slots_british', weight: 6, mult: [0, 0, 1, 2, 5, 10], e: 'Б', c: 'bg-blue-500/20 border-blue-600', hasBig: true,
     transforms: {
-      2: { scale: 1.05, y: -8 },
-      3: { scale: 1.10, y: -6 },
-      4: { scale: 1.20, y: -5 },
-      5: { scale: 1.25, y: -4 },
-      6: { scale: 1.30, y: -3 },
-      7: { scale: 1.35, y: -2 },
+      2: { scale: 2, y: 30, x: -50 },
+      3: { scale: 1.8, y: -6, x: -45 },
+      4: { scale: 1.6, y: -12 },
+      5: { scale: 1.5, y: -4 },
+      6: { scale: 1.5, y: -4 },
+      7: { scale: 1.6, y: -4 },
     }
   },
   { 
     id: 'slots_black', weight: 8, mult: [0, 0, 0.5, 1, 2, 5], e: 'Ч', c: 'bg-gray-700/20 border-gray-600', hasBig: true,
     transforms: {
-      2: { scale: 1.10, y: -10 },
-      3: { scale: 1.15, y: -8 },
-      4: { scale: 1.30, y: -8 },
-      5: { scale: 1.35, y: -6 },
-      6: { scale: 1.40, y: -5 },
-      7: { scale: 1.45, y: -4 },
+      2: { scale: 2, y: -10, x: 60 },
+      3: { scale: 1.4, y: -8, x: 50 },
+      4: { scale: 1.55, y: -9.5 },
+      5: { scale: 1.6, y: -7 },
+      6: { scale: 1.55, y: -5 },
+      7: { scale: 1.7, y: -6 },
     }
   },
   
-  // === БУКВЫ (Для букв можно задать одну настройку для всех размеров, или расписать) ===
+  // === БУКВЫ ===
   { id: 'slots_a', weight: 12, mult: [0, 0, 0.2, 0.5, 1, 2], e: 'A', c: 'bg-red-500/20 border-red-600',
     transforms: { 2: {scale: 0.8}, 3: {scale: 0.8}, 4: {scale: 0.8}, 5: {scale: 0.8}, 6: {scale: 0.8}, 7: {scale: 0.8} } 
   },
@@ -88,12 +86,8 @@ const SLOT_SYMBOLS: SlotSymbol[] = [
   // === СПЕЦИАЛЬНЫЕ ===
   { id: 'slots_fishbone', weight: 4, isWild: true, e: 'W', c: 'bg-teal-500/20 border-teal-500',
     transforms: {
-      2: { scale: 1.15, y: -5 },
-      3: { scale: 1.20, y: -5 },
-      4: { scale: 1.25, y: -5 },
-      5: { scale: 1.30, y: -5 },
-      6: { scale: 1.35, y: -5 },
-      7: { scale: 1.40, y: -5 },
+      2: { scale: 1.15, y: -5 }, 3: { scale: 1.20, y: -5 }, 4: { scale: 1.25, y: -5 }, 
+      5: { scale: 1.30, y: -5 }, 6: { scale: 1.35, y: -5 }, 7: { scale: 1.40, y: -5 },
     }
   },
   { id: 'slots_food', weight: 3, isBonus: true, e: 'B', c: 'bg-pink-500/20 border-pink-500',
@@ -114,6 +108,9 @@ export default function Slots({ user }: SlotsProps) {
   const [isSpinning, setIsSpinning] = useState(false);
   const [lastWin, setLastWin] = useState(0);
   const [spinId, setSpinId] = useState(0);
+
+  // СТЕЙТ ДЛЯ ДЕБАГА: хранит ID выбранного для настройки символа
+  const [debugSymbol, setDebugSymbol] = useState<string>('none');
 
   useEffect(() => {
     if (!user?.uid) return;
@@ -167,11 +164,31 @@ export default function Slots({ user }: SlotsProps) {
   };
 
   const spin = async () => {
-    if (balance < bet || isSpinning) return;
+    if (balance < bet && debugSymbol === 'none') return; // В режиме дебага игнорируем баланс
+    if (isSpinning) return;
     setIsSpinning(true);
     setLastWin(0);
 
     try {
+      // === ЛОГИКА ДЕБАГ-РЕЖИМА ===
+      if (debugSymbol !== 'none') {
+        const forcedGrid: SlotSymbol[][] = [];
+        const forcedSizes = [2, 3, 4, 5, 6, 7]; // Принудительно генерируем все 6 размеров
+        const targetSymbol = SLOT_SYMBOLS.find(s => s.id === debugSymbol) || SLOT_SYMBOLS[0];
+        
+        for (let i = 0; i < 6; i++) {
+          forcedGrid.push(Array.from({ length: forcedSizes[i] }, () => targetSymbol));
+        }
+
+        setSpinId(prev => prev + 1);
+        setGrid(forcedGrid);
+        
+        // В дебаге деньги не снимаем, выигрыши не начисляем
+        setTimeout(() => setIsSpinning(false), 800);
+        return;
+      }
+      // ============================
+
       await updateDoc(doc(db, 'users', user.uid), { balance: increment(-bet) });
 
       const newGrid: SlotSymbol[][] = [];
@@ -222,14 +239,12 @@ export default function Slots({ user }: SlotsProps) {
             <div key={rIdx} className="relative w-full h-full rounded-xl bg-black/40 overflow-hidden">
               <AnimatePresence>
                 {reel.map((sym, sIdx) => {
-                  const rowsCount = reel.length; // От 2 до 7 символов
+                  const rowsCount = reel.length; 
                   const isEnlarged = rowsCount <= 3;
                   const imagePath = (isEnlarged && sym.hasBig) ? `${sym.id}_big.webp` : `${sym.id}.webp`;
                   const heightPct = 100 / rowsCount; 
                   
-                  // МАГИЯ ЗДЕСЬ: Достаем настройки именно для ТЕКУЩЕГО размера плашки
                   const config = sym.transforms?.[rowsCount] || {};
-                  
                   const scale = config.scale !== undefined ? config.scale : 1;
                   const x = config.x || 0;
                   const y = config.y || 0;
@@ -276,30 +291,42 @@ export default function Slots({ user }: SlotsProps) {
 
         <div className="mt-8 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-4 bg-white/5 p-2 rounded-2xl border border-white/10 w-full md:w-auto">
-            <button onClick={() => setBet(Math.max(10, bet - 10))} disabled={isSpinning} className="w-14 h-14 rounded-xl bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-white font-bold text-xl transition-colors">-</button>
+            <button onClick={() => setBet(Math.max(10, bet - 10))} disabled={isSpinning || debugSymbol !== 'none'} className="w-14 h-14 rounded-xl bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-white font-bold text-xl transition-colors">-</button>
             <div className="text-center min-w-[120px]">
               <span className="text-gray-500 text-[10px] block font-bold uppercase tracking-wider">Ставка</span>
               <span className="text-2xl font-black text-white">{bet} ₽</span>
             </div>
-            <button onClick={() => setBet(bet + 10)} disabled={isSpinning} className="w-14 h-14 rounded-xl bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-white font-bold text-xl transition-colors">+</button>
+            <button onClick={() => setBet(bet + 10)} disabled={isSpinning || debugSymbol !== 'none'} className="w-14 h-14 rounded-xl bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-white font-bold text-xl transition-colors">+</button>
           </div>
 
           <div className="h-16 flex items-center justify-center w-full md:w-48">
-            {lastWin > 0 && !isSpinning && (
-              <motion.div initial={{ scale: 0, y: 20 }} animate={{ scale: 1, y: 0 }} className="text-yellow-400 font-black text-4xl drop-shadow-[0_0_20px_rgba(234,179,8,0.6)]">
-                +{lastWin.toFixed(2)} ₽
-              </motion.div>
-            )}
+            {/* ВЫБОР СИМВОЛА ДЛЯ ТЕСТА */}
+            <select 
+              value={debugSymbol} 
+              onChange={(e) => setDebugSymbol(e.target.value)}
+              className="bg-gray-800 border-2 border-yellow-500/50 text-yellow-400 font-bold p-3 rounded-xl outline-none hover:border-yellow-500 transition-colors cursor-pointer"
+            >
+              <option value="none">🕹️ Обычная игра</option>
+              <optgroup label="Тест: Картинки">
+                {SLOT_SYMBOLS.map(sym => (
+                  <option key={sym.id} value={sym.id}>{sym.e} {sym.id.replace('slots_', '')}</option>
+                ))}
+              </optgroup>
+            </select>
           </div>
 
           <button 
             onClick={spin}
-            disabled={isSpinning || balance < bet}
+            disabled={isSpinning || (balance < bet && debugSymbol === 'none')}
             className={`w-full md:w-64 py-5 rounded-2xl font-black text-2xl uppercase tracking-wider transition-all duration-200 ${
-              isSpinning ? 'bg-gray-800 text-gray-500 cursor-not-allowed scale-95' : 'bg-gradient-to-t from-yellow-600 to-yellow-400 text-black shadow-[0_10px_30px_rgba(202,138,4,0.3)] hover:scale-[1.02] active:scale-95'
+              isSpinning 
+                ? 'bg-gray-800 text-gray-500 cursor-not-allowed scale-95' 
+                : debugSymbol !== 'none'
+                  ? 'bg-gradient-to-t from-purple-600 to-blue-500 text-white shadow-[0_10px_30px_rgba(147,51,234,0.3)] hover:scale-[1.02] active:scale-95'
+                  : 'bg-gradient-to-t from-yellow-600 to-yellow-400 text-black shadow-[0_10px_30px_rgba(202,138,4,0.3)] hover:scale-[1.02] active:scale-95'
             }`}
           >
-            {isSpinning ? 'Крутим...' : 'Спин'}
+            {isSpinning ? 'Крутим...' : (debugSymbol !== 'none' ? 'ТЕСТ СПИН' : 'Спин')}
           </button>
         </div>
       </div>
