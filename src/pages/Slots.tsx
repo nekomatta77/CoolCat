@@ -30,8 +30,9 @@ export interface SlotSymbol {
   transforms?: Record<number, TransformConfig>;
 }
 
+// === НОВАЯ ИЕРАРХИЯ СИМВОЛОВ (от самых дорогих к дешевым) ===
 const SLOT_SYMBOLS: SlotSymbol[] = [
-  // === ВЫСОКООПЛАЧИВАЕМЫЕ СИМВОЛЫ (КОТЫ) ===
+  // 1. Мейнкун (самый редкий, самые большие множители)
   { 
     id: 'slots_meinkun', weight: 2, mult: [0, 0, 2, 5, 10, 25], e: 'М', c: 'bg-yellow-500/20 border-yellow-600', hasBig: true,
     transforms: {
@@ -43,6 +44,7 @@ const SLOT_SYMBOLS: SlotSymbol[] = [
       7: { scale: 1.70, y: -6, mobile: { scale: 1.5, y: -2.3 } },  
     }
   },
+  // 2. Сфинкс
   { 
     id: 'slots_sphinx', weight: 4, mult: [0, 0, 1.5, 3, 8, 15], e: 'С', c: 'bg-purple-500/20 border-purple-600', hasBig: true,
     transforms: {
@@ -54,6 +56,7 @@ const SLOT_SYMBOLS: SlotSymbol[] = [
       7: { scale: 1.7, y: -6, x: 5, mobile: { scale: 1.5, y: -2, x: 1 } },
     }
   },
+  // 3. Британец
   { 
     id: 'slots_british', weight: 6, mult: [0, 0, 1, 2, 5, 10], e: 'Б', c: 'bg-blue-500/20 border-blue-600', hasBig: true,
     transforms: {
@@ -65,6 +68,7 @@ const SLOT_SYMBOLS: SlotSymbol[] = [
       7: { scale: 1.6, y: -4, mobile: { scale: 1.7, y: -3 } },
     }
   },
+  // 4. Черный кот
   { 
     id: 'slots_black', weight: 8, mult: [0, 0, 0.5, 1, 2, 5], e: 'Ч', c: 'bg-gray-700/20 border-gray-600', hasBig: true,
     transforms: {
@@ -77,40 +81,8 @@ const SLOT_SYMBOLS: SlotSymbol[] = [
     }
   },
   
-  // === БУКВЫ ===
-  { id: 'slots_a', weight: 12, mult: [0, 0, 0.2, 0.5, 1, 2], e: 'A', c: 'bg-red-500/20 border-red-600',
-    transforms: { 
-      2: { scale: 1.8, y: 0, mobile: { scale: 1.8 } }, 
-      3: { scale: 1.5, y: 0, mobile: { scale: 1.4 } }, 
-      4: { scale: 1.7, y: -2, mobile: { scale: 1.3 } }, 
-      5: { scale: 1.8, y: 0, mobile: { scale: 1.4 } },  
-      6: { scale: 2, y: 0, mobile: { scale: 1.4 } },  
-      7: { scale: 2.5, y: 0, mobile: { scale: 1.5 } } 
-    } 
-  },
-  { id: 'slots_k', weight: 14, mult: [0, 0, 0.2, 0.4, 0.8, 1.5], e: 'K', c: 'bg-orange-500/20 border-orange-600',
-    transforms: { 
-      2: { scale: 1.7, y: 0, mobile: { scale: 2 } }, 
-      3: { scale: 1.5, y: 0, mobile: { scale: 1.7 } }, 
-      4: { scale: 1.6, y: 0, mobile: { scale: 1.6 } }, 
-      5: { scale: 2, y: 0, mobile: { scale: 1.7} },  
-      6: { scale: 2, y: 0, mobile: { scale: 1.75 } },  
-      7: { scale: 2.4, y: 0, mobile: { scale: 1.6 } } 
-    }
-  },
-  { id: 'slots_q', weight: 16, mult: [0, 0, 0.1, 0.2, 0.5, 1], e: 'Q', c: 'bg-green-500/20 border-green-600',
-    transforms: { 
-      2: { scale: 1.6, y: 0, mobile: { scale: 1.75 } }, 
-      3: { scale: 1.4, y: 0, mobile: { scale: 1.4 } }, 
-      4: { scale: 1.45, y: 0, mobile: { scale: 1.5 } }, 
-      5: { scale: 1.6, y: 0, mobile: { scale: 1.5 } },  
-      6: { scale: 1.7, y: 0, mobile: { scale: 1.75 } },  
-      7: { scale: 1.9, y: 0, mobile: { scale: 1.7 } } 
-    }
-  },
-  
-  // === СПЕЦИАЛЬНЫЕ ===
-  { id: 'slots_fishbone', weight: 4, isWild: true, e: 'W', c: 'bg-teal-500/20 border-teal-500',
+  // 5. Fishbone (Теперь обычный символ, без флага isWild)
+  { id: 'slots_fishbone', weight: 10, mult: [0, 0, 0.4, 0.8, 1.5, 3], e: 'W', c: 'bg-teal-500/20 border-teal-500',
     transforms: {
       2: { scale: 1.8, y: 0, mobile: { scale: 1.75, x: 1 } }, 
       3: { scale: 1.6, y: 0, mobile: { scale: 1.6 } }, 
@@ -120,7 +92,8 @@ const SLOT_SYMBOLS: SlotSymbol[] = [
       7: { scale: 2.2, y: 0, mobile: { scale: 1.8 } },
     }
   },
-  { id: 'slots_food', weight: 3, isBonus: true, e: 'B', c: 'bg-pink-500/20 border-pink-500',
+  // 6. Food (Теперь обычный символ, без флага isBonus)
+  { id: 'slots_food', weight: 12, mult: [0, 0, 0.3, 0.6, 1.2, 2.5], e: 'B', c: 'bg-pink-500/20 border-pink-500',
     transforms: {
       2: { scale: 1.9, y: 0, mobile: { scale: 2 } }, 
       3: { scale: 1.7, y: 0, mobile: { scale: 1.8 } }, 
@@ -128,6 +101,63 @@ const SLOT_SYMBOLS: SlotSymbol[] = [
       5: { scale: 1.9, y: 0, mobile: { scale: 1.9 } },  
       6: { scale: 2.2, y: 0, mobile: { scale: 1.9 } }, 
       7: { scale: 2.4, y: 0, mobile: { scale: 2 } }
+    }
+  },
+
+  // === БУКВЫ И ЦИФРЫ ===
+  // 7. A
+  { id: 'slots_a', weight: 14, mult: [0, 0, 0.2, 0.5, 1, 2], e: 'A', c: 'bg-red-500/20 border-red-600',
+    transforms: { 
+      2: { scale: 1.8, y: 0, mobile: { scale: 1.8 } }, 
+      3: { scale: 1.5, y: 0, mobile: { scale: 1.4 } }, 
+      4: { scale: 1.7, y: -2, mobile: { scale: 1.3 } }, 
+      5: { scale: 1.8, y: 0, mobile: { scale: 1.4 } },  
+      6: { scale: 2, y: 0, mobile: { scale: 1.4 } },  
+      7: { scale: 2.5, y: 0, mobile: { scale: 1.5 } } 
+    } 
+  },
+  // 8. K
+  { id: 'slots_k', weight: 16, mult: [0, 0, 0.2, 0.4, 0.8, 1.5], e: 'K', c: 'bg-orange-500/20 border-orange-600',
+    transforms: { 
+      2: { scale: 1.7, y: 0, mobile: { scale: 2 } }, 
+      3: { scale: 1.5, y: 0, mobile: { scale: 1.7 } }, 
+      4: { scale: 1.6, y: 0, mobile: { scale: 1.6 } }, 
+      5: { scale: 2, y: 0, mobile: { scale: 1.7} },  
+      6: { scale: 2, y: 0, mobile: { scale: 1.75 } },  
+      7: { scale: 2.4, y: 0, mobile: { scale: 1.6 } } 
+    }
+  },
+  // 9. Q
+  { id: 'slots_q', weight: 18, mult: [0, 0, 0.1, 0.2, 0.5, 1], e: 'Q', c: 'bg-green-500/20 border-green-600',
+    transforms: { 
+      2: { scale: 1.6, y: 0, mobile: { scale: 1.75 } }, 
+      3: { scale: 1.4, y: 0, mobile: { scale: 1.4 } }, 
+      4: { scale: 1.45, y: 0, mobile: { scale: 1.5 } }, 
+      5: { scale: 1.6, y: 0, mobile: { scale: 1.5 } },  
+      6: { scale: 1.7, y: 0, mobile: { scale: 1.75 } },  
+      7: { scale: 1.9, y: 0, mobile: { scale: 1.7 } } 
+    }
+  },
+  // 10. J
+  { id: 'slots_j', weight: 20, mult: [0, 0, 0.1, 0.15, 0.4, 0.8], e: 'J', c: 'bg-cyan-500/20 border-cyan-600',
+    transforms: { 
+      2: { scale: 1.6, y: 0, mobile: { scale: 1.75 } }, 
+      3: { scale: 1.4, y: 0, mobile: { scale: 1.4 } }, 
+      4: { scale: 1.45, y: 0, mobile: { scale: 1.5 } }, 
+      5: { scale: 1.6, y: 0, mobile: { scale: 1.5 } },  
+      6: { scale: 1.7, y: 0, mobile: { scale: 1.75 } },  
+      7: { scale: 1.9, y: 0, mobile: { scale: 1.7 } } 
+    }
+  },
+  // 11. 10 (самый частый, самые низкие множители)
+  { id: 'slots_10', weight: 22, mult: [0, 0, 0.05, 0.1, 0.3, 0.5], e: '10', c: 'bg-indigo-500/20 border-indigo-600',
+    transforms: { 
+      2: { scale: 1.6, y: 0, mobile: { scale: 1.75 } }, 
+      3: { scale: 1.4, y: 0, mobile: { scale: 1.4 } }, 
+      4: { scale: 1.45, y: 0, mobile: { scale: 1.5 } }, 
+      5: { scale: 1.6, y: 0, mobile: { scale: 1.5 } },  
+      6: { scale: 1.7, y: 0, mobile: { scale: 1.75 } },  
+      7: { scale: 1.9, y: 0, mobile: { scale: 1.7 } } 
     }
   }
 ];
@@ -137,7 +167,6 @@ interface SlotsProps {
 }
 
 export default function Slots({ user }: SlotsProps) {
-  // === ДОБАВЛЕН REF ДЛЯ КОНТЕЙНЕРА ===
   const containerRef = useRef<HTMLDivElement>(null);
   
   const [balance, setBalance] = useState(user.balance);
@@ -189,12 +218,14 @@ export default function Slots({ user }: SlotsProps) {
 
   const calculateMegawaysWin = (currentGrid: SlotSymbol[][], currentBet: number) => {
     let totalWin = 0;
+    // Так как мы убрали isWild и isBonus, фильтр пропустит все символы для проверки выигрышей
     const symbolsToTest = SLOT_SYMBOLS.filter(s => !s.isWild && !s.isBonus);
 
     symbolsToTest.forEach(sym => {
       let ways = 1;
       let matchedReels = 0;
       for (let r = 0; r < 6; r++) {
+        // Если вдруг мы когда-нибудь вернем isWild, логика все еще будет работать
         const count = currentGrid[r].filter(s => s.id === sym.id || s.isWild).length;
         if (count > 0) {
           matchedReels++;
@@ -211,20 +242,18 @@ export default function Slots({ user }: SlotsProps) {
     return { win: totalWin };
   };
 
-  // === НОВЫЕ ФУНКЦИИ ВХОДА/ВЫХОДА ИЗ FULLSCREEN ===
   const startGame = async () => {
     setHasStarted(true);
     
-    // Запрос полноэкранного режима браузера
     try {
       const elem = containerRef.current as any;
       if (elem) {
         if (elem.requestFullscreen) {
           await elem.requestFullscreen();
         } else if (elem.webkitRequestFullscreen) {
-          await elem.webkitRequestFullscreen(); // Safari
+          await elem.webkitRequestFullscreen(); 
         } else if (elem.msRequestFullscreen) {
-          await elem.msRequestFullscreen(); // IE11
+          await elem.msRequestFullscreen(); 
         }
       }
     } catch (err) {
@@ -235,7 +264,6 @@ export default function Slots({ user }: SlotsProps) {
   const exitGame = async () => {
     setHasStarted(false);
     
-    // Выход из полноэкранного режима браузера
     try {
       const doc = document as any;
       if (doc.fullscreenElement || doc.webkitFullscreenElement) {
@@ -308,7 +336,6 @@ export default function Slots({ user }: SlotsProps) {
   };
 
   return (
-    // Главный контейнер. Меняет классы при старте на полноэкранные (fixed, 100dvh)
     <div 
       ref={containerRef}
       className={`font-sans bg-[#0a0a0c] transition-all duration-300 ${
@@ -318,7 +345,6 @@ export default function Slots({ user }: SlotsProps) {
       }`}
     >
       
-      {/* КНОПКА ЗАКРЫТИЯ: видна только во время игры (в полноэкранном режиме) */}
       {hasStarted && (
         <button 
           onClick={exitGame}
@@ -331,7 +357,6 @@ export default function Slots({ user }: SlotsProps) {
 
       <div className="w-full max-w-6xl bg-gradient-to-b from-gray-900 to-black p-2 md:p-6 rounded-[16px] md:rounded-[40px] border-t-2 md:border-t-4 border-yellow-500 shadow-[0_10px_30px_rgba(0,0,0,0.8)] relative overflow-hidden">
         
-        {/* ПРИВЕТСТВЕННЫЙ ЭКРАН (OVERLAY) */}
         <AnimatePresence>
           {!hasStarted && (
             <motion.div 
@@ -343,7 +368,6 @@ export default function Slots({ user }: SlotsProps) {
               <h1 className="text-5xl md:text-7xl font-black text-white italic tracking-tighter mb-8 drop-shadow-[0_5px_15px_rgba(0,0,0,1)] text-center">
                 CAT HOUSE
               </h1>
-              {/* При клике вызываем startGame вместо обычного setHasStarted */}
               <button 
                 onClick={startGame}
                 className="px-10 py-5 bg-gradient-to-t from-yellow-600 to-yellow-400 text-black text-2xl md:text-3xl font-black rounded-2xl shadow-[0_10px_40px_rgba(202,138,4,0.5)] hover:scale-105 active:scale-95 transition-all uppercase tracking-widest"
@@ -354,7 +378,6 @@ export default function Slots({ user }: SlotsProps) {
           )}
         </AnimatePresence>
 
-        {/* ШАПКА АВТОМАТА */}
         <div className="flex justify-between items-end mb-2 md:mb-6 px-1 md:px-4 relative z-20">
           <div>
             <h2 className="text-xl md:text-4xl font-black text-white italic tracking-tighter leading-none drop-shadow-md">CAT HOUSE</h2>
@@ -366,7 +389,6 @@ export default function Slots({ user }: SlotsProps) {
           </div>
         </div>
 
-        {/* ИГРОВОЕ ПОЛЕ */}
         <div className="grid grid-cols-6 gap-[2px] md:gap-2 bg-black/80 p-1 md:p-3 rounded-xl md:rounded-3xl border md:border-2 border-white/5 h-[220px] sm:h-[280px] md:h-[600px] relative z-10">
           {grid.map((reel, rIdx) => (
             <div key={rIdx} className="relative w-full h-full rounded-md md:rounded-xl bg-black/40">
@@ -447,7 +469,6 @@ export default function Slots({ user }: SlotsProps) {
           ))}
         </div>
 
-        {/* ПАНЕЛЬ УПРАВЛЕНИЯ */}
         <div className="mt-2 md:mt-8 flex flex-col md:flex-row items-center justify-between gap-2 md:gap-6 relative z-20 bg-gray-900/50 p-2 md:p-4 rounded-xl md:rounded-3xl backdrop-blur-sm border border-white/5">
           <div className="flex items-center justify-between md:justify-start gap-2 md:gap-4 bg-black/40 p-1 md:p-2 rounded-lg md:rounded-2xl border border-white/10 w-full md:w-auto">
             <button onClick={() => setBet(Math.max(10, bet - 10))} disabled={isSpinning || debugSymbol !== 'none'} className="w-10 h-10 md:w-14 md:h-14 rounded-md md:rounded-xl bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-white font-bold text-lg md:text-xl transition-colors">-</button>
