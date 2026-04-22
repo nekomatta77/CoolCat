@@ -1,7 +1,8 @@
+// src/components/Sidebar.tsx
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { UserProfile } from '../types';
-import { Home, HelpCircle, Gift, TrendingUp, Trophy, Settings, Phone, ShieldAlert } from 'lucide-react';
+import { Home, HelpCircle, Gift, TrendingUp, Trophy, Settings, Phone, ShieldAlert, Gamepad2 } from 'lucide-react'; // <--- ДОБАВИЛИ ИКОНКУ Gamepad2
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import OnlineCounter from './OnlineCounter';
@@ -58,9 +59,10 @@ export default function Sidebar({ user, onClose }: SidebarProps) {
 
   const menuItems = [
     { icon: Home, label: 'Главная', path: '/' },
+    { icon: Gamepad2, label: 'Провайдеры', path: '/external-slots' }, // <--- ДОБАВЛЕНА НОВАЯ ССЫЛКА В МЕНЮ
     { icon: HelpCircle, label: 'FAQ', path: '/faq' },
     { icon: Gift, label: 'Бонусы', path: '/bonuses' },
-    { icon: TrendingUp, label: 'LvL Котика', path: '/level' }, // Переименовано здесь
+    { icon: TrendingUp, label: 'LvL Котика', path: '/level' },
     { icon: Trophy, label: 'Достижения', path: '/achievements' },
     { icon: Settings, label: 'Настройки', path: '/profile' },
     { icon: Phone, label: 'Контакты', path: '/contacts' },
@@ -91,25 +93,22 @@ export default function Sidebar({ user, onClose }: SidebarProps) {
               />
             </div>
             
-            {/* НОВЫЙ ДИЗАЙН ЛОГОТИПА COOLCAT */}
             <span 
               className="text-2xl font-black tracking-tighter origin-left block relative"
               style={{
                 transform: `translate(${textCfg.x}px, ${textCfg.y}px) scale(${textCfg.scale})`
               }}
             >
-              {/* Задний слой: создает толстую обводку */}
               <span
                 className="absolute inset-0 z-0 drop-shadow-sm"
                 style={{
-                  WebkitTextStroke: '6px #5c2f3c', // Бежево-коричневато-розовая обводка
+                  WebkitTextStroke: '6px #5c2f3c',
                   color: 'transparent'
                 }}
                 aria-hidden="true"
               >
                 CoolCat
               </span>
-              {/* Передний слой: текст с цветом */}
               <span className="relative z-10">
                 <span style={{ color: LOGO_COLOR_COOL }}>Cool</span>
                 <span className="text-white">Cat</span>

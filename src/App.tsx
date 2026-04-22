@@ -14,6 +14,7 @@ import Mines from './pages/Mines';
 import Keno from './pages/Keno';
 import WheelX from './pages/WheelX';
 import Slots from './pages/Slots';
+import ExternalSlots from './pages/ExternalSlots'; // <--- ДОБАВЛЕН ИМПОРТ НОВОЙ СТРАНИЦЫ
 import FAQ from './pages/FAQ';
 import Bonuses from './pages/Bonuses';
 import Level from './pages/Level';
@@ -208,21 +209,17 @@ export default function App() {
         </div>
         
         <div className="flex flex-col items-center gap-4">
-          
-          {/* НОВЫЙ ДИЗАЙН ТЕКСТА COOLCAT (КАК В САЙДБАРЕ) */}
           <div className="relative inline-block pb-1">
-            {/* Задний слой: создает толстую обводку */}
             <span
               className="absolute inset-0 z-0 drop-shadow-sm block text-4xl lg:text-5xl font-black tracking-tighter"
               style={{
-                WebkitTextStroke: '8px #5c2f3c', // Толстая бежево-коричневато-розовая обводка
+                WebkitTextStroke: '8px #5c2f3c',
                 color: 'transparent'
               }}
               aria-hidden="true"
             >
               CoolCat
             </span>
-            {/* Передний слой: текст с цветом */}
             <span className="relative z-10 block text-4xl lg:text-5xl font-black tracking-tighter">
               <span style={{ color: '#feb1d1' }}>Cool</span>
               <span className="text-white">Cat</span>
@@ -265,6 +262,7 @@ export default function App() {
           <Route path="/keno" element={<Keno user={user} />} />
           <Route path="/wheelx" element={<WheelX user={user} />} />
           <Route path="/slots" element={<Slots user={user} />} />
+          <Route path="/external-slots" element={<ExternalSlots user={user} />} /> {/* <--- ДОБАВЛЕН РОУТ ДЛЯ СЛОТОВ АГРЕГАТОРА */}
           <Route path="/faq" element={<FAQ />} />
           <Route path="/bonuses" element={<Bonuses user={user} />} />
           <Route path="/level" element={<Level user={user} />} />
