@@ -1,9 +1,12 @@
 // src/config/api.ts
 
-// IP твоего VPS сервера
-export const AGGREGATOR_API_URL = 'http://193.124.66.221:22777/api';
+// Если это локальная разработка (DEV), используем прямой IP.
+// Если это Vercel (PROD), используем наш созданный мост /proxy/api.
+export const AGGREGATOR_API_URL = import.meta.env.DEV 
+  ? 'http://193.124.66.221:22777/api' 
+  : '/proxy/api';
 
 export const ENDPOINTS = {
-  GAMES_LIST: '/public-games', // <--- Изменили на нашу новую публичную ссылку
-  GAME_INIT: '/games/init',
+  GAMES_LIST: '/public-games',
+  GAME_INIT: '/real-session',
 };

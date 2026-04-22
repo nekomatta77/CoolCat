@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { UserProfile } from '../types';
 import { Play, X, AlertCircle, Search, Coins } from 'lucide-react';
 import { AGGREGATOR_API_URL, ENDPOINTS } from '../config/api';
@@ -19,25 +19,36 @@ interface ProviderGame {
 export default function ExternalSlots({ user }: ExternalSlotsProps) {
   const [games, setGames] = useState<ProviderGame[]>([]);
   const [loading, setLoading] = useState(true);
-  const [launching, setLaunching] = useState(false); // Состояние загрузки самой игры
+  const [launching, setLaunching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeGameUrl, setActiveGameUrl] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // Состояния для ленивой загрузки (Lazy Loading)
+  const [visibleCount, setVisibleCount] = useState(20);
+  const loaderRef = useRef<HTMLDivElement>(null);
 
+  // 1. Загрузка списка всех игр один раз
   useEffect(() => {
     const fetchGames = async () => {
       try {
         setLoading(true);
         const response = await fetch(`${AGGREGATOR_API_URL}${ENDPOINTS.GAMES_LIST}`);
+        if (!response.ok) throw new Error('Ошибка сервера агрегатора. Проверьте IP и CORS.');
+        
         const data = await response.json();
         
         let parsedGames: ProviderGame[] = [];
         if (Array.isArray(data)) parsedGames = data;
-        else if (data && typeof data === 'object') parsedGames = Object.values(data);
+        else if (data && typeof data === 'object') {
+          if (data.data && Array.isArray(data.data)) parsedGames = data.data;
+          else if (data.original && Array.isArray(data.original)) parsedGames = data.original;
+          else parsedGames = Object.values(data);
+        }
         
         setGames(parsedGames);
       } catch (err: any) {
-        setError('Не удалось загрузить игры.');
+        setError(err.message || 'Не удалось загрузить игры.');
       } finally {
         setLoading(false);
       }
@@ -45,26 +56,43 @@ export default function ExternalSlots({ user }: ExternalSlotsProps) {
     fetchGames();
   }, []);
 
-  // ЛОГИКА ЗАПУСКА НА РЕАЛЬНЫЕ ДЕНЬГИ
+  // 2. Механизм бесконечной прокрутки
+  useEffect(() => {
+    const observer = new IntersectionObserver((entries) => {
+      // Если невидимый элемент внизу экрана появился в зоне видимости
+      if (entries[0].isIntersecting) {
+        setVisibleCount((prev) => prev + 20); // Добавляем еще 20 игр
+      }
+    }, { rootMargin: '300px' }); // Начинаем грузить чуть заранее (за 300px до конца)
+
+    if (loaderRef.current) observer.observe(loaderRef.current);
+    
+    return () => observer.disconnect();
+  }, [games.length]);
+
+  // Сбрасываем количество видимых игр при поиске
+  useEffect(() => {
+    setVisibleCount(20);
+  }, [searchTerm]);
+
+  // 3. Запуск реальной сессии
   const launchRealGame = async (game: ProviderGame) => {
     try {
       setLaunching(true);
-      const res = await fetch(`${AGGREGATOR_API_URL}/real-session`, {
+      const res = await fetch(`${AGGREGATOR_API_URL}${ENDPOINTS.GAME_INIT}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           game: game.gid,
-          player: user.uid // Отправляем UID твоего игрока
+          player: user.uid 
         })
       });
 
       const data = await res.json();
-      
-      // Агрегатор обычно отдает ссылку в поле url или session_url
       if (data.url || data.session_url) {
         setActiveGameUrl(data.url || data.session_url);
       } else {
-        alert("Ошибка создания сессии. Открываем демо-версию.");
+        alert("Ошибка создания сессии на деньги. Открываем демо-версию.");
         setActiveGameUrl(game.demolink || null);
       }
     } catch (e) {
@@ -75,14 +103,18 @@ export default function ExternalSlots({ user }: ExternalSlotsProps) {
     }
   };
 
+  // Фильтруем игры по поиску
   const filteredGames = games.filter(game => {
     const search = searchTerm.toLowerCase();
     return (game.name || '').toLowerCase().includes(search) || (game.provider || '').toLowerCase().includes(search);
   });
 
+  // Отрезаем только то количество игр, которое нужно показать сейчас (Lazy Load)
+  const visibleGames = filteredGames.slice(0, visibleCount);
+
   return (
     <div className="max-w-7xl mx-auto p-4 md:p-8">
-      {/* Header */}
+      {/* Header & Search */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
         <div>
           <h1 className="text-4xl font-black text-slate-900 tracking-tighter uppercase flex items-center gap-3">
@@ -104,14 +136,19 @@ export default function ExternalSlots({ user }: ExternalSlotsProps) {
         </div>
       </div>
 
-      {error && <div className="text-red-500 font-bold">{error}</div>}
+      {error && (
+        <div className="bg-red-50 text-red-600 p-4 rounded-2xl flex items-center gap-3 font-bold mb-6">
+          <AlertCircle className="w-6 h-6" />
+          {error}
+        </div>
+      )}
 
       {/* Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
-        {loading ? [...Array(15)].map((_, i) => <div key={i} className="aspect-[3/4] bg-slate-200 animate-pulse rounded-[2rem]" />) 
-        : filteredGames.map((game, i) => (
+        {loading ? [...Array(20)].map((_, i) => <div key={i} className="aspect-[3/4] bg-slate-200 animate-pulse rounded-[2rem]" />) 
+        : visibleGames.map((game, i) => (
           <div 
-            key={`game-${i}`} 
+            key={`game-${game.id || game.gid || i}`} 
             className="group bg-white rounded-[2rem] overflow-hidden border-2 border-slate-100 hover:border-brand-500 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 cursor-pointer flex flex-col relative"
             onClick={() => launchRealGame(game)}
           >
@@ -124,6 +161,7 @@ export default function ExternalSlots({ user }: ExternalSlotsProps) {
                 alt={game.name || 'Game'} 
                 className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                 onError={(e) => { (e.target as HTMLImageElement).src = '/assets/slot_cat_original.webp' }}
+                loading="lazy"
               />
               <div className="absolute inset-0 bg-brand-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
                 <Play className="w-12 h-12 text-white fill-brand-500 drop-shadow-2xl transform scale-75 group-hover:scale-100 transition-all duration-300" />
@@ -136,6 +174,13 @@ export default function ExternalSlots({ user }: ExternalSlotsProps) {
           </div>
         ))}
       </div>
+
+      {/* Невидимый элемент для срабатывания Observer (подгрузка) */}
+      {!loading && visibleCount < filteredGames.length && (
+        <div ref={loaderRef} className="h-20 flex items-center justify-center mt-4">
+           <div className="w-8 h-8 border-4 border-slate-200 border-t-brand-500 rounded-full animate-spin"></div>
+        </div>
+      )}
 
       {/* Iframe Modal */}
       {activeGameUrl && (
