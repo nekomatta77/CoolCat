@@ -1,8 +1,8 @@
 {
   "rewrites": [
     {
-      "source": "/proxy/api/:match*",
-      "destination": "http://193.124.66.221:22777/api/:match*"
+      "source": "/proxy/:match*",
+      "destination": "http://193.124.66.221:22777/:match*"
     },
     {
       "source": "/(.*)",

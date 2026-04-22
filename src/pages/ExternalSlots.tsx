@@ -75,7 +75,7 @@ export default function ExternalSlots({ user }: ExternalSlotsProps) {
     setVisibleCount(20);
   }, [searchTerm]);
 
-  // 3. Запуск реальной сессии
+ // 3. Запуск реальной сессии
   const launchRealGame = async (game: ProviderGame) => {
     try {
       setLaunching(true);
@@ -88,15 +88,33 @@ export default function ExternalSlots({ user }: ExternalSlotsProps) {
         })
       });
 
-      const data = await res.json();
-      if (data.url || data.session_url) {
-        setActiveGameUrl(data.url || data.session_url);
+      const responseData = await res.json();
+      
+      // 1. Умный поиск ссылки (распаковываем "матрешку" агрегатора)
+      let sessionUrl = null;
+      if (responseData.data && responseData.data.session && responseData.data.session.session_url) {
+          sessionUrl = responseData.data.session.session_url;
+      } else if (responseData.session_url || responseData.url) {
+          sessionUrl = responseData.session_url || responseData.url;
+      }
+
+      if (sessionUrl) {
+        // 2. Защита для Vercel: превращаем HTTP-ссылку в безопасную HTTPS через наш прокси
+        const isDev = import.meta.env.DEV;
+        let safeUrl = sessionUrl;
+        
+        if (!isDev) {
+            // Если мы на Vercel, заменяем IP сервера на наш прокси
+            safeUrl = sessionUrl.replace('http://193.124.66.221:22777', '/proxy');
+        }
+        
+        setActiveGameUrl(safeUrl);
       } else {
-        alert("Ошибка создания сессии на деньги. Открываем демо-версию.");
+        alert("Ошибка: Ссылка не найдена в ответе сервера. Открываем демо.");
         setActiveGameUrl(game.demolink || null);
       }
     } catch (e) {
-      alert("Сервер не отвечает. Открываем демо-версию.");
+      alert("Сервер не отвечает. Открываем демо.");
       setActiveGameUrl(game.demolink || null);
     } finally {
       setLaunching(false);
