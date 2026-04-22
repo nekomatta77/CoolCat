@@ -1,8 +1,28 @@
 {
   "rewrites": [
     {
-      "source": "/proxy/:match*",
-      "destination": "http://193.124.66.221:22777/:match*"
+      "source": "/api/:match*",
+      "destination": "http://193.124.66.221:22777/api/:match*"
+    },
+    {
+      "source": "/g",
+      "destination": "http://193.124.66.221:22777/g"
+    },
+    {
+      "source": "/replay/:match*",
+      "destination": "http://193.124.66.221:22777/replay/:match*"
+    },
+    {
+      "source": "/games/:match*",
+      "destination": "http://193.124.66.221:22777/games/:match*"
+    },
+    {
+      "source": "/build/:match*",
+      "destination": "http://193.124.66.221:22777/build/:match*"
+    },
+    {
+      "source": "/sw.js",
+      "destination": "http://193.124.66.221:22777/sw.js"
     },
     {
       "source": "/(.*)",

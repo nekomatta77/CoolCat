@@ -104,8 +104,8 @@ export default function ExternalSlots({ user }: ExternalSlotsProps) {
         let safeUrl = sessionUrl;
         
         if (!isDev) {
-            // Если мы на Vercel, заменяем IP сервера на наш прокси
-            safeUrl = sessionUrl.replace('http://193.124.66.221:22777', '/proxy');
+            // Заменяем IP сервера на родной защищенный HTTPS-домен Vercel
+            safeUrl = sessionUrl.replace('http://193.124.66.221:22777', window.location.origin);
         }
         
         setActiveGameUrl(safeUrl);
