@@ -1,24 +1,28 @@
 {
   "rewrites": [
     {
-      "source": "/backend-api/:match*",
-      "destination": "http://193.124.66.221:22777/api/:match*"
+      "source": "/backend-api/:path*",
+      "destination": "http://193.124.66.221:22777/api/:path*"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "http://193.124.66.221:22777/api/:path*"
     },
     {
       "source": "/g",
       "destination": "http://193.124.66.221:22777/g"
     },
     {
-      "source": "/replay/:match*",
-      "destination": "http://193.124.66.221:22777/replay/:match*"
+      "source": "/replay/:path*",
+      "destination": "http://193.124.66.221:22777/replay/:path*"
     },
     {
-      "source": "/games/:match*",
-      "destination": "http://193.124.66.221:22777/games/:match*"
+      "source": "/games/:path*",
+      "destination": "http://193.124.66.221:22777/games/:path*"
     },
     {
-      "source": "/build/:match*",
-      "destination": "http://193.124.66.221:22777/build/:match*"
+      "source": "/build/:path*",
+      "destination": "http://193.124.66.221:22777/build/:path*"
     },
     {
       "source": "/sw.js",
