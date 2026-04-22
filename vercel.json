@@ -13,6 +13,14 @@
       "destination": "http://193.124.66.221:22777/g"
     },
     {
+      "source": "/replay/sw.js",
+      "destination": "http://193.124.66.221:22777/sw.js"
+    },
+    {
+      "source": "/sw.js",
+      "destination": "http://193.124.66.221:22777/sw.js"
+    },
+    {
       "source": "/replay/:path*",
       "destination": "http://193.124.66.221:22777/replay/:path*"
     },
@@ -25,8 +33,12 @@
       "destination": "http://193.124.66.221:22777/build/:path*"
     },
     {
-      "source": "/sw.js",
-      "destination": "http://193.124.66.221:22777/sw.js"
+      "source": "/js/:path*",
+      "destination": "http://193.124.66.221:22777/js/:path*"
+    },
+    {
+      "source": "/css/:path*",
+      "destination": "http://193.124.66.221:22777/css/:path*"
     },
     {
       "source": "/(.*)",
