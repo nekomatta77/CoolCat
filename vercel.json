@@ -49,6 +49,18 @@
       "destination": "http://193.124.66.221:22777/storage/:path*"
     },
     {
+      "source": "/dynamic_asset/:path*",
+      "destination": "http://193.124.66.221:22777/dynamic_asset/:path*"
+    },
+    {
+      "source": "/gs2c/:path*",
+      "destination": "http://193.124.66.221:22777/gs2c/:path*"
+    },
+    {
+      "source": "/ReplayService/:path*",
+      "destination": "http://193.124.66.221:22777/ReplayService/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
