@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/pragmatic-proxy/:path*",
+      "destination": "https://demogamesfree.pragmaticplay.net/:path*"
+    },
+    {
       "source": "/backend-api/:path*",
       "destination": "http://193.124.66.221:22777/api/:path*"
     },
