@@ -13,16 +13,12 @@
       "destination": "http://193.124.66.221:22777/g"
     },
     {
-      "source": "/replay/sw.js",
-      "destination": "http://193.124.66.221:22777/sw.js"
+      "source": "/g/:path*",
+      "destination": "http://193.124.66.221:22777/g/:path*"
     },
     {
       "source": "/sw.js",
       "destination": "http://193.124.66.221:22777/sw.js"
-    },
-    {
-      "source": "/replay/:path*",
-      "destination": "http://193.124.66.221:22777/replay/:path*"
     },
     {
       "source": "/games/:path*",
@@ -39,6 +35,18 @@
     {
       "source": "/css/:path*",
       "destination": "http://193.124.66.221:22777/css/:path*"
+    },
+    {
+      "source": "/assets/:path*",
+      "destination": "http://193.124.66.221:22777/assets/:path*"
+    },
+    {
+      "source": "/vendor/:path*",
+      "destination": "http://193.124.66.221:22777/vendor/:path*"
+    },
+    {
+      "source": "/storage/:path*",
+      "destination": "http://193.124.66.221:22777/storage/:path*"
     },
     {
       "source": "/(.*)",

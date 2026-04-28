@@ -76,7 +76,7 @@ export default function ExternalSlots({ user }: ExternalSlotsProps) {
   }, [searchTerm]);
 
  // 3. Запуск реальной сессии
-  const launchRealGame = async (game: ProviderGame) => {
+ const launchRealGame = async (game: ProviderGame) => {
     try {
       setLaunching(true);
       const res = await fetch(`${AGGREGATOR_API_URL}${ENDPOINTS.GAME_INIT}`, {
@@ -90,7 +90,6 @@ export default function ExternalSlots({ user }: ExternalSlotsProps) {
 
       const responseData = await res.json();
       
-      // 1. Умный поиск ссылки (распаковываем "матрешку" агрегатора)
       let sessionUrl = null;
       if (responseData.data && responseData.data.session && responseData.data.session.session_url) {
           sessionUrl = responseData.data.session.session_url;
@@ -99,22 +98,30 @@ export default function ExternalSlots({ user }: ExternalSlotsProps) {
       }
 
       if (sessionUrl) {
-        // 2. Защита для Vercel: превращаем HTTP-ссылку в безопасную HTTPS через наш прокси
         const isDev = import.meta.env.DEV;
         let safeUrl = sessionUrl;
         
         if (!isDev) {
-            // Заменяем IP сервера на родной защищенный HTTPS-домен Vercel
-            safeUrl = sessionUrl.replace('http://193.124.66.221:22777', window.location.origin);
+            // Используем URL object для безопасной замены домена
+            try {
+                const urlObj = new URL(sessionUrl);
+                // Заменяем только если это наш IP агрегатора
+                if (urlObj.hostname === '193.124.66.221') {
+                    safeUrl = `${window.location.origin}${urlObj.pathname}${urlObj.search}`;
+                }
+            } catch (e) {
+                // Если не получилось распарсить, используем старый метод
+                safeUrl = sessionUrl.replace('http://193.124.66.221:22777', window.location.origin);
+            }
         }
         
         setActiveGameUrl(safeUrl);
       } else {
-        alert("Ошибка: Ссылка не найдена в ответе сервера. Открываем демо.");
+        alert("Ошибка: Ссылка не найдена");
         setActiveGameUrl(game.demolink || null);
       }
     } catch (e) {
-      alert("Сервер не отвечает. Открываем демо.");
+      alert("Сервер не отвечает");
       setActiveGameUrl(game.demolink || null);
     } finally {
       setLaunching(false);
