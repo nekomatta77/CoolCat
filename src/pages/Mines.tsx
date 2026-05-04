@@ -1,3 +1,4 @@
+// src/pages/Mines.tsx
 import { useState, useRef, useEffect } from 'react';
 import { UserProfile } from '../types';
 import { doc, updateDoc, addDoc, collection, getDocs, query, where, increment } from 'firebase/firestore';
@@ -75,7 +76,6 @@ export default function Mines({ user }: MinesProps) {
     }
   };
 
-  // ЖЕЛЕЗОБЕТОННЫЕ ОБРАБОТЧИКИ СТАВОК ДЛЯ MINES
   const handleHalfBet = () => {
     if (gameState === 'playing') return;
     const current = parseFloat(betInput.replace(',', '.')) || 0;
@@ -157,17 +157,11 @@ export default function Mines({ user }: MinesProps) {
     try {
       const achQuery = query(collection(db, 'achievements'), where('userId', '==', user.uid), where('category', '==', 'mines'));
       const achSnapshot = await getDocs(achQuery);
-      
-      const userAchs: MutableAchievement[] = achSnapshot.docs.map(d => ({ 
-        id: d.id, 
-        ...d.data() 
-      } as MutableAchievement));
+      const userAchs: MutableAchievement[] = achSnapshot.docs.map(d => ({ id: d.id, ...d.data() } as MutableAchievement));
 
       const getAch = (type: string): MutableAchievement => {
         const existing = userAchs.find(a => a.type === type);
-        return existing ? { ...existing } : { 
-          type, category: 'mines', progress: 0, completed: false, rewarded: false, userId: user.uid 
-        };
+        return existing ? { ...existing } : { type, category: 'mines', progress: 0, completed: false, rewarded: false, userId: user.uid };
       };
 
       const updates: MutableAchievement[] = [];
@@ -177,25 +171,18 @@ export default function Mines({ user }: MinesProps) {
       const processAch = (type: string, target: number, progressFn: (a: MutableAchievement) => MutableAchievement, title: string) => {
         let ach = getAch(type);
         if (ach.completed) return;
-        
         const oldProg = ach.progress;
         ach = progressFn({ ...ach });
-        
         if (ach.progress >= target) {
-          ach.progress = target;
-          ach.completed = true;
-          newlyUnlocked = title; 
+          ach.progress = target; ach.completed = true; newlyUnlocked = title; 
         }
-        
         if (ach.progress !== oldProg || ach.completed) {
           if (ach.id) {
             const existingIdx = updates.findIndex(u => u.id === ach.id);
-            if (existingIdx >= 0) updates[existingIdx] = ach;
-            else updates.push(ach);
+            if (existingIdx >= 0) updates[existingIdx] = ach; else updates.push(ach);
           } else {
             const existingIdx = newAchsToCreate.findIndex(u => u.type === ach.type);
-            if (existingIdx >= 0) newAchsToCreate[existingIdx] = ach;
-            else newAchsToCreate.push(ach);
+            if (existingIdx >= 0) newAchsToCreate[existingIdx] = ach; else newAchsToCreate.push(ach);
           }
         }
       };
@@ -206,49 +193,20 @@ export default function Mines({ user }: MinesProps) {
         processAch('mines_sapper1', 25, a => { a.progress++; return a; }, 'Кот-сапер');
         processAch('mines_sapper2', 50, a => { a.progress++; return a; }, 'Кот-сапер II');
       }
-      if (bet >= 250 && minesCount >= 5) {
-        processAch('mines_sapper3', 100, a => { a.progress++; return a; }, 'Кот-сапер III');
-      }
-      if (minesCount === 24 && bet >= 100) {
-        processAch('mines_careful', 5, a => { a.progress++; return a; }, 'Осторожные лапки');
-      }
-      if (multiplier >= 50) {
-        processAch('mines_kitty1', 1, a => { a.progress = 1; return a; }, 'В поисках кисы');
-      }
-      if (multiplier >= 100) {
-        processAch('mines_kitty2', 1, a => { a.progress = 1; return a; }, 'В поисках кисы II');
-      }
-      if (multiplier >= 250) {
-        processAch('mines_kitty3', 1, a => { a.progress = 1; return a; }, 'В поисках кисы III');
-      }
-      if (multiplier >= 800 && bet >= 25) {
-        processAch('mines_kitty4', 1, a => { a.progress = 1; return a; }, 'В поисках кисы IV');
-      }
-      if (minesCount === 2 && revealedCount === 23) {
-        processAch('mines_infinity1', 1, a => { a.progress = 1; return a; }, 'Бесконечность не предел');
-      }
-      if (minesCount === 3 && revealedCount === 22 && bet >= 5) {
-        processAch('mines_infinity2', 1, a => { a.progress = 1; return a; }, 'Бесконечность не предел II');
-      }
+      if (bet >= 250 && minesCount >= 5) processAch('mines_sapper3', 100, a => { a.progress++; return a; }, 'Кот-сапер III');
+      if (minesCount === 24 && bet >= 100) processAch('mines_careful', 5, a => { a.progress++; return a; }, 'Осторожные лапки');
+      if (multiplier >= 50) processAch('mines_kitty1', 1, a => { a.progress = 1; return a; }, 'В поисках кисы');
+      if (multiplier >= 100) processAch('mines_kitty2', 1, a => { a.progress = 1; return a; }, 'В поисках кисы II');
+      if (multiplier >= 250) processAch('mines_kitty3', 1, a => { a.progress = 1; return a; }, 'В поисках кисы III');
+      if (multiplier >= 800 && bet >= 25) processAch('mines_kitty4', 1, a => { a.progress = 1; return a; }, 'В поисках кисы IV');
+      if (minesCount === 2 && revealedCount === 23) processAch('mines_infinity1', 1, a => { a.progress = 1; return a; }, 'Бесконечность не предел');
+      if (minesCount === 3 && revealedCount === 22 && bet >= 5) processAch('mines_infinity2', 1, a => { a.progress = 1; return a; }, 'Бесконечность не предел II');
 
       await Promise.all([
-        updateDoc(doc(db, 'users', user.uid), {
-          balance: increment(payout),
-          xp: increment(bet / 10)
-        }),
-        addDoc(collection(db, 'gameSessions'), {
-          userId: user.uid,
-          gameType: 'mines',
-          bet,
-          multiplier,
-          payout,
-          timestamp: new Date().toISOString()
-        }),
+        updateDoc(doc(db, 'users', user.uid), { balance: increment(payout), xp: increment(bet / 10) }),
+        addDoc(collection(db, 'gameSessions'), { userId: user.uid, gameType: 'mines', bet, multiplier, payout, timestamp: new Date().toISOString() }),
         ...updates.map(ach => updateDoc(doc(db, 'achievements', ach.id as string), { progress: ach.progress, completed: ach.completed })),
-        ...newAchsToCreate.map(ach => {
-          const { id, ...data } = ach;
-          return addDoc(collection(db, 'achievements'), data);
-        })
+        ...newAchsToCreate.map(ach => { const { id, ...data } = ach; return addDoc(collection(db, 'achievements'), data); })
       ]);
 
       if (newlyUnlocked) {
@@ -260,9 +218,7 @@ export default function Mines({ user }: MinesProps) {
       console.error('Mines error:', error);
     } finally {
       setLoading(false);
-      setTimeout(() => {
-        isProcessing.current = false;
-      }, 300);
+      setTimeout(() => { isProcessing.current = false; }, 300);
     }
   };
 
@@ -276,9 +232,7 @@ export default function Mines({ user }: MinesProps) {
       <AnimatePresence>
         {unlockedAch && (
           <motion.div
-            initial={{ opacity: 0, y: -50, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -50, scale: 0.9 }}
+            initial={{ opacity: 0, y: -50, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -50, scale: 0.9 }}
             className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] bg-white px-6 py-4 rounded-3xl shadow-2xl border-2 border-brand-200 flex items-center gap-4 min-w-[300px]"
           >
             <div className="w-12 h-12 bg-brand-100 rounded-xl flex items-center justify-center shrink-0">
@@ -301,10 +255,6 @@ export default function Mines({ user }: MinesProps) {
             <h1 className="text-3xl lg:text-4xl font-black text-slate-900 tracking-tighter leading-none mb-1">Mines</h1>
             <p className="text-slate-400 font-medium text-xs lg:text-base hidden sm:block">Найди кристаллы и не подорвись на мине!</p>
           </div>
-        </div>
-        
-        <div className="hidden lg:flex items-center gap-2 bg-brand-50 px-4 py-2 rounded-xl border border-brand-100 text-[10px] font-black uppercase text-brand-600 tracking-widest w-fit">
-          <ShieldCheck className="w-4 h-4" /> <span>Provably Fair</span>
         </div>
       </header>
 
@@ -358,22 +308,12 @@ export default function Mines({ user }: MinesProps) {
                 >
                   <AnimatePresence mode="wait">
                     {revealed[i] ? (
-                      <motion.div
-                        key="revealed"
-                        initial={{ scale: 0, rotate: -45 }}
-                        animate={{ scale: 1, rotate: 0 }}
-                        className="absolute inset-0 flex items-center justify-center"
-                      >
+                      <motion.div key="revealed" initial={{ scale: 0, rotate: -45 }} animate={{ scale: 1, rotate: 0 }} className="absolute inset-0 flex items-center justify-center">
                         {isMine ? <Bomb className="w-6 h-6 sm:w-8 sm:h-8" /> : <Gem className="w-6 h-6 sm:w-8 sm:h-8" />}
                       </motion.div>
                     ) : (
                       gameState === 'lost' && isMine ? (
-                        <motion.div
-                          key="lost-mine"
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          className="absolute inset-0 flex items-center justify-center"
-                        >
+                        <motion.div key="lost-mine" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 flex items-center justify-center">
                           <Bomb className="w-4 h-4 sm:w-6 sm:h-6 opacity-30" />
                         </motion.div>
                       ) : null
@@ -387,6 +327,21 @@ export default function Mines({ user }: MinesProps) {
               ))}
             </div>
           </div>
+
+          <div className="mt-8 w-full max-w-sm hidden lg:block">
+            <div className="flex items-center justify-between bg-slate-50 border border-slate-100 p-4 rounded-[1.5rem] shadow-sm hover:shadow-md transition-all group">
+               <div className="flex items-center gap-3">
+                 <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                   <ShieldCheck className="w-5 h-5 text-emerald-500" />
+                 </div>
+                 <div className="flex flex-col text-left">
+                   <span className="text-xs font-black uppercase text-slate-700 tracking-widest leading-none mb-1">Provably Fair</span>
+                   <span className="text-[10px] font-bold text-slate-400 leading-none">Честная игра со 100% случайностью</span>
+                 </div>
+               </div>
+            </div>
+          </div>
+
         </div>
 
         <div className="order-2 lg:order-1 lg:col-span-4 bg-white sm:bg-white/100 rounded-t-[2rem] sm:rounded-[3rem] border-t sm:border border-slate-200 sm:border-slate-100 shadow-[0_-15px_40px_-15px_rgba(0,0,0,0.15)] sm:shadow-xl sm:shadow-slate-200/50 p-4 sm:p-6 lg:p-8 flex flex-col gap-4 sm:gap-6 justify-between sticky bottom-0 z-50 max-h-[60vh] sm:max-h-none overflow-y-auto sm:overflow-visible transition-all [scrollbar-width:none]">
@@ -423,20 +378,8 @@ export default function Mines({ user }: MinesProps) {
                     className="w-full bg-transparent font-black text-slate-900 text-lg sm:text-xl outline-none disabled:opacity-50 px-2 sm:px-1 min-w-0"
                   />
                   <div className="flex items-center gap-1.5 shrink-0 px-1">
-                    <button
-                      onClick={handleHalfBet}
-                      disabled={gameState === 'playing'}
-                      className="w-10 h-10 sm:w-11 sm:h-11 bg-white rounded-xl border border-slate-200 text-slate-500 font-black text-xs sm:text-sm hover:bg-slate-100 hover:text-slate-700 active:scale-95 transition-all flex items-center justify-center shadow-sm disabled:opacity-50"
-                    >
-                      /2
-                    </button>
-                    <button
-                      onClick={handleDoubleBet}
-                      disabled={gameState === 'playing'}
-                      className="w-10 h-10 sm:w-11 sm:h-11 bg-white rounded-xl border border-slate-200 text-slate-500 font-black text-xs sm:text-sm hover:bg-slate-100 hover:text-slate-700 active:scale-95 transition-all flex items-center justify-center shadow-sm disabled:opacity-50"
-                    >
-                      X2
-                    </button>
+                    <button onClick={handleHalfBet} disabled={gameState === 'playing'} className="w-10 h-10 sm:w-11 sm:h-11 bg-white rounded-xl border border-slate-200 text-slate-500 font-black text-xs sm:text-sm hover:bg-slate-100 hover:text-slate-700 active:scale-95 transition-all flex items-center justify-center shadow-sm disabled:opacity-50">/2</button>
+                    <button onClick={handleDoubleBet} disabled={gameState === 'playing'} className="w-10 h-10 sm:w-11 sm:h-11 bg-white rounded-xl border border-slate-200 text-slate-500 font-black text-xs sm:text-sm hover:bg-slate-100 hover:text-slate-700 active:scale-95 transition-all flex items-center justify-center shadow-sm disabled:opacity-50">X2</button>
                   </div>
                 </div>
               </div>
@@ -454,25 +397,14 @@ export default function Mines({ user }: MinesProps) {
                     onClick={() => { setMinesCount(n); setMineInputValue(n.toString()); }}
                     className={cn(
                       "rounded-xl py-2 sm:py-3 text-xs sm:text-sm font-black transition-all border-2",
-                      minesCount === n 
-                        ? "bg-brand-500 text-white border-brand-500 shadow-md shadow-brand-200" 
-                        : "bg-slate-50 text-slate-400 border-slate-100 hover:border-brand-200"
+                      minesCount === n ? "bg-brand-500 text-white border-brand-500 shadow-md shadow-brand-200" : "bg-slate-50 text-slate-400 border-slate-100 hover:border-brand-200"
                     )}
                   >
                     {n}
                   </button>
                 ))}
                 <div className="col-span-1 bg-white rounded-xl border-2 border-brand-200 focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-500/20 transition-all shadow-inner flex items-center justify-center overflow-hidden">
-                  <input
-                    type="number"
-                    min={1}
-                    max={24}
-                    value={mineInputValue}
-                    onChange={handleMinesInputChange}
-                    onBlur={handleMinesInputBlur}
-                    disabled={gameState === 'playing'}
-                    className="w-full h-full text-center font-black text-brand-600 bg-transparent outline-none disabled:opacity-50 text-sm"
-                  />
+                  <input type="number" min={1} max={24} value={mineInputValue} onChange={handleMinesInputChange} onBlur={handleMinesInputBlur} disabled={gameState === 'playing'} className="w-full h-full text-center font-black text-brand-600 bg-transparent outline-none disabled:opacity-50 text-sm" />
                 </div>
               </div>
             </div>
@@ -481,13 +413,7 @@ export default function Mines({ user }: MinesProps) {
           <div className="pt-2 lg:pt-0">
             <AnimatePresence mode="popLayout">
               {gameState === 'playing' ? (
-                <motion.div 
-                  key="playing"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="flex flex-col gap-3"
-                >
+                <motion.div key="playing" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="flex flex-col gap-3">
                   <div className="w-full bg-brand-50 rounded-[1.2rem] sm:rounded-[1.5rem] border border-brand-100 flex flex-row items-center justify-between px-6 py-3 sm:py-4">
                     <span className="text-[10px] sm:text-xs uppercase font-black tracking-widest text-brand-400">Множитель</span>
                     <span className="text-xl sm:text-3xl font-black text-brand-600 leading-none">x{multiplier.toFixed(2)}</span>
@@ -497,21 +423,11 @@ export default function Mines({ user }: MinesProps) {
                     disabled={loading || revealed.filter((r, i) => r && !grid[i]).length === 0}
                     className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white font-black rounded-[1.2rem] sm:rounded-[1.5rem] transition-all shadow-xl shadow-emerald-200 uppercase tracking-widest text-sm sm:text-base flex items-center justify-center gap-2 py-3.5 sm:py-5 active:scale-[0.98]"
                   >
-                    {loading ? (
-                      <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    ) : (
-                      <>Забрать <span className="opacity-90 ml-1">{(bet * multiplier).toFixed(2)} CAT</span></>
-                    )}
+                    {loading ? <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <>Забрать <span className="opacity-90 ml-1">{(bet * multiplier).toFixed(2)} CAT</span></>}
                   </button>
                 </motion.div>
               ) : (
-                <motion.div 
-                  key="idle"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="flex flex-col gap-3 sm:gap-4"
-                >
+                <motion.div key="idle" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="flex flex-col gap-3 sm:gap-4">
                   {gameState === 'won' && (
                     <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-row items-center justify-between py-3 px-4 sm:px-6 bg-emerald-50/80 border-2 border-emerald-400 rounded-xl sm:rounded-2xl shadow-[0_4px_20px_-5px_rgba(16,185,129,0.3)]">
                       <div className="flex items-center gap-3">
@@ -551,6 +467,22 @@ export default function Mines({ user }: MinesProps) {
                 </motion.div>
               )}
             </AnimatePresence>
+            
+            {/* Provably Fair для мобилок под кнопками */}
+            <div className="mt-4 w-full block lg:hidden">
+              <div className="flex items-center justify-between bg-slate-50 border border-slate-100 p-4 rounded-[1.5rem] shadow-sm hover:shadow-md transition-all group">
+                 <div className="flex items-center gap-3">
+                   <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                     <ShieldCheck className="w-5 h-5 text-emerald-500" />
+                   </div>
+                   <div className="flex flex-col text-left">
+                     <span className="text-xs font-black uppercase text-slate-700 tracking-widest leading-none mb-1">Provably Fair</span>
+                     <span className="text-[10px] font-bold text-slate-400 leading-none">Честная игра</span>
+                   </div>
+                 </div>
+              </div>
+            </div>
+            
           </div>
 
         </div>

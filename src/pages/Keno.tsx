@@ -1,3 +1,4 @@
+// src/pages/Keno.tsx
 import { useState, useRef } from 'react';
 import { UserProfile } from '../types';
 import { doc, updateDoc, addDoc, collection, getDocs, query, where, increment } from 'firebase/firestore';
@@ -108,7 +109,6 @@ export default function Keno({ user }: KenoProps) {
   const toggleNumber = (num: number) => {
     if (gameState === 'drawing') return;
     resetDrawState();
-    
     if (selected.includes(num)) {
       setSelected(selected.filter(n => n !== num));
     } else if (selected.length < 10) {
@@ -118,16 +118,12 @@ export default function Keno({ user }: KenoProps) {
 
   const clearSelection = () => {
     if (gameState === 'drawing') return;
-    setSelected([]);
-    setDrawn([]);
-    setGameState('idle');
-    setShowResultModal(false);
+    setSelected([]); setDrawn([]); setGameState('idle'); setShowResultModal(false);
   };
 
   const autoPick = () => {
     if (gameState === 'drawing') return;
     resetDrawState();
-
     const nums: number[] = [];
     while (nums.length < 10) {
       const n = Math.floor(Math.random() * 40) + 1;
@@ -136,7 +132,6 @@ export default function Keno({ user }: KenoProps) {
     setSelected(nums);
   };
 
-  // ЖЕЛЕЗОБЕТОННЫЕ ОБРАБОТЧИКИ СТАВОК ДЛЯ KENO
   const handleHalfBet = () => {
     if (gameState === 'drawing') return;
     const current = parseFloat(betInput.replace(',', '.')) || 0;
@@ -159,19 +154,13 @@ export default function Keno({ user }: KenoProps) {
     isProcessing.current = true;
     
     try {
-      await updateDoc(doc(db, 'users', user.uid), {
-        balance: increment(-bet)
-      });
+      await updateDoc(doc(db, 'users', user.uid), { balance: increment(-bet) });
     } catch (e) {
       isProcessing.current = false;
       return;
     }
 
-    setLoading(true);
-    setGameState('drawing');
-    setShowResultModal(false);
-    setDrawn([]);
-    setPayout(0);
+    setLoading(true); setGameState('drawing'); setShowResultModal(false); setDrawn([]); setPayout(0);
 
     const newDrawn: number[] = [];
     while (newDrawn.length < 10) {
@@ -192,7 +181,6 @@ export default function Keno({ user }: KenoProps) {
     const matches = selected.filter(n => newDrawn.includes(n)).length;
     const multTable = MULTIPLIERS[difficulty][selected.length as keyof typeof MULTIPLIERS['medium']];
     const mult = multTable[matches]; 
-    
     const winAmount = bet * mult;
 
     const isOneNumWin = selected.length === 1 && matches === 1;
@@ -219,9 +207,7 @@ export default function Keno({ user }: KenoProps) {
         const oldProg = ach.progress;
         ach = progressFn({ ...ach });
         if (ach.progress >= target) {
-          ach.progress = target;
-          ach.completed = true;
-          newlyUnlocked = title; 
+          ach.progress = target; ach.completed = true; newlyUnlocked = title; 
         }
         if (ach.progress !== oldProg || ach.completed) {
           if (ach.id) {
@@ -237,44 +223,26 @@ export default function Keno({ user }: KenoProps) {
       if (bet >= 20) processAch('keno_line1', 25, a => { a.progress++; return a; }, 'Первая линия');
       if (bet >= 40) processAch('keno_line2', 50, a => { a.progress++; return a; }, 'Первая линия II');
       if (bet >= 100) processAch('keno_line3', 100, a => { a.progress++; return a; }, 'Первая линия III');
-      
-      processAch('keno_lucky_num', 5, a => {
-        if (isOneNumWin) a.progress++; else a.progress = 0;
-        return a;
-      }, 'Счастливое число');
-
-      if (mult >= 200 && bet >= 50) {
-        processAch('keno_magic', 1, a => { a.progress = 1; return a; }, 'Кошачья магия');
-      }
-
-      if (selected.length === 10 && matches === 10 && bet >= 10) {
-        processAch('keno_nostracat', 1, a => { a.progress = 1; return a; }, 'Ностракотус');
-      }
+      processAch('keno_lucky_num', 5, a => { if (isOneNumWin) a.progress++; else a.progress = 0; return a; }, 'Счастливое число');
+      if (mult >= 200 && bet >= 50) processAch('keno_magic', 1, a => { a.progress = 1; return a; }, 'Кошачья магия');
+      if (selected.length === 10 && matches === 10 && bet >= 10) processAch('keno_nostracat', 1, a => { a.progress = 1; return a; }, 'Ностракотус');
 
       await Promise.all([
-        updateDoc(doc(db, 'users', user.uid), { 
-          balance: increment(winAmount),
-          xp: increment(bet / 10),
-          kenoWinStreakOneNum: newOneNumStreak
-        }),
+        updateDoc(doc(db, 'users', user.uid), { balance: increment(winAmount), xp: increment(bet / 10), kenoWinStreakOneNum: newOneNumStreak }),
         addDoc(collection(db, 'gameSessions'), { userId: user.uid, gameType: 'keno', bet, multiplier: mult, payout: winAmount, timestamp: new Date().toISOString() }),
         ...updates.map(ach => updateDoc(doc(db, 'achievements', ach.id as string), { progress: ach.progress, completed: ach.completed })),
         ...newAchsToCreate.map(ach => { const { id, ...data } = ach; return addDoc(collection(db, 'achievements'), data); })
       ]);
 
-      setPayout(winAmount);
-      setGameState('finished');
-      setShowResultModal(true);
+      setPayout(winAmount); setGameState('finished'); setShowResultModal(true);
 
       if (newlyUnlocked) {
-        setUnlockedAch(newlyUnlocked);
-        setTimeout(() => setUnlockedAch(null), 4000);
+        setUnlockedAch(newlyUnlocked); setTimeout(() => setUnlockedAch(null), 4000);
       }
     } catch (error) {
       console.error('Keno error:', error);
     } finally {
-      setLoading(false);
-      setTimeout(() => { isProcessing.current = false; }, 100);
+      setLoading(false); setTimeout(() => { isProcessing.current = false; }, 100);
     }
   };
 
@@ -285,9 +253,7 @@ export default function Keno({ user }: KenoProps) {
       <AnimatePresence>
         {unlockedAch && (
           <motion.div
-            initial={{ opacity: 0, y: -50, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -50, scale: 0.9 }}
+            initial={{ opacity: 0, y: -50, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -50, scale: 0.9 }}
             className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] bg-white px-6 py-4 rounded-3xl shadow-2xl border-2 border-brand-200 flex items-center gap-4 min-w-[300px]"
           >
             <div className="w-12 h-12 bg-brand-100 rounded-xl flex items-center justify-center shrink-0">
@@ -311,10 +277,6 @@ export default function Keno({ user }: KenoProps) {
             <p className="text-slate-400 font-medium text-xs lg:text-base hidden sm:block">Выбери до 10 чисел и жди удачи!</p>
           </div>
         </div>
-        
-        <div className="hidden lg:flex items-center gap-2 bg-brand-50 px-4 py-2 rounded-xl border border-brand-100 text-[10px] font-black uppercase text-brand-600 tracking-widest w-fit">
-          <ShieldCheck className="w-4 h-4" /> <span>Provably Fair</span>
-        </div>
       </header>
 
       <div className="flex flex-col lg:grid lg:grid-cols-12 gap-4 lg:gap-8 flex-1">
@@ -324,25 +286,17 @@ export default function Keno({ user }: KenoProps) {
           <AnimatePresence>
             {showResultModal && gameState === 'finished' && (
               <motion.div
-                initial={fastMode ? false : { opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: fastMode ? 0 : 0.2 }}
+                initial={fastMode ? false : { opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: fastMode ? 0 : 0.2 }}
                 onClick={() => setShowResultModal(false)}
                 className="absolute inset-0 z-50 flex items-center justify-center p-6 cursor-pointer"
               >
                 <motion.div
-                  initial={fastMode ? false : { scale: 0.9, y: 20 }}
-                  animate={{ scale: 1, y: 0 }}
-                  exit={{ scale: 0.9, y: 20 }}
-                  transition={{ duration: fastMode ? 0 : 0.3 }}
+                  initial={fastMode ? false : { scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }} transition={{ duration: fastMode ? 0 : 0.3 }}
                   onClick={(e) => e.stopPropagation()} 
                   className={cn(
                     "relative overflow-hidden w-full max-w-[280px] sm:max-w-[320px] rounded-[2rem] p-6 text-center border backdrop-blur-md",
                     fastMode ? "" : "transition-all duration-300",
-                    payout > 0 
-                      ? "bg-slate-900/40 border-emerald-500/30 shadow-[0_0_40px_-10px_rgba(16,185,129,0.3)] ring-1 ring-emerald-500/20" 
-                      : "bg-slate-900/40 border-slate-700/40 shadow-[0_20px_40px_-10px_rgba(0,0,0,0.3)] ring-1 ring-white/5"
+                    payout > 0 ? "bg-slate-900/40 border-emerald-500/30 shadow-[0_0_40px_-10px_rgba(16,185,129,0.3)] ring-1 ring-emerald-500/20" : "bg-slate-900/40 border-slate-700/40 shadow-[0_20px_40px_-10px_rgba(0,0,0,0.3)] ring-1 ring-white/5"
                   )}
                 >
                   <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-white/10 to-transparent opacity-30 pointer-events-none" />
@@ -382,7 +336,6 @@ export default function Keno({ user }: KenoProps) {
           <div className="w-full min-h-[70px] sm:min-h-[80px] lg:min-h-[140px] mb-4 sm:mb-6 border-b border-slate-100 pb-2 sm:pb-3 lg:pb-5 flex flex-col justify-end relative z-20">
             {selected.length > 0 && (
               <div className="relative w-full group flex items-center">
-                
                 <button 
                   onClick={() => scrollRibbon('left')}
                   className="hidden lg:flex absolute left-0 z-30 w-10 h-10 bg-white/90 backdrop-blur-sm border border-slate-200 rounded-full items-center justify-center text-slate-400 hover:text-brand-600 hover:border-brand-300 shadow-md transition-all opacity-0 group-hover:opacity-100 -ml-3"
@@ -419,9 +372,7 @@ export default function Keno({ user }: KenoProps) {
                           "text-[9px] sm:text-[10px] lg:text-sm font-black rounded-md px-1.5 py-0.5 lg:px-3 lg:py-1", 
                           fastMode ? "" : "transition-all duration-300",
                           isCompleted 
-                            ? (isCurrent 
-                                ? "bg-brand-500/30 text-brand-600 border border-brand-500/20 backdrop-blur-sm" 
-                                : "bg-brand-100/60 text-brand-600 backdrop-blur-sm") 
+                            ? (isCurrent ? "bg-brand-500/30 text-brand-600 border border-brand-500/20 backdrop-blur-sm" : "bg-brand-100/60 text-brand-600 backdrop-blur-sm") 
                             : "text-slate-400 bg-slate-100/60 backdrop-blur-sm"
                         )}>
                           x{mult}
@@ -437,7 +388,6 @@ export default function Keno({ user }: KenoProps) {
                 >
                   <ChevronRight className="w-6 h-6" />
                 </button>
-
               </div>
             )}
           </div>
@@ -465,12 +415,7 @@ export default function Keno({ user }: KenoProps) {
                   )}
                 >
                   {isMatch ? (
-                    <motion.div
-                      initial={fastMode ? false : { scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ duration: fastMode ? 0 : 0.3 }}
-                      className="absolute inset-0 flex items-center justify-center"
-                    >
+                    <motion.div initial={fastMode ? false : { scale: 0 }} animate={{ scale: 1 }} transition={{ duration: fastMode ? 0 : 0.3 }} className="absolute inset-0 flex items-center justify-center">
                       <img src="/assets/keno/keno_paw.webp" className="w-5 h-5 sm:w-6 sm:h-6 lg:w-8 lg:h-8 drop-shadow-md" alt="paw" />
                     </motion.div>
                   ) : (
@@ -479,6 +424,21 @@ export default function Keno({ user }: KenoProps) {
                 </motion.button>
               );
             })}
+          </div>
+
+          {/* Provably Fair */}
+          <div className="mt-8 w-full max-w-sm hidden lg:block">
+            <div className="flex items-center justify-between bg-slate-50 border border-slate-100 p-4 rounded-[1.5rem] shadow-sm hover:shadow-md transition-all group">
+               <div className="flex items-center gap-3">
+                 <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                   <ShieldCheck className="w-5 h-5 text-emerald-500" />
+                 </div>
+                 <div className="flex flex-col text-left">
+                   <span className="text-xs font-black uppercase text-slate-700 tracking-widest leading-none mb-1">Provably Fair</span>
+                   <span className="text-[10px] font-bold text-slate-400 leading-none">Честная игра со 100% случайностью</span>
+                 </div>
+               </div>
+            </div>
           </div>
 
         </div>
@@ -519,20 +479,8 @@ export default function Keno({ user }: KenoProps) {
                     className="w-full bg-transparent font-black text-slate-900 text-lg sm:text-xl outline-none disabled:opacity-50 px-2 sm:px-3 min-w-0"
                   />
                   <div className="flex items-center gap-1.5 shrink-0 px-1">
-                    <button
-                      onClick={handleHalfBet}
-                      disabled={gameState === 'drawing'}
-                      className="w-10 h-10 sm:w-11 sm:h-11 bg-white rounded-xl border border-slate-200 text-slate-500 font-black text-xs sm:text-sm hover:bg-slate-100 hover:text-slate-700 active:scale-95 transition-all flex items-center justify-center shadow-sm disabled:opacity-50"
-                    >
-                      /2
-                    </button>
-                    <button
-                      onClick={handleDoubleBet}
-                      disabled={gameState === 'drawing'}
-                      className="w-10 h-10 sm:w-11 sm:h-11 bg-white rounded-xl border border-slate-200 text-slate-500 font-black text-xs sm:text-sm hover:bg-slate-100 hover:text-slate-700 active:scale-95 transition-all flex items-center justify-center shadow-sm disabled:opacity-50"
-                    >
-                      X2
-                    </button>
+                    <button onClick={handleHalfBet} disabled={gameState === 'drawing'} className="w-10 h-10 sm:w-11 sm:h-11 bg-white rounded-xl border border-slate-200 text-slate-500 font-black text-xs sm:text-sm hover:bg-slate-100 hover:text-slate-700 active:scale-95 transition-all flex items-center justify-center shadow-sm disabled:opacity-50">/2</button>
+                    <button onClick={handleDoubleBet} disabled={gameState === 'drawing'} className="w-10 h-10 sm:w-11 sm:h-11 bg-white rounded-xl border border-slate-200 text-slate-500 font-black text-xs sm:text-sm hover:bg-slate-100 hover:text-slate-700 active:scale-95 transition-all flex items-center justify-center shadow-sm disabled:opacity-50">X2</button>
                   </div>
                 </div>
 
@@ -541,19 +489,10 @@ export default function Keno({ user }: KenoProps) {
                   disabled={gameState === 'drawing'}
                   className={cn(
                     "shrink-0 w-14 sm:w-[68px] rounded-[1.2rem] sm:rounded-[1.5rem] flex items-center justify-center transition-all border-2 disabled:opacity-50",
-                    fastMode
-                      ? "bg-brand-50 border-brand-300 shadow-[inset_0_4px_10px_rgba(0,0,0,0.05)]"
-                      : "bg-slate-50 border-slate-100 hover:border-slate-200 shadow-sm"
+                    fastMode ? "bg-brand-50 border-brand-300 shadow-[inset_0_4px_10px_rgba(0,0,0,0.05)]" : "bg-slate-50 border-slate-100 hover:border-slate-200 shadow-sm"
                   )}
                 >
-                  <img
-                    src="/assets/keno/thunder_on.webp"
-                    alt="Fast Mode"
-                    className={cn(
-                      "w-auto h-6 sm:h-8 object-contain transition-all duration-300", 
-                      fastMode ? "grayscale-0 opacity-100 drop-shadow-[0_2px_8px_rgba(250,204,21,0.6)]" : "grayscale opacity-30"
-                    )}
-                  />
+                  <img src="/assets/keno/thunder_on.webp" alt="Fast Mode" className={cn("w-auto h-6 sm:h-8 object-contain transition-all duration-300", fastMode ? "grayscale-0 opacity-100 drop-shadow-[0_2px_8px_rgba(250,204,21,0.6)]" : "grayscale opacity-30")} />
                 </button>
               </div>
             </div>
@@ -571,42 +510,15 @@ export default function Keno({ user }: KenoProps) {
               </div>
 
               <div className="flex flex-col gap-2">
-                <button
-                  onClick={autoPick}
-                  disabled={gameState === 'drawing'}
-                  className="flex-1 py-2 sm:py-0 bg-brand-50 hover:bg-brand-100 text-brand-600 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wide transition-all border border-brand-100 flex items-center justify-center gap-1.5 active:scale-[0.98] disabled:opacity-50"
-                >
-                  <Zap className="w-4 h-4" /> Авто
-                </button>
-                <button
-                  onClick={clearSelection}
-                  disabled={gameState === 'drawing'}
-                  className="flex-1 py-2 sm:py-0 bg-rose-50 hover:bg-rose-100 text-rose-500 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wide transition-all border border-rose-100 flex items-center justify-center gap-1.5 active:scale-[0.98] disabled:opacity-50"
-                >
-                  <RotateCcw className="w-4 h-4" /> Сброс
-                </button>
+                <button onClick={autoPick} disabled={gameState === 'drawing'} className="flex-1 py-2 sm:py-0 bg-brand-50 hover:bg-brand-100 text-brand-600 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wide transition-all border border-brand-100 flex items-center justify-center gap-1.5 active:scale-[0.98] disabled:opacity-50"><Zap className="w-4 h-4" /> Авто</button>
+                <button onClick={clearSelection} disabled={gameState === 'drawing'} className="flex-1 py-2 sm:py-0 bg-rose-50 hover:bg-rose-100 text-rose-500 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wide transition-all border border-rose-100 flex items-center justify-center gap-1.5 active:scale-[0.98] disabled:opacity-50"><RotateCcw className="w-4 h-4" /> Сброс</button>
               </div>
             </div>
 
             <div className="bg-slate-50 p-1.5 rounded-2xl flex gap-1 border border-slate-100">
-              <button 
-                onClick={() => {if(gameState !== 'drawing') setDifficulty('easy')}}
-                className={cn("flex-1 py-2 rounded-xl text-[10px] sm:text-xs font-black transition-all", difficulty === 'easy' ? "bg-white text-emerald-500 shadow-sm border border-emerald-100" : "text-slate-400 hover:text-slate-600")}
-              >
-                ЛЕГКИЙ
-              </button>
-              <button 
-                onClick={() => {if(gameState !== 'drawing') setDifficulty('medium')}}
-                className={cn("flex-1 py-2 rounded-xl text-[10px] sm:text-xs font-black transition-all", difficulty === 'medium' ? "bg-white text-brand-500 shadow-sm border border-brand-100" : "text-slate-400 hover:text-slate-600")}
-              >
-                СРЕДНИЙ
-              </button>
-              <button 
-                onClick={() => {if(gameState !== 'drawing') setDifficulty('hard')}}
-                className={cn("flex-1 py-2 rounded-xl text-[10px] sm:text-xs font-black transition-all", difficulty === 'hard' ? "bg-white text-rose-500 shadow-sm border border-rose-100" : "text-slate-400 hover:text-slate-600")}
-              >
-                СЛОЖНЫЙ
-              </button>
+              <button onClick={() => {if(gameState !== 'drawing') setDifficulty('easy')}} className={cn("flex-1 py-2 rounded-xl text-[10px] sm:text-xs font-black transition-all", difficulty === 'easy' ? "bg-white text-emerald-500 shadow-sm border border-emerald-100" : "text-slate-400 hover:text-slate-600")}>ЛЕГКИЙ</button>
+              <button onClick={() => {if(gameState !== 'drawing') setDifficulty('medium')}} className={cn("flex-1 py-2 rounded-xl text-[10px] sm:text-xs font-black transition-all", difficulty === 'medium' ? "bg-white text-brand-500 shadow-sm border border-brand-100" : "text-slate-400 hover:text-slate-600")}>СРЕДНИЙ</button>
+              <button onClick={() => {if(gameState !== 'drawing') setDifficulty('hard')}} className={cn("flex-1 py-2 rounded-xl text-[10px] sm:text-xs font-black transition-all", difficulty === 'hard' ? "bg-white text-rose-500 shadow-sm border border-rose-100" : "text-slate-400 hover:text-slate-600")}>СЛОЖНЫЙ</button>
             </div>
 
           </div>
@@ -623,6 +535,20 @@ export default function Keno({ user }: KenoProps) {
                 <>{gameState === 'finished' ? 'Играть снова' : 'Играть'} <Play className="w-4 h-4 sm:w-5 sm:h-5 fill-current" /></>
               )}
             </button>
+          </div>
+          
+          <div className="mt-4 w-full block lg:hidden">
+            <div className="flex items-center justify-between bg-slate-50 border border-slate-100 p-4 rounded-[1.5rem] shadow-sm hover:shadow-md transition-all group">
+               <div className="flex items-center gap-3">
+                 <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                   <ShieldCheck className="w-5 h-5 text-emerald-500" />
+                 </div>
+                 <div className="flex flex-col text-left">
+                   <span className="text-xs font-black uppercase text-slate-700 tracking-widest leading-none mb-1">Provably Fair</span>
+                   <span className="text-[10px] font-bold text-slate-400 leading-none">Честная игра</span>
+                 </div>
+               </div>
+            </div>
           </div>
 
         </div>

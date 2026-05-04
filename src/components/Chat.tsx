@@ -1,3 +1,4 @@
+// src/components/Chat.tsx
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { MessageCircle, X, Send, Lock, Cat } from 'lucide-react';
@@ -22,7 +23,6 @@ interface ChatMessage {
   level: number;
   text: string;
   createdAt: string;
-  // Добавлены поля кастомизации
   frame: string;
   prefix: string;
 }
@@ -60,7 +60,6 @@ export default function Chat({ user, isOpen, setIsOpen }: ChatProps) {
         level: user.level || 0,
         text: newMessage.trim(),
         createdAt: new Date().toISOString(),
-        // Отправляем в чат надетые шмотки
         frame: user.equippedFrame || 'none',
         prefix: user.equippedPrefix || 'none'
       });
@@ -77,12 +76,25 @@ export default function Chat({ user, isOpen, setIsOpen }: ChatProps) {
       <button
         onClick={() => setIsOpen(true)}
         className={cn(
-          "fixed bottom-6 right-6 z-[90] hidden lg:flex items-center justify-center w-16 h-16 rounded-full shadow-2xl transition-all duration-300 hover:scale-110 active:scale-95 group",
-          isOpen ? "opacity-0 pointer-events-none scale-75" : "opacity-100 scale-100 bg-brand-600 shadow-brand-300 hover:shadow-brand-400"
+          "fixed bottom-6 right-6 z-[90] hidden lg:flex items-center gap-3 bg-white px-5 py-3.5 rounded-full shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] border border-slate-100 transition-all duration-300 hover:shadow-[0_10px_40px_-10px_rgba(99,102,241,0.3)] hover:-translate-y-1 active:scale-95 group",
+          isOpen ? "opacity-0 pointer-events-none scale-75" : "opacity-100 scale-100"
         )}
       >
-        <MessageCircle className="w-7 h-7 text-white group-hover:animate-bounce" />
-        <div className="absolute top-0 right-0 w-4 h-4 bg-red-500 border-2 border-white rounded-full animate-pulse" />
+        <div className="flex -space-x-3">
+          <img src="/assets/avatars/ava1.webp" className="w-10 h-10 rounded-full border-[3px] border-white relative z-20 object-cover shadow-sm" alt="ava" />
+          <img src="/assets/avatars/ava2.webp" className="w-10 h-10 rounded-full border-[3px] border-white relative z-10 object-cover shadow-sm" alt="ava" />
+          <div className="w-10 h-10 rounded-full border-[3px] border-white bg-brand-500 flex items-center justify-center relative z-0 shadow-sm">
+             <MessageCircle className="w-4 h-4 text-white" />
+          </div>
+        </div>
+        <div className="flex flex-col text-left pr-2">
+           <span className="text-sm font-black text-slate-900 leading-none mb-1">Чат игроков</span>
+           <div className="flex items-center gap-1.5">
+             <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Онлайн</span>
+           </div>
+        </div>
+        <div className="absolute top-0 right-0 w-3.5 h-3.5 bg-red-500 border-2 border-white rounded-full animate-pulse" />
       </button>
 
       <AnimatePresence>
@@ -142,7 +154,6 @@ export default function Chat({ user, isOpen, setIsOpen }: ChatProps) {
                       return (
                         <div key={msg.id} className="flex gap-3 animate-in fade-in slide-in-from-bottom-2">
                           
-                          {/* АВАТАРКА ОТПРАВИТЕЛЯ С РАМКОЙ */}
                           <div className="relative w-10 h-10 shrink-0 flex items-center justify-center mt-1">
                             <div className={cn("absolute inset-0 rounded-xl overflow-hidden border-2 shadow-sm", msgFrameObj.css, msgFrameObj.id === 'none' && 'border-slate-200')}>
                               <img src={msg.avatar || '/assets/avatars/ava1.webp'} alt="avatar" className="w-full h-full object-cover bg-white" />
@@ -153,7 +164,6 @@ export default function Chat({ user, isOpen, setIsOpen }: ChatProps) {
                           </div>
                           
                           <div className="flex flex-col flex-1 min-w-0">
-                            {/* ПРЕФИКС И ИМЯ */}
                             <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
                               {msgPrefixObj && msgPrefixObj.id !== 'none' && (
                                 <span className={cn("text-[8px] uppercase tracking-widest font-black px-1.5 py-0.5 rounded-md", msgPrefixObj.color)}>

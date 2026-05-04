@@ -1,5 +1,14 @@
 // src/types.ts
 
+export interface UserNotification {
+  id: string;
+  title: string;
+  message: string;
+  type: string;
+  read: boolean;
+  createdAt: string;
+}
+
 export interface ReferralData {
   status: 'none' | 'pending' | 'approved' | 'rejected' | 'disabled';
   plan?: 'revshare' | 'special';
@@ -9,7 +18,7 @@ export interface ReferralData {
   balance: number;
   code?: string;
   
-  registeredCount?: number; // <--- ДОБАВЛЕН СЧЕТЧИК РЕГИСТРАЦИЙ
+  registeredCount?: number;
   
   // Статистика RevShare
   rsDeposits?: number;
@@ -67,7 +76,10 @@ export interface UserProfile {
 
   // РЕФЕРАЛЬНАЯ СИСТЕМА
   referralData?: ReferralData;
-  invitedBy?: string; // UID или код того, кто пригласил этого игрока
+  invitedBy?: string; 
+
+  // УВЕДОМЛЕНИЯ
+  notifications?: UserNotification[];
 }
 
 export interface PromoCode {

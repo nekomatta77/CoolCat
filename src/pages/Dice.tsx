@@ -1,8 +1,9 @@
+// src/pages/Dice.tsx
 import { useState, useRef } from 'react';
 import { UserProfile } from '../types';
 import { doc, updateDoc, addDoc, collection, getDocs, query, where, increment } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Dice5, Trophy, ShieldCheck, ArrowDownCircle, ArrowUpCircle, Coins, TrendingUp, Hash, AlertCircle } from 'lucide-react';
+import { Dice5, Trophy, ShieldCheck, ArrowDownCircle, ArrowUpCircle, Coins, TrendingUp, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 
@@ -55,7 +56,6 @@ export default function Dice({ user }: DiceProps) {
   const multiplier = (100 / activeChance).toFixed(2);
   const potentialWinAmount = bet * parseFloat(multiplier);
 
-  // ЖЕЛЕЗОБЕТОННЫЕ ОБРАБОТЧИКИ СТАВОК ДЛЯ DICE
   const handleHalfBet = () => {
     if (loading) return;
     const current = parseFloat(betInput.replace(',', '.')) || 0;
@@ -203,16 +203,22 @@ export default function Dice({ user }: DiceProps) {
   const underTarget = Math.floor(activeChance * maxNumber);
   const overTarget = Math.ceil((100 - activeChance) * maxNumber);
 
-  const hashBlock = (
-    <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex flex-col gap-2">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5 text-brand-600 text-[10px] font-black uppercase tracking-widest">
-          <ShieldCheck className="w-4 h-4" /> <span>Provably Fair</span>
-        </div>
-        <Hash className="w-4 h-4 text-slate-300" />
+  const provablyFairBlock = (
+    <div className="w-full mt-4 sm:mt-6 flex flex-col gap-2">
+      <div className="flex items-center justify-between bg-slate-50 border border-slate-100 p-4 rounded-[1.5rem] shadow-sm hover:shadow-md transition-all group">
+         <div className="flex items-center gap-3">
+           <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+             <ShieldCheck className="w-5 h-5 text-emerald-500" />
+           </div>
+           <div className="flex flex-col text-left">
+             <span className="text-xs font-black uppercase text-slate-700 tracking-widest leading-none mb-1">Provably Fair</span>
+             <span className="text-[10px] font-bold text-slate-400 leading-none">Честная игра со 100% случайностью</span>
+           </div>
+         </div>
       </div>
-      <div className="text-[10px] sm:text-xs font-mono text-slate-400 break-all bg-white p-2 rounded-lg border border-slate-100">
-        {gameHash}
+      <div className="bg-slate-50 p-3 rounded-[1rem] border border-slate-100 flex items-center justify-between gap-3 shadow-inner">
+         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0">Hash:</span>
+         <span className="text-[10px] font-mono text-slate-500 truncate">{gameHash}</span>
       </div>
     </div>
   );
@@ -346,7 +352,7 @@ export default function Dice({ user }: DiceProps) {
                 </div>
 
               </div>
-              <div className="hidden lg:block mt-auto pt-2">{hashBlock}</div>
+              <div className="hidden lg:block mt-auto pt-2">{provablyFairBlock}</div>
             </div>
 
             <div className="lg:col-span-7 flex flex-col gap-5">
@@ -399,7 +405,7 @@ export default function Dice({ user }: DiceProps) {
                 </AnimatePresence>
               </div>
 
-              <div className="block lg:hidden mt-2">{hashBlock}</div>
+              <div className="block lg:hidden mt-2">{provablyFairBlock}</div>
             </div>
 
           </div>
@@ -506,6 +512,8 @@ export default function Dice({ user }: DiceProps) {
               СДЕЛАТЬ СТАВКУ
             </button>
           </div>
+          
+          <div className="mt-8">{provablyFairBlock}</div>
         </motion.div>
       )}
     </div>
