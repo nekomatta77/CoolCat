@@ -1,13 +1,15 @@
 // src/types.ts
 
 export interface ReferralData {
-  status: 'none' | 'pending' | 'approved' | 'rejected';
+  status: 'none' | 'pending' | 'approved' | 'rejected' | 'disabled';
   plan?: 'revshare' | 'special';
   telegram?: string;
   source?: string;
   appliedAt?: string;
   balance: number;
   code?: string;
+  
+  registeredCount?: number; // <--- ДОБАВЛЕН СЧЕТЧИК РЕГИСТРАЦИЙ
   
   // Статистика RevShare
   rsDeposits?: number;

@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { UserProfile, PromoCode } from '../types';
 import { doc, updateDoc, getDocs, query, collection, addDoc, deleteDoc, orderBy, setDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Users, Ticket, Plus, List, Zap, Search, Ban, Trash2, Cat, CheckCircle2, AlertCircle, Copy, X, ShieldAlert, RefreshCw, ArrowRight, RotateCcw, Globe, Network, Star, Check } from 'lucide-react';
+import { Users, Ticket, Plus, List, Zap, Search, Ban, Trash2, Cat, CheckCircle2, AlertCircle, Copy, X, ShieldAlert, RefreshCw, ArrowRight, RotateCcw, Globe, Network, Star } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 
@@ -38,7 +38,7 @@ const LEVEL_REQUIREMENTS = [
 ];
 
 export default function Admin({ user }: AdminProps) {
-  const [activeTab, setActiveTab] = useState<'users' | 'promo' | 'global' | 'referrals'>('users'); // <--- Добавили 'referrals'
+  const [activeTab, setActiveTab] = useState<'users' | 'promo' | 'global' | 'referrals'>('users');
   const [promoTab, setPromoTab] = useState<'create' | 'list' | 'generator'>('create');
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [promoCodes, setPromoCodes] = useState<PromoCode[]>([]);
@@ -48,7 +48,7 @@ export default function Admin({ user }: AdminProps) {
 
   const [userActionModal, setUserActionModal] = useState<{ userTarget: UserProfile, action: UserActionType } | null>(null);
   const [globalActionModal, setGlobalActionModal] = useState<'clear_history' | null>(null);
-  const [referralApproveModal, setReferralApproveModal] = useState<UserProfile | null>(null); // Модалка для одобрения рефки
+  const [referralApproveModal, setReferralApproveModal] = useState<UserProfile | null>(null);
 
   const [editingUsers, setEditingUsers] = useState<Record<string, { balance?: number; level?: number; rank?: 'user'|'vip'|'admin' }>>({});
   const [editConfirmModal, setEditConfirmModal] = useState<EditConfirmData | null>(null);
@@ -96,31 +96,26 @@ export default function Admin({ user }: AdminProps) {
     try {
       const sessionsSnap = await getDocs(collection(db, 'gameSessions'));
       const docs = sessionsSnap.docs;
-      
       const chunks = [];
       for (let i = 0; i < docs.length; i += 450) {
           chunks.push(docs.slice(i, i + 450));
       }
-
       for (const chunk of chunks) {
           const batch = writeBatch(db);
           chunk.forEach(doc => batch.delete(doc.ref));
           await batch.commit();
       }
-
       await setDoc(doc(db, 'live', 'wheelx'), {
           history: [],
           gameState: 'betting',
           timeLeft: 20
       }, { merge: true });
-
       const betsSnap = await getDocs(collection(db, 'live', 'wheelx', 'bets'));
       if (!betsSnap.empty) {
           const betsBatch = writeBatch(db);
           betsSnap.forEach(b => betsBatch.delete(b.ref));
           await betsBatch.commit();
       }
-
       setNotification({ message: `Очищено: ${docs.length} игр, история колеса и ставки!`, type: 'success' });
     } catch (e) {
       console.error(e);
@@ -199,7 +194,6 @@ export default function Admin({ user }: AdminProps) {
 
   const confirmEditProfile = async () => {
     if (!editConfirmModal) return;
-    
     const updates: Partial<UserProfile> = {};
     editConfirmModal.changes.forEach(c => { updates[c.field as keyof UserProfile] = c.newVal; });
     
@@ -212,7 +206,6 @@ export default function Admin({ user }: AdminProps) {
     }
 
     await handleUpdateUser(editConfirmModal.userTarget.uid, updates);
-    
     const newEditing = { ...editingUsers };
     delete newEditing[editConfirmModal.userTarget.uid];
     setEditingUsers(newEditing);
@@ -226,7 +219,6 @@ export default function Admin({ user }: AdminProps) {
       setNotification({ message: 'Введите название промокода', type: 'error' });
       return;
     }
-
     try {
       const newPromoData = {
         code: name.toUpperCase(),
@@ -236,7 +228,6 @@ export default function Admin({ user }: AdminProps) {
         wager,
         createdAt: new Date().toISOString()
       };
-      
       const docRef = await addDoc(collection(db, 'promoCodes'), newPromoData);
       const createdPromo = { id: docRef.id, ...newPromoData } as PromoCode;
       
@@ -244,7 +235,6 @@ export default function Admin({ user }: AdminProps) {
       setPromoName('');
       setNotification({ message: 'Промокод успешно создан!', type: 'success' });
       setPromoTab('list');
-      
       setNewPromoId(docRef.id);
       setTimeout(() => setNewPromoId(null), 2000); 
     } catch (error) {
@@ -262,7 +252,6 @@ export default function Admin({ user }: AdminProps) {
     setNotification({ message: `Промокод ${text} скопирован!`, type: 'success' });
   };
 
-  // Реферальные функции
   const handleApproveReferral = async (u: UserProfile, plan: 'revshare' | 'special') => {
     const code = u.referralData?.code || `REF-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
     await handleUpdateUser(u.uid, {
@@ -272,7 +261,7 @@ export default function Admin({ user }: AdminProps) {
         plan,
         code,
         balance: u.referralData?.balance || 0,
-        // Инициализация статы если нет
+        registeredCount: u.referralData?.registeredCount || 0, // <--- ИНИЦИАЛИЗИРУЕМ СЧЕТЧИК
         rsDeposits: 0, rsWithdrawals: 0, rsCommissions: 0, rsBalances: 0,
         spTier1Count: 0, spTier2Count: 0, spTier3Count: 0,
         spTier1Profit: 0, spTier2Profit: 0, spTier3Profit: 0,
@@ -288,21 +277,21 @@ export default function Admin({ user }: AdminProps) {
   };
 
   const handleDisableReferral = async (uid: string, currentData: any) => {
-    await handleUpdateUser(uid, { referralData: { ...currentData, status: 'none', plan: undefined } });
+    await handleUpdateUser(uid, { referralData: { ...currentData, status: 'disabled' } as any });
     setNotification({ message: 'Реферальная система отключена для игрока', type: 'success' });
   };
 
   const filteredUsers = users.filter(u => (u.nickname || '').toLowerCase().includes((search || '').toLowerCase()));
+  
+  // ФИЛЬТР: Выводим всех, у кого есть данные рефки и статус не none
   const referralUsers = users.filter(u => u.referralData && u.referralData.status !== 'none');
 
   const getModalContent = () => {
-    // ... [Оставляем модалки удаления истории и юзера без изменений, добавляем модалку рефки] ...
-
     if (referralApproveModal) {
       return (
         <div className="flex flex-col space-y-5 md:space-y-6">
           <div className="text-center space-y-2">
-            <h3 className="text-xl md:text-2xl font-black text-slate-900">Одобрение заявки</h3>
+            <h3 className="text-xl md:text-2xl font-black text-slate-900">Выбор плана</h3>
             <p className="text-slate-500 font-medium text-sm md:text-base">Выберите тип партнерской программы для <span className="font-bold text-slate-900">{referralApproveModal.nickname}</span></p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -431,27 +420,17 @@ export default function Admin({ user }: AdminProps) {
 
   return (
     <div className="max-w-[90rem] mx-auto space-y-6 md:space-y-8 pb-12 relative px-2 md:px-0">
-      
       <AnimatePresence>
         {(userActionModal || editConfirmModal || globalActionModal || referralApproveModal) && (
           <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4"
           >
             <motion.div 
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.9, y: 20 }}
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
               className="bg-white rounded-[2.5rem] p-6 md:p-8 max-w-md w-full shadow-2xl border border-slate-100 relative mx-4"
             >
-              <button 
-                onClick={() => { setUserActionModal(null); setEditConfirmModal(null); setGlobalActionModal(null); setReferralApproveModal(null); }}
-                className="absolute top-4 right-4 md:top-6 md:right-6 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all"
-              >
-                <X className="w-6 h-6" />
-              </button>
+              <button onClick={() => { setUserActionModal(null); setEditConfirmModal(null); setGlobalActionModal(null); setReferralApproveModal(null); }} className="absolute top-4 right-4 md:top-6 md:right-6 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><X className="w-6 h-6" /></button>
               {getModalContent()}
             </motion.div>
           </motion.div>
@@ -471,15 +450,7 @@ export default function Admin({ user }: AdminProps) {
 
         <AnimatePresence>
           {notification && (
-            <motion.div
-              initial={{ opacity: 0, y: -20, scale: 0.9 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -20, scale: 0.9 }}
-              className={cn(
-                "fixed top-4 left-4 right-4 md:left-auto md:right-6 md:top-6 z-[100] px-4 md:px-6 py-3 md:py-4 rounded-2xl shadow-2xl flex items-center justify-center md:justify-start gap-3 border backdrop-blur-md max-w-full",
-                notification.type === 'success' ? "bg-emerald-50/95 border-emerald-200 text-emerald-600" : "bg-red-50/95 border-red-200 text-red-600"
-              )}
-            >
+            <motion.div initial={{ opacity: 0, y: -20, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -20, scale: 0.9 }} className={cn("fixed top-4 left-4 right-4 md:left-auto md:right-6 md:top-6 z-[100] px-4 md:px-6 py-3 md:py-4 rounded-2xl shadow-2xl flex items-center justify-center md:justify-start gap-3 border backdrop-blur-md max-w-full", notification.type === 'success' ? "bg-emerald-50/95 border-emerald-200 text-emerald-600" : "bg-red-50/95 border-red-200 text-red-600")}>
               {notification.type === 'success' ? <CheckCircle2 className="w-5 h-5 shrink-0" /> : <AlertCircle className="w-5 h-5 shrink-0" />}
               <span className="font-bold text-xs md:text-sm truncate">{notification.message}</span>
             </motion.div>
@@ -487,42 +458,10 @@ export default function Admin({ user }: AdminProps) {
         </AnimatePresence>
 
         <div className="flex flex-wrap bg-slate-50 p-1.5 rounded-2xl border border-slate-100 w-full lg:w-auto">
-          <button
-            onClick={() => setActiveTab('users')}
-            className={cn(
-              "flex-1 px-2 lg:px-6 py-3 rounded-xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2",
-              activeTab === 'users' ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
-            )}
-          >
-            <Users className="w-4 h-4" /> <span className="hidden sm:inline">Пользователи</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('promo')}
-            className={cn(
-              "flex-1 px-2 lg:px-6 py-3 rounded-xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2",
-              activeTab === 'promo' ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
-            )}
-          >
-            <Ticket className="w-4 h-4" /> <span className="hidden sm:inline">Промокоды</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('referrals')}
-            className={cn(
-              "flex-1 px-2 lg:px-6 py-3 rounded-xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2",
-              activeTab === 'referrals' ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
-            )}
-          >
-            <Network className="w-4 h-4" /> <span className="hidden sm:inline">Рефералы</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('global')}
-            className={cn(
-              "flex-1 px-2 lg:px-6 py-3 rounded-xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2",
-              activeTab === 'global' ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
-            )}
-          >
-            <Globe className="w-4 h-4" /> <span className="hidden sm:inline">Глобальные</span>
-          </button>
+          <button onClick={() => setActiveTab('users')} className={cn("flex-1 px-2 lg:px-6 py-3 rounded-xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2", activeTab === 'users' ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-400 hover:text-slate-600')}><Users className="w-4 h-4" /> <span className="hidden sm:inline">Пользователи</span></button>
+          <button onClick={() => setActiveTab('promo')} className={cn("flex-1 px-2 lg:px-6 py-3 rounded-xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2", activeTab === 'promo' ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-400 hover:text-slate-600')}><Ticket className="w-4 h-4" /> <span className="hidden sm:inline">Промокоды</span></button>
+          <button onClick={() => setActiveTab('referrals')} className={cn("flex-1 px-2 lg:px-6 py-3 rounded-xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2", activeTab === 'referrals' ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-400 hover:text-slate-600')}><Network className="w-4 h-4" /> <span className="hidden sm:inline">Рефералы</span></button>
+          <button onClick={() => setActiveTab('global')} className={cn("flex-1 px-2 lg:px-6 py-3 rounded-xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2", activeTab === 'global' ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-400 hover:text-slate-600')}><Globe className="w-4 h-4" /> <span className="hidden sm:inline">Глобальные</span></button>
         </div>
       </header>
 
@@ -542,9 +481,12 @@ export default function Admin({ user }: AdminProps) {
                         "text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md mt-1 inline-block",
                         u.referralData?.status === 'pending' ? "bg-amber-100 text-amber-600" :
                         u.referralData?.status === 'approved' ? "bg-emerald-100 text-emerald-600" :
-                        "bg-red-100 text-red-600"
+                        u.referralData?.status === 'disabled' ? "bg-red-100 text-red-600" :
+                        "bg-slate-100 text-slate-600"
                       )}>
-                        {u.referralData?.status === 'pending' ? 'Ожидает' : u.referralData?.status === 'approved' ? `Одобрен: ${u.referralData?.plan}` : 'Отклонен'}
+                        {u.referralData?.status === 'pending' ? 'Ожидает' : 
+                         u.referralData?.status === 'approved' ? `Одобрен: ${u.referralData?.plan}` : 
+                         u.referralData?.status === 'disabled' ? 'Отключен' : 'Отклонен'}
                       </span>
                     </div>
                   </div>
@@ -568,9 +510,10 @@ export default function Admin({ user }: AdminProps) {
                       </>
                     )}
                     {u.referralData?.status === 'approved' && (
-                      <>
-                        <button onClick={() => handleDisableReferral(u.uid, u.referralData)} className="col-span-2 py-2.5 bg-slate-100 text-slate-500 hover:bg-slate-200 rounded-xl font-bold text-xs uppercase tracking-widest transition-all">Отключить доступ</button>
-                      </>
+                      <button onClick={() => handleDisableReferral(u.uid, u.referralData)} className="col-span-2 py-2.5 bg-slate-100 text-slate-500 hover:bg-slate-200 rounded-xl font-bold text-xs uppercase tracking-widest transition-all">Отключить доступ</button>
+                    )}
+                    {u.referralData?.status === 'disabled' && (
+                      <button onClick={() => setReferralApproveModal(u)} className="col-span-2 py-2.5 bg-red-50 text-red-600 hover:bg-red-500 hover:text-white border border-red-200 hover:border-red-500 rounded-xl font-bold text-xs uppercase tracking-widest transition-all">Вернуть доступ</button>
                     )}
                   </div>
                 </div>
@@ -586,16 +529,14 @@ export default function Admin({ user }: AdminProps) {
           </motion.div>
         )}
 
-        {/* ... [Остальные вкладки global, users, promo остаются без изменений] ... */}
+        {/* Остальные вкладки */}
         {activeTab === 'global' && (
           <motion.div key="global" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-6 md:space-y-8 max-w-7xl mx-auto">
-             {/* ... Код вкладки global (Очистка истории) ... */}
-             <div className="bg-white p-5 md:p-8 lg:p-12 rounded-[2rem] md:rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/50">
+            <div className="bg-white p-5 md:p-8 lg:p-12 rounded-[2rem] md:rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/50">
               <div className="mb-6 md:mb-8 text-center md:text-left">
                 <h2 className="text-xl md:text-3xl font-black text-slate-900 tracking-tighter">Глобальные настройки</h2>
-                <p className="text-slate-500 text-xs md:text-sm font-medium mt-2">Управление системными данными и коллекциями базы данных.</p>
+                <p className="text-slate-500 text-xs md:text-sm font-medium mt-2">Управление системными данными.</p>
               </div>
-
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                 <div className="bg-slate-50 p-6 md:p-8 rounded-[1.5rem] md:rounded-[2rem] border border-slate-100 flex flex-col justify-between group hover:border-red-200 transition-colors">
                   <div className="mb-6 md:mb-8">
@@ -603,23 +544,15 @@ export default function Admin({ user }: AdminProps) {
                       <Trash2 className="w-6 h-6" />
                     </div>
                     <h3 className="text-lg md:text-xl font-black text-slate-900 mb-2">История игр</h3>
-                    <p className="text-xs md:text-sm text-slate-500 leading-relaxed">
-                      Полностью удаляет коллекцию <code className="bg-slate-200 px-1 py-0.5 rounded text-slate-700">gameSessions</code>, а также очищает все зависшие ставки со стола в WheelX и визуальную историю.
-                    </p>
+                    <p className="text-xs md:text-sm text-slate-500 leading-relaxed">Полностью очищает историю игр и ставок.</p>
                   </div>
-                  <button 
-                    onClick={() => setGlobalActionModal('clear_history')} 
-                    className="w-full py-4 bg-white text-red-500 border-2 border-red-100 hover:bg-red-500 hover:text-white hover:border-red-500 rounded-xl font-black text-xs md:text-sm uppercase tracking-widest transition-all shadow-sm flex items-center justify-center gap-2"
-                  >
-                    Очистить базу игр
-                  </button>
+                  <button onClick={() => setGlobalActionModal('clear_history')} className="w-full py-4 bg-white text-red-500 border-2 border-red-100 hover:bg-red-500 hover:text-white hover:border-red-500 rounded-xl font-black text-xs md:text-sm uppercase tracking-widest transition-all shadow-sm flex items-center justify-center gap-2">Очистить базу игр</button>
                 </div>
               </div>
             </div>
           </motion.div>
         )}
 
-        {/* ... Вкладка Пользователи (вставляю оригинальный кусок) ... */}
         {activeTab === 'users' && (
            <motion.div key="users" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-4 md:space-y-6">
             <div className="max-w-7xl mx-auto bg-white p-3 md:p-4 rounded-[1.5rem] md:rounded-[2rem] border border-slate-100 shadow-lg shadow-slate-200/50 flex items-center gap-3 md:gap-4 focus-within:border-brand-300 transition-colors">
@@ -632,71 +565,36 @@ export default function Admin({ user }: AdminProps) {
             <div className="grid grid-cols-1 gap-5 max-w-7xl mx-auto">
               {filteredUsers.map((u) => {
                 const currentEdit = editingUsers[u.uid];
-                const hasChanges = currentEdit && (
-                  (currentEdit.balance !== undefined && currentEdit.balance !== u.balance) ||
-                  (currentEdit.level !== undefined && currentEdit.level !== (u.level ?? 0)) ||
-                  (currentEdit.rank !== undefined && currentEdit.rank !== (u.rank || 'user'))
-                );
-                
+                const hasChanges = currentEdit && ((currentEdit.balance !== undefined && currentEdit.balance !== u.balance) || (currentEdit.level !== undefined && currentEdit.level !== (u.level ?? 0)) || (currentEdit.rank !== undefined && currentEdit.rank !== (u.rank || 'user')));
                 return (
                 <div key={u.uid} className="bg-white p-5 md:p-6 rounded-[2rem] md:rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-xl shadow-slate-200/40 transition-all flex flex-col gap-5 md:gap-6 group relative overflow-hidden">
-                  
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between w-full gap-4 pb-5 border-b border-slate-100">
                     <div className="flex items-center gap-4 min-w-0">
                       <div className="relative shrink-0">
                         <img src={u.avatar || '/assets/avatars/ava1.webp'} className="w-14 h-14 md:w-16 md:h-16 rounded-2xl object-cover border-2 border-slate-100 shadow-sm" alt="" />
-                        {u.banned && (
-                          <div className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center border-2 border-white shadow-sm">
-                            <Ban className="w-3.5 h-3.5 text-white" />
-                          </div>
-                        )}
+                        {u.banned && <div className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center border-2 border-white shadow-sm"><Ban className="w-3.5 h-3.5 text-white" /></div>}
                       </div>
                       <div className="min-w-0">
                         <p className="font-black text-slate-900 text-lg md:text-xl truncate">{u.nickname || 'Без имени'}</p>
-                        <p className={cn("text-xs font-black uppercase tracking-widest mt-0.5", u.rank === 'admin' ? "text-brand-500" : "text-slate-400")}>
-                          {u.rank || 'user'} • LVL {u.level ?? 0}
-                        </p>
+                        <p className={cn("text-xs font-black uppercase tracking-widest mt-0.5", u.rank === 'admin' ? "text-brand-500" : "text-slate-400")}>{u.rank || 'user'} • LVL {u.level ?? 0}</p>
                       </div>
                     </div>
-                    
                     <div className="flex flex-wrap items-center gap-2 md:gap-3 w-full lg:w-auto shrink-0">
-                      
                       <AnimatePresence>
                         {hasChanges && (
-                          <motion.button 
-                            initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}
-                            onClick={() => handleSaveProfileClick(u)} 
-                            className="flex-1 lg:flex-none py-2.5 px-4 md:p-3 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 transition-all shadow-md shadow-emerald-200 flex items-center justify-center gap-2 animate-pulse" 
-                            title="Сохранить изменения"
-                          >
-                            <CheckCircle2 className="w-4 h-4" /> <span className="text-xs font-bold uppercase tracking-widest">Сохранить</span>
-                          </motion.button>
+                          <motion.button initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }} onClick={() => handleSaveProfileClick(u)} className="flex-1 lg:flex-none py-2.5 px-4 md:p-3 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 transition-all shadow-md shadow-emerald-200 flex items-center justify-center gap-2 animate-pulse" title="Сохранить изменения"><CheckCircle2 className="w-4 h-4" /> <span className="text-xs font-bold uppercase tracking-widest">Сохранить</span></motion.button>
                         )}
                       </AnimatePresence>
-
-                      <button onClick={() => setUserActionModal({ userTarget: u, action: 'reset_wager' })} className="flex-1 lg:flex-none py-2.5 px-3 md:p-3 rounded-xl bg-brand-50 text-brand-500 hover:bg-brand-500 hover:text-white transition-all shadow-sm flex items-center justify-center gap-2" title="Сбросить отыгрыш">
-                        <RefreshCw className="w-4 h-4" /> <span className="lg:hidden text-[10px] uppercase font-bold tracking-widest">Отыгрыш</span>
-                      </button>
-                      
-                      <button onClick={() => setUserActionModal({ userTarget: u, action: 'reset_level' })} className="flex-1 lg:flex-none py-2.5 px-3 md:p-3 rounded-xl bg-amber-50 text-amber-500 hover:bg-amber-500 hover:text-white transition-all shadow-sm flex items-center justify-center gap-2" title="Аннулировать уровень">
-                        <RotateCcw className="w-4 h-4" /> <span className="lg:hidden text-[10px] uppercase font-bold tracking-widest">Уровень</span>
-                      </button>
-
-                      <button onClick={() => setUserActionModal({ userTarget: u, action: u.banned ? 'unblock' : 'block' })} className={cn("flex-1 lg:flex-none py-2.5 px-3 md:p-3 rounded-xl transition-all shadow-sm flex items-center justify-center gap-2", u.banned ? "bg-emerald-50 text-emerald-500 hover:bg-emerald-500 hover:text-white" : "bg-orange-50 text-orange-500 hover:bg-orange-500 hover:text-white")} title={u.banned ? 'Разблокировать' : 'Заблокировать'}>
-                        {u.banned ? <CheckCircle2 className="w-4 h-4" /> : <Ban className="w-4 h-4" />} <span className="lg:hidden text-[10px] uppercase font-bold tracking-widest">{u.banned ? 'Разбан' : 'Бан'}</span>
-                      </button>
-                      <button onClick={() => setUserActionModal({ userTarget: u, action: 'delete' })} className="flex-1 lg:flex-none py-2.5 px-3 md:p-3 rounded-xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-sm flex items-center justify-center gap-2" title="Удалить аккаунт">
-                        <Trash2 className="w-4 h-4" /> <span className="lg:hidden text-[10px] uppercase font-bold tracking-widest">Удалить</span>
-                      </button>
+                      <button onClick={() => setUserActionModal({ userTarget: u, action: 'reset_wager' })} className="flex-1 lg:flex-none py-2.5 px-3 md:p-3 rounded-xl bg-brand-50 text-brand-500 hover:bg-brand-500 hover:text-white transition-all shadow-sm flex items-center justify-center gap-2"><RefreshCw className="w-4 h-4" /> <span className="lg:hidden text-[10px] uppercase font-bold tracking-widest">Отыгрыш</span></button>
+                      <button onClick={() => setUserActionModal({ userTarget: u, action: 'reset_level' })} className="flex-1 lg:flex-none py-2.5 px-3 md:p-3 rounded-xl bg-amber-50 text-amber-500 hover:bg-amber-500 hover:text-white transition-all shadow-sm flex items-center justify-center gap-2"><RotateCcw className="w-4 h-4" /> <span className="lg:hidden text-[10px] uppercase font-bold tracking-widest">Уровень</span></button>
+                      <button onClick={() => setUserActionModal({ userTarget: u, action: u.banned ? 'unblock' : 'block' })} className={cn("flex-1 lg:flex-none py-2.5 px-3 md:p-3 rounded-xl transition-all shadow-sm flex items-center justify-center gap-2", u.banned ? "bg-emerald-50 text-emerald-500 hover:bg-emerald-500 hover:text-white" : "bg-orange-50 text-orange-500 hover:bg-orange-500 hover:text-white")}>{u.banned ? <CheckCircle2 className="w-4 h-4" /> : <Ban className="w-4 h-4" />} <span className="lg:hidden text-[10px] uppercase font-bold tracking-widest">{u.banned ? 'Разбан' : 'Бан'}</span></button>
+                      <button onClick={() => setUserActionModal({ userTarget: u, action: 'delete' })} className="flex-1 lg:flex-none py-2.5 px-3 md:p-3 rounded-xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-sm flex items-center justify-center gap-2"><Trash2 className="w-4 h-4" /> <span className="lg:hidden text-[10px] uppercase font-bold tracking-widest">Удалить</span></button>
                     </div>
                   </div>
-                  
                   <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 md:gap-6">
                     <div className="space-y-2 relative">
                       <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400 pl-1">Ранг</p>
-                      <select value={editingUsers[u.uid]?.rank ?? (u.rank || 'user')} onChange={(e) => setEditingUsers({...editingUsers, [u.uid]: {...(editingUsers[u.uid]||{}), rank: e.target.value as any}})} className="w-full bg-slate-50 hover:bg-slate-100 focus:bg-white border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-3 font-black text-slate-900 text-sm md:text-base outline-none transition-all shadow-inner appearance-none cursor-pointer uppercase">
-                        <option value="user">User</option><option value="vip">VIP</option><option value="admin">Admin</option>
-                      </select>
+                      <select value={editingUsers[u.uid]?.rank ?? (u.rank || 'user')} onChange={(e) => setEditingUsers({...editingUsers, [u.uid]: {...(editingUsers[u.uid]||{}), rank: e.target.value as any}})} className="w-full bg-slate-50 hover:bg-slate-100 focus:bg-white border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-3 font-black text-slate-900 text-sm md:text-base outline-none transition-all shadow-inner appearance-none cursor-pointer uppercase"><option value="user">User</option><option value="vip">VIP</option><option value="admin">Admin</option></select>
                     </div>
                     <div className="space-y-2 relative">
                       <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400 pl-1">Уровень</p>
@@ -716,141 +614,59 @@ export default function Admin({ user }: AdminProps) {
                     </div>
                     <div className="space-y-2 col-span-2 md:col-span-1">
                       <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400 pl-1">Статистика</p>
-                      <div className="flex flex-row items-center gap-4 text-xs md:text-sm font-black text-slate-500 bg-slate-50 border border-slate-100 px-4 py-3 rounded-xl w-full h-[46px] md:h-[52px]">
-                        <span className="text-emerald-500 flex items-center gap-1">+ {u.totalDeposits || 0}</span>
-                        <span className="text-slate-300">|</span>
-                        <span className="text-red-400 flex items-center gap-1">- {u.totalWithdrawals || 0}</span>
-                      </div>
+                      <div className="flex flex-row items-center gap-4 text-xs md:text-sm font-black text-slate-500 bg-slate-50 border border-slate-100 px-4 py-3 rounded-xl w-full h-[46px] md:h-[52px]"><span className="text-emerald-500 flex items-center gap-1">+ {u.totalDeposits || 0}</span><span className="text-slate-300">|</span><span className="text-red-400 flex items-center gap-1">- {u.totalWithdrawals || 0}</span></div>
                     </div>
                   </div>
                 </div>
               )})}
-              
-              {filteredUsers.length === 0 && (
-                <div className="text-center py-12 bg-white rounded-[2rem] border border-slate-100 max-w-7xl mx-auto w-full">
-                  <Search className="w-12 h-12 text-slate-200 mx-auto mb-4" />
-                  <p className="text-slate-400 font-bold">Игроки не найдены</p>
-                </div>
-              )}
+              {filteredUsers.length === 0 && <div className="text-center py-12 bg-white rounded-[2rem] border border-slate-100 max-w-7xl mx-auto w-full"><Search className="w-12 h-12 text-slate-200 mx-auto mb-4" /><p className="text-slate-400 font-bold">Игроки не найдены</p></div>}
             </div>
           </motion.div>
         )}
 
-        {/* ... Вкладка Промокоды (вставляю оригинальный кусок) ... */}
         {activeTab === 'promo' && (
           <motion.div key="promo" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-6 md:space-y-8 max-w-7xl mx-auto">
-             {/* ... Код вкладки promo ... */}
              <div className="grid grid-cols-3 md:flex bg-white p-1.5 rounded-[1.5rem] md:rounded-[2rem] border border-slate-100 shadow-lg shadow-slate-200/50 w-full md:w-fit gap-1 md:gap-2">
-              <button onClick={() => setPromoTab('create')} className={cn("px-2 md:px-8 py-3 rounded-xl font-black text-[9px] md:text-xs uppercase tracking-widest transition-all flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2", promoTab === 'create' ? 'bg-brand-50 text-brand-600' : 'text-slate-400 hover:text-brand-600')}>
-                <Plus className="w-4 h-4 md:w-4 md:h-4" /> <span className="truncate w-full text-center">Создать</span>
-              </button>
-              <button onClick={() => setPromoTab('list')} className={cn("px-2 md:px-8 py-3 rounded-xl font-black text-[9px] md:text-xs uppercase tracking-widest transition-all flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2", promoTab === 'list' ? 'bg-brand-50 text-brand-600' : 'text-slate-400 hover:text-brand-600')}>
-                <List className="w-4 h-4 md:w-4 md:h-4" /> <span className="truncate w-full text-center">Список</span>
-              </button>
-              <button onClick={() => setPromoTab('generator')} className={cn("px-2 md:px-8 py-3 rounded-xl font-black text-[9px] md:text-xs uppercase tracking-widest transition-all flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2", promoTab === 'generator' ? 'bg-brand-50 text-brand-600' : 'text-slate-400 hover:text-brand-600')}>
-                <Zap className="w-4 h-4 md:w-4 md:h-4" /> <span className="truncate w-full text-center">Генератор</span>
-              </button>
+              <button onClick={() => setPromoTab('create')} className={cn("px-2 md:px-8 py-3 rounded-xl font-black text-[9px] md:text-xs uppercase tracking-widest transition-all flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2", promoTab === 'create' ? 'bg-brand-50 text-brand-600' : 'text-slate-400 hover:text-brand-600')}><Plus className="w-4 h-4 md:w-4 md:h-4" /> <span className="truncate w-full text-center">Создать</span></button>
+              <button onClick={() => setPromoTab('list')} className={cn("px-2 md:px-8 py-3 rounded-xl font-black text-[9px] md:text-xs uppercase tracking-widest transition-all flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2", promoTab === 'list' ? 'bg-brand-50 text-brand-600' : 'text-slate-400 hover:text-brand-600')}><List className="w-4 h-4 md:w-4 md:h-4" /> <span className="truncate w-full text-center">Список</span></button>
+              <button onClick={() => setPromoTab('generator')} className={cn("px-2 md:px-8 py-3 rounded-xl font-black text-[9px] md:text-xs uppercase tracking-widest transition-all flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2", promoTab === 'generator' ? 'bg-brand-50 text-brand-600' : 'text-slate-400 hover:text-brand-600')}><Zap className="w-4 h-4 md:w-4 md:h-4" /> <span className="truncate w-full text-center">Генератор</span></button>
             </div>
 
             <div className="bg-white p-5 md:p-8 lg:p-12 rounded-[2rem] md:rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/50">
-              
               {promoTab === 'create' && (
                 <div className="max-w-3xl mx-auto space-y-6 md:space-y-8">
-                  <div className="text-center space-y-2 mb-6 md:mb-8">
-                    <h2 className="text-xl md:text-2xl font-black text-slate-900">Новый промокод</h2>
-                    <p className="text-slate-400 font-medium text-xs md:text-sm">Укажите параметры для ручного создания</p>
-                  </div>
-                  
+                  <div className="text-center space-y-2 mb-6 md:mb-8"><h2 className="text-xl md:text-2xl font-black text-slate-900">Новый промокод</h2><p className="text-slate-400 font-medium text-xs md:text-sm">Укажите параметры для ручного создания</p></div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Код купона</label>
-                      <input type="text" value={promoName} onChange={(e) => setPromoName(e.target.value.toUpperCase())} placeholder="SUMMER2026" className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl px-5 py-3.5 md:py-4 font-black text-slate-900 focus:border-brand-500 outline-none transition-all placeholder:text-slate-300 text-sm md:text-base" />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Награда (CAT)</label>
-                      <input type="number" value={promoAmount} onChange={(e) => setPromoAmount(Number(e.target.value))} className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl px-5 py-3.5 md:py-4 font-black text-slate-900 focus:border-brand-500 outline-none transition-all text-sm md:text-base" />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Макс. Активаций</label>
-                      <input type="number" value={promoActivations} onChange={(e) => setPromoActivations(Number(e.target.value))} className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl px-5 py-3.5 md:py-4 font-black text-slate-900 focus:border-brand-500 outline-none transition-all text-sm md:text-base" />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Вагер (Множитель)</label>
-                      <input type="number" value={promoWager} onChange={(e) => setPromoWager(Number(e.target.value))} className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl px-5 py-3.5 md:py-4 font-black text-slate-900 focus:border-brand-500 outline-none transition-all text-sm md:text-base" />
-                    </div>
+                    <div className="space-y-2"><label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Код купона</label><input type="text" value={promoName} onChange={(e) => setPromoName(e.target.value.toUpperCase())} placeholder="SUMMER2026" className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl px-5 py-3.5 md:py-4 font-black text-slate-900 focus:border-brand-500 outline-none transition-all placeholder:text-slate-300 text-sm md:text-base" /></div>
+                    <div className="space-y-2"><label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Награда (CAT)</label><input type="number" value={promoAmount} onChange={(e) => setPromoAmount(Number(e.target.value))} className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl px-5 py-3.5 md:py-4 font-black text-slate-900 focus:border-brand-500 outline-none transition-all text-sm md:text-base" /></div>
+                    <div className="space-y-2"><label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Макс. Активаций</label><input type="number" value={promoActivations} onChange={(e) => setPromoActivations(Number(e.target.value))} className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl px-5 py-3.5 md:py-4 font-black text-slate-900 focus:border-brand-500 outline-none transition-all text-sm md:text-base" /></div>
+                    <div className="space-y-2"><label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Вагер (Множитель)</label><input type="number" value={promoWager} onChange={(e) => setPromoWager(Number(e.target.value))} className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl px-5 py-3.5 md:py-4 font-black text-slate-900 focus:border-brand-500 outline-none transition-all text-sm md:text-base" /></div>
                   </div>
-                  
-                  <div className="pt-4 md:pt-6 border-t border-slate-100">
-                    <button onClick={() => handleCreatePromo(promoName, promoAmount, promoActivations, promoWager)} className="w-full bg-brand-600 hover:bg-brand-700 text-white font-black py-4 md:py-5 rounded-2xl transition-all shadow-xl shadow-brand-200 uppercase tracking-widest text-xs md:text-sm flex items-center justify-center gap-2">
-                      <Plus className="w-4 h-4 md:w-5 md:h-5" /> Создать промокод
-                    </button>
-                  </div>
+                  <div className="pt-4 md:pt-6 border-t border-slate-100"><button onClick={() => handleCreatePromo(promoName, promoAmount, promoActivations, promoWager)} className="w-full bg-brand-600 hover:bg-brand-700 text-white font-black py-4 md:py-5 rounded-2xl transition-all shadow-xl shadow-brand-200 uppercase tracking-widest text-xs md:text-sm flex items-center justify-center gap-2"><Plus className="w-4 h-4 md:w-5 md:h-5" /> Создать промокод</button></div>
                 </div>
               )}
-
               {promoTab === 'list' && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                   {promoCodes.map((p) => (
                     <div key={p.id} onClick={() => copyToClipboard(p.code)} className={cn("relative overflow-hidden flex flex-col p-5 md:p-6 rounded-[1.5rem] md:rounded-[2rem] border-2 border-dashed transition-all duration-500 cursor-pointer group", newPromoId === p.id ? "bg-brand-50 border-brand-500 shadow-xl shadow-brand-200 scale-105 z-10" : "bg-white border-slate-200 hover:border-brand-400 hover:shadow-xl hover:shadow-brand-100")}>
-                      <div className="absolute top-4 right-4 text-slate-300 group-hover:text-brand-500 transition-colors">
-                        <Copy className="w-4 h-4 md:w-5 h-5" />
-                      </div>
-                      <div className="mb-4 pr-6">
-                        <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Промокод</p>
-                        <p className="text-xl md:text-2xl font-black text-slate-900 tracking-tighter group-hover:text-brand-600 transition-colors truncate">{p.code}</p>
-                      </div>
+                      <div className="absolute top-4 right-4 text-slate-300 group-hover:text-brand-500 transition-colors"><Copy className="w-4 h-4 md:w-5 h-5" /></div>
+                      <div className="mb-4 pr-6"><p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Промокод</p><p className="text-xl md:text-2xl font-black text-slate-900 tracking-tighter group-hover:text-brand-600 transition-colors truncate">{p.code}</p></div>
                       <div className="grid grid-cols-2 gap-3 md:gap-4 mt-auto pt-4 border-t border-slate-100 w-full">
-                        <div className="w-full">
-                          <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400">Награда</p>
-                          <p className="font-bold text-slate-900 text-sm md:text-base">{p.amount} CAT</p>
-                        </div>
-                        <div className="w-full">
-                          <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400">Вагер</p>
-                          <p className="font-bold text-slate-900 text-sm md:text-base">x{p.wager}</p>
-                        </div>
-                        <div className="col-span-2 w-full mt-2 pr-14 md:pr-0">
-                          <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 flex justify-between w-full">
-                            <span>Активации</span> <span>{p.activations} / {p.maxActivations}</span>
-                          </p>
-                          <div className="w-full h-1.5 bg-slate-100 rounded-full mt-1.5 overflow-hidden">
-                            <div className="h-full bg-brand-500 rounded-full" style={{ width: `${(p.activations / p.maxActivations) * 100}%` }} />
-                          </div>
-                        </div>
+                        <div className="w-full"><p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400">Награда</p><p className="font-bold text-slate-900 text-sm md:text-base">{p.amount} CAT</p></div>
+                        <div className="w-full"><p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400">Вагер</p><p className="font-bold text-slate-900 text-sm md:text-base">x{p.wager}</p></div>
+                        <div className="col-span-2 w-full mt-2 pr-14 md:pr-0"><p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 flex justify-between w-full"><span>Активации</span> <span>{p.activations} / {p.maxActivations}</span></p><div className="w-full h-1.5 bg-slate-100 rounded-full mt-1.5 overflow-hidden"><div className="h-full bg-brand-500 rounded-full" style={{ width: `${(p.activations / p.maxActivations) * 100}%` }} /></div></div>
                       </div>
-                      <button onClick={(e) => { e.stopPropagation(); deleteDoc(doc(db, 'promoCodes', p.id)); setPromoCodes(promoCodes.filter(pc => pc.id !== p.id)); setNotification({ message: 'Промокод удален', type: 'success' }); }} className="absolute bottom-4 right-4 p-2.5 bg-red-50 text-red-400 hover:bg-red-500 hover:text-white rounded-xl shadow-sm transition-all md:opacity-0 md:group-hover:opacity-100" title="Удалить промокод">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <button onClick={(e) => { e.stopPropagation(); deleteDoc(doc(db, 'promoCodes', p.id)); setPromoCodes(promoCodes.filter(pc => pc.id !== p.id)); setNotification({ message: 'Промокод удален', type: 'success' }); }} className="absolute bottom-4 right-4 p-2.5 bg-red-50 text-red-400 hover:bg-red-500 hover:text-white rounded-xl shadow-sm transition-all md:opacity-0 md:group-hover:opacity-100" title="Удалить промокод"><Trash2 className="w-4 h-4" /></button>
                     </div>
                   ))}
-                  {promoCodes.length === 0 && (
-                    <div className="col-span-full text-center py-10 md:py-12">
-                      <Ticket className="w-10 h-10 md:w-12 md:h-12 text-slate-200 mx-auto mb-3 md:mb-4" />
-                      <p className="text-slate-400 font-bold text-sm md:text-base">Нет активных промокодов</p>
-                    </div>
-                  )}
+                  {promoCodes.length === 0 && <div className="col-span-full text-center py-10 md:py-12"><Ticket className="w-10 h-10 md:w-12 md:h-12 text-slate-200 mx-auto mb-3 md:mb-4" /><p className="text-slate-400 font-bold text-sm md:text-base">Нет активных промокодов</p></div>}
                 </div>
               )}
-
               {promoTab === 'generator' && (
                 <div className="max-w-md mx-auto text-center space-y-6 md:space-y-8 py-4 md:py-8">
-                  <div className="w-24 h-24 md:w-32 md:h-32 bg-brand-50 rounded-[2rem] md:rounded-[3rem] flex items-center justify-center mx-auto border-4 border-dashed border-brand-200 relative">
-                    <div className="absolute inset-0 bg-brand-400 rounded-[2rem] md:rounded-[3rem] blur-xl md:blur-2xl opacity-20 animate-pulse" />
-                    <Zap className="w-10 h-10 md:w-14 md:h-14 text-brand-500 relative z-10" />
-                  </div>
-                  <div className="space-y-2 md:space-y-3">
-                    <h3 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tighter">Генератор</h3>
-                    <p className="text-slate-500 font-medium text-xs md:text-sm px-4">Создаст уникальный код со следующими параметрами:</p>
-                    <div className="flex items-center justify-center gap-2 md:gap-3 pt-2">
-                      <span className="px-2 md:px-3 py-1 bg-slate-50 rounded-lg text-[10px] md:text-xs font-black text-slate-600">30 CAT</span>
-                      <span className="text-slate-300">•</span>
-                      <span className="px-2 md:px-3 py-1 bg-slate-50 rounded-lg text-[10px] md:text-xs font-black text-slate-600">80 Акт.</span>
-                      <span className="text-slate-300">•</span>
-                      <span className="px-2 md:px-3 py-1 bg-slate-50 rounded-lg text-[10px] md:text-xs font-black text-slate-600">x15 Вагер</span>
-                    </div>
-                  </div>
-                  <button onClick={generatePromo} className="w-full bg-brand-600 hover:bg-brand-700 text-white py-4 md:py-5 rounded-2xl font-black text-xs md:text-sm uppercase tracking-widest transition-all shadow-xl shadow-brand-200 flex items-center justify-center gap-2 mt-4">
-                    <Zap className="w-4 h-4 md:w-5 md:h-5" /> Сгенерировать
-                  </button>
+                  <div className="w-24 h-24 md:w-32 md:h-32 bg-brand-50 rounded-[2rem] md:rounded-[3rem] flex items-center justify-center mx-auto border-4 border-dashed border-brand-200 relative"><div className="absolute inset-0 bg-brand-400 rounded-[2rem] md:rounded-[3rem] blur-xl md:blur-2xl opacity-20 animate-pulse" /><Zap className="w-10 h-10 md:w-14 md:h-14 text-brand-500 relative z-10" /></div>
+                  <div className="space-y-2 md:space-y-3"><h3 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tighter">Генератор</h3><p className="text-slate-500 font-medium text-xs md:text-sm px-4">Создаст уникальный код со следующими параметрами:</p><div className="flex items-center justify-center gap-2 md:gap-3 pt-2"><span className="px-2 md:px-3 py-1 bg-slate-50 rounded-lg text-[10px] md:text-xs font-black text-slate-600">30 CAT</span><span className="text-slate-300">•</span><span className="px-2 md:px-3 py-1 bg-slate-50 rounded-lg text-[10px] md:text-xs font-black text-slate-600">80 Акт.</span><span className="text-slate-300">•</span><span className="px-2 md:px-3 py-1 bg-slate-50 rounded-lg text-[10px] md:text-xs font-black text-slate-600">x15 Вагер</span></div></div>
+                  <button onClick={generatePromo} className="w-full bg-brand-600 hover:bg-brand-700 text-white py-4 md:py-5 rounded-2xl font-black text-xs md:text-sm uppercase tracking-widest transition-all shadow-xl shadow-brand-200 flex items-center justify-center gap-2 mt-4"><Zap className="w-4 h-4 md:w-5 md:h-5" /> Сгенерировать</button>
                 </div>
               )}
             </div>
