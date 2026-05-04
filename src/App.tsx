@@ -14,7 +14,7 @@ import Mines from './pages/Mines';
 import Keno from './pages/Keno';
 import WheelX from './pages/WheelX';
 import Slots from './pages/Slots';
-import ExternalSlots from './pages/ExternalSlots'; // <--- ДОБАВЛЕН ИМПОРТ НОВОЙ СТРАНИЦЫ
+import ExternalSlots from './pages/ExternalSlots';
 import FAQ from './pages/FAQ';
 import Bonuses from './pages/Bonuses';
 import Level from './pages/Level';
@@ -22,6 +22,7 @@ import Achievements from './pages/Achievements';
 import Profile from './pages/Profile';
 import Contacts from './pages/Contacts';
 import Admin from './pages/Admin';
+import Referral from './pages/Referral';
 
 const LOADER_CONFIG = {
   pc: { size: 160, x: 0, y: 65 },
@@ -262,13 +263,14 @@ export default function App() {
           <Route path="/keno" element={<Keno user={user} />} />
           <Route path="/wheelx" element={<WheelX user={user} />} />
           <Route path="/slots" element={<Slots user={user} />} />
-          <Route path="/external-slots" element={<ExternalSlots user={user} />} /> {/* <--- ДОБАВЛЕН РОУТ ДЛЯ СЛОТОВ АГРЕГАТОРА */}
+          <Route path="/external-slots" element={<ExternalSlots user={user} />} />
           <Route path="/faq" element={<FAQ />} />
           <Route path="/bonuses" element={<Bonuses user={user} />} />
           <Route path="/level" element={<Level user={user} />} />
           <Route path="/achievements" element={<Achievements user={user} />} />
           <Route path="/profile" element={<Profile user={user} onLogout={handleLogout} />} />
           <Route path="/contacts" element={<Contacts />} />
+          <Route path="/referral" element={<Referral user={user} />} />
           <Route path="/admin" element={user.rank === 'admin' ? <Admin user={user} /> : <Navigate to="/" />} />
         </Routes>
       </Layout>

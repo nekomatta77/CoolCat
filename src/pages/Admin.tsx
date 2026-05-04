@@ -1,8 +1,9 @@
+// src/pages/Admin.tsx
 import { useState, useEffect } from 'react';
 import { UserProfile, PromoCode } from '../types';
 import { doc, updateDoc, getDocs, query, collection, addDoc, deleteDoc, orderBy, setDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Users, Ticket, Plus, List, Zap, Search, Ban, Trash2, Cat, CheckCircle2, AlertCircle, Copy, X, ShieldAlert, RefreshCw, ArrowRight, RotateCcw, Globe } from 'lucide-react';
+import { Users, Ticket, Plus, List, Zap, Search, Ban, Trash2, Cat, CheckCircle2, AlertCircle, Copy, X, ShieldAlert, RefreshCw, ArrowRight, RotateCcw, Globe, Network, Star, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 
@@ -37,7 +38,7 @@ const LEVEL_REQUIREMENTS = [
 ];
 
 export default function Admin({ user }: AdminProps) {
-  const [activeTab, setActiveTab] = useState<'users' | 'promo' | 'global'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'promo' | 'global' | 'referrals'>('users'); // <--- Добавили 'referrals'
   const [promoTab, setPromoTab] = useState<'create' | 'list' | 'generator'>('create');
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [promoCodes, setPromoCodes] = useState<PromoCode[]>([]);
@@ -47,6 +48,8 @@ export default function Admin({ user }: AdminProps) {
 
   const [userActionModal, setUserActionModal] = useState<{ userTarget: UserProfile, action: UserActionType } | null>(null);
   const [globalActionModal, setGlobalActionModal] = useState<'clear_history' | null>(null);
+  const [referralApproveModal, setReferralApproveModal] = useState<UserProfile | null>(null); // Модалка для одобрения рефки
+
   const [editingUsers, setEditingUsers] = useState<Record<string, { balance?: number; level?: number; rank?: 'user'|'vip'|'admin' }>>({});
   const [editConfirmModal, setEditConfirmModal] = useState<EditConfirmData | null>(null);
   const [newPromoId, setNewPromoId] = useState<string | null>(null);
@@ -66,7 +69,7 @@ export default function Admin({ user }: AdminProps) {
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      if (activeTab === 'users') {
+      if (activeTab === 'users' || activeTab === 'referrals') {
         const userSnap = await getDocs(collection(db, 'users'));
         setUsers(userSnap.docs.map(doc => ({ ...doc.data(), uid: doc.id } as UserProfile)));
       } else if (activeTab === 'promo') {
@@ -91,7 +94,6 @@ export default function Admin({ user }: AdminProps) {
 
   const clearGameHistory = async () => {
     try {
-      // 1. Удаляем все сессии игр (gameSessions)
       const sessionsSnap = await getDocs(collection(db, 'gameSessions'));
       const docs = sessionsSnap.docs;
       
@@ -106,14 +108,12 @@ export default function Admin({ user }: AdminProps) {
           await batch.commit();
       }
 
-      // 2. Сбрасываем визуальную историю колеса (последние множители)
       await setDoc(doc(db, 'live', 'wheelx'), {
           history: [],
           gameState: 'betting',
           timeLeft: 20
       }, { merge: true });
 
-      // 3. Жестко удаляем все зависшие ставки со стола (если бэкенд выключен или глюканул)
       const betsSnap = await getDocs(collection(db, 'live', 'wheelx', 'bets'));
       if (!betsSnap.empty) {
           const betsBatch = writeBatch(db);
@@ -262,9 +262,65 @@ export default function Admin({ user }: AdminProps) {
     setNotification({ message: `Промокод ${text} скопирован!`, type: 'success' });
   };
 
+  // Реферальные функции
+  const handleApproveReferral = async (u: UserProfile, plan: 'revshare' | 'special') => {
+    const code = u.referralData?.code || `REF-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+    await handleUpdateUser(u.uid, {
+      referralData: {
+        ...u.referralData,
+        status: 'approved',
+        plan,
+        code,
+        balance: u.referralData?.balance || 0,
+        // Инициализация статы если нет
+        rsDeposits: 0, rsWithdrawals: 0, rsCommissions: 0, rsBalances: 0,
+        spTier1Count: 0, spTier2Count: 0, spTier3Count: 0,
+        spTier1Profit: 0, spTier2Profit: 0, spTier3Profit: 0,
+      } as any
+    });
+    setNotification({ message: `Заявка одобрена (${plan === 'revshare' ? 'RevShare' : 'Особенная'})`, type: 'success' });
+    setReferralApproveModal(null);
+  };
+
+  const handleRejectReferral = async (uid: string, currentData: any) => {
+    await handleUpdateUser(uid, { referralData: { ...currentData, status: 'rejected' } });
+    setNotification({ message: 'Заявка отклонена', type: 'success' });
+  };
+
+  const handleDisableReferral = async (uid: string, currentData: any) => {
+    await handleUpdateUser(uid, { referralData: { ...currentData, status: 'none', plan: undefined } });
+    setNotification({ message: 'Реферальная система отключена для игрока', type: 'success' });
+  };
+
   const filteredUsers = users.filter(u => (u.nickname || '').toLowerCase().includes((search || '').toLowerCase()));
+  const referralUsers = users.filter(u => u.referralData && u.referralData.status !== 'none');
 
   const getModalContent = () => {
+    // ... [Оставляем модалки удаления истории и юзера без изменений, добавляем модалку рефки] ...
+
+    if (referralApproveModal) {
+      return (
+        <div className="flex flex-col space-y-5 md:space-y-6">
+          <div className="text-center space-y-2">
+            <h3 className="text-xl md:text-2xl font-black text-slate-900">Одобрение заявки</h3>
+            <p className="text-slate-500 font-medium text-sm md:text-base">Выберите тип партнерской программы для <span className="font-bold text-slate-900">{referralApproveModal.nickname}</span></p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <button onClick={() => handleApproveReferral(referralApproveModal, 'revshare')} className="flex flex-col items-center justify-center p-6 bg-slate-50 border-2 border-slate-100 hover:border-brand-500 hover:bg-white rounded-2xl transition-all group">
+              <Network className="w-10 h-10 text-slate-400 group-hover:text-brand-500 mb-3 transition-colors" />
+              <span className="font-black text-slate-900 text-lg">RevShare</span>
+              <span className="text-xs text-slate-500 mt-2 font-medium">Стандартная 10%</span>
+            </button>
+            <button onClick={() => handleApproveReferral(referralApproveModal, 'special')} className="flex flex-col items-center justify-center p-6 bg-amber-50 border-2 border-amber-100 hover:border-amber-500 hover:bg-white rounded-2xl transition-all group relative overflow-hidden">
+              <Star className="w-10 h-10 text-amber-400 group-hover:text-amber-500 mb-3 transition-colors" />
+              <span className="font-black text-amber-900 text-lg">Особенная</span>
+              <span className="text-xs text-amber-600/70 mt-2 font-medium">Многоуровневая</span>
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     if (globalActionModal === 'clear_history') {
       return (
         <div className="flex flex-col items-center text-center space-y-5 md:space-y-6">
@@ -377,7 +433,7 @@ export default function Admin({ user }: AdminProps) {
     <div className="max-w-[90rem] mx-auto space-y-6 md:space-y-8 pb-12 relative px-2 md:px-0">
       
       <AnimatePresence>
-        {(userActionModal || editConfirmModal || globalActionModal) && (
+        {(userActionModal || editConfirmModal || globalActionModal || referralApproveModal) && (
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -391,7 +447,7 @@ export default function Admin({ user }: AdminProps) {
               className="bg-white rounded-[2.5rem] p-6 md:p-8 max-w-md w-full shadow-2xl border border-slate-100 relative mx-4"
             >
               <button 
-                onClick={() => { setUserActionModal(null); setEditConfirmModal(null); setGlobalActionModal(null); }}
+                onClick={() => { setUserActionModal(null); setEditConfirmModal(null); setGlobalActionModal(null); setReferralApproveModal(null); }}
                 className="absolute top-4 right-4 md:top-6 md:right-6 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all"
               >
                 <X className="w-6 h-6" />
@@ -402,7 +458,7 @@ export default function Admin({ user }: AdminProps) {
         )}
       </AnimatePresence>
 
-      <header className="flex flex-col md:flex-row items-center justify-between gap-6 bg-white p-5 lg:p-8 rounded-[2rem] md:rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 max-w-7xl mx-auto">
+      <header className="flex flex-col lg:flex-row items-center justify-between gap-6 bg-white p-5 lg:p-8 rounded-[2rem] md:rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 max-w-7xl mx-auto">
         <div className="flex flex-col md:flex-row items-center gap-4 md:gap-6 text-center md:text-left">
           <div className="w-14 h-14 md:w-16 md:h-16 bg-brand-600 rounded-2xl md:rounded-3xl flex items-center justify-center shadow-xl shadow-brand-200 shrink-0">
             <Cat className="w-7 h-7 md:w-8 md:h-8 text-white" />
@@ -430,11 +486,11 @@ export default function Admin({ user }: AdminProps) {
           )}
         </AnimatePresence>
 
-        <div className="flex flex-wrap md:flex-nowrap bg-slate-50 p-1.5 rounded-2xl border border-slate-100 w-full md:w-auto">
+        <div className="flex flex-wrap bg-slate-50 p-1.5 rounded-2xl border border-slate-100 w-full lg:w-auto">
           <button
             onClick={() => setActiveTab('users')}
             className={cn(
-              "flex-1 md:flex-none px-3 md:px-6 py-3 rounded-xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2",
+              "flex-1 px-2 lg:px-6 py-3 rounded-xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2",
               activeTab === 'users' ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
             )}
           >
@@ -443,16 +499,25 @@ export default function Admin({ user }: AdminProps) {
           <button
             onClick={() => setActiveTab('promo')}
             className={cn(
-              "flex-1 md:flex-none px-3 md:px-6 py-3 rounded-xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2",
+              "flex-1 px-2 lg:px-6 py-3 rounded-xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2",
               activeTab === 'promo' ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
             )}
           >
             <Ticket className="w-4 h-4" /> <span className="hidden sm:inline">Промокоды</span>
           </button>
           <button
+            onClick={() => setActiveTab('referrals')}
+            className={cn(
+              "flex-1 px-2 lg:px-6 py-3 rounded-xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2",
+              activeTab === 'referrals' ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
+            )}
+          >
+            <Network className="w-4 h-4" /> <span className="hidden sm:inline">Рефералы</span>
+          </button>
+          <button
             onClick={() => setActiveTab('global')}
             className={cn(
-              "flex-1 md:flex-none px-3 md:px-6 py-3 rounded-xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2",
+              "flex-1 px-2 lg:px-6 py-3 rounded-xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2",
               activeTab === 'global' ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
             )}
           >
@@ -463,18 +528,75 @@ export default function Admin({ user }: AdminProps) {
 
       <AnimatePresence mode="wait">
         
-        {/* Вкладка: Глобальные переменные */}
+        {/* Вкладка: Рефералы */}
+        {activeTab === 'referrals' && (
+          <motion.div key="referrals" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-6 max-w-7xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {referralUsers.map(u => (
+                <div key={u.uid} className="bg-white rounded-[2rem] border border-slate-100 p-6 flex flex-col relative overflow-hidden group shadow-sm hover:shadow-xl transition-all">
+                  <div className="flex items-center gap-4 mb-4">
+                    <img src={u.avatar} className="w-14 h-14 rounded-2xl border-2 border-slate-50 object-cover" alt="" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-black text-lg text-slate-900 truncate">{u.nickname}</p>
+                      <span className={cn(
+                        "text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md mt-1 inline-block",
+                        u.referralData?.status === 'pending' ? "bg-amber-100 text-amber-600" :
+                        u.referralData?.status === 'approved' ? "bg-emerald-100 text-emerald-600" :
+                        "bg-red-100 text-red-600"
+                      )}>
+                        {u.referralData?.status === 'pending' ? 'Ожидает' : u.referralData?.status === 'approved' ? `Одобрен: ${u.referralData?.plan}` : 'Отклонен'}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-3 flex-1 bg-slate-50 rounded-xl p-4 mb-4">
+                    <div>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Telegram</p>
+                      <p className="text-sm font-bold text-slate-700 truncate">{u.referralData?.telegram || 'Не указан'}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Источник трафика</p>
+                      <p className="text-sm font-medium text-slate-600 line-clamp-3">{u.referralData?.source || 'Не указан'}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 mt-auto">
+                    {u.referralData?.status === 'pending' && (
+                      <>
+                        <button onClick={() => setReferralApproveModal(u)} className="py-2.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-all">Одобрить</button>
+                        <button onClick={() => handleRejectReferral(u.uid, u.referralData)} className="py-2.5 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-all">Отказать</button>
+                      </>
+                    )}
+                    {u.referralData?.status === 'approved' && (
+                      <>
+                        <button onClick={() => handleDisableReferral(u.uid, u.referralData)} className="col-span-2 py-2.5 bg-slate-100 text-slate-500 hover:bg-slate-200 rounded-xl font-bold text-xs uppercase tracking-widest transition-all">Отключить доступ</button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+              
+              {referralUsers.length === 0 && (
+                <div className="col-span-full text-center py-12 bg-white rounded-[2rem] border border-slate-100">
+                  <Network className="w-12 h-12 text-slate-200 mx-auto mb-4" />
+                  <p className="text-slate-400 font-bold">Нет активных или ожидающих заявок</p>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+
+        {/* ... [Остальные вкладки global, users, promo остаются без изменений] ... */}
         {activeTab === 'global' && (
           <motion.div key="global" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-6 md:space-y-8 max-w-7xl mx-auto">
-            <div className="bg-white p-5 md:p-8 lg:p-12 rounded-[2rem] md:rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/50">
+             {/* ... Код вкладки global (Очистка истории) ... */}
+             <div className="bg-white p-5 md:p-8 lg:p-12 rounded-[2rem] md:rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/50">
               <div className="mb-6 md:mb-8 text-center md:text-left">
                 <h2 className="text-xl md:text-3xl font-black text-slate-900 tracking-tighter">Глобальные настройки</h2>
                 <p className="text-slate-500 text-xs md:text-sm font-medium mt-2">Управление системными данными и коллекциями базы данных.</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                
-                {/* Карточка: Очистка истории */}
                 <div className="bg-slate-50 p-6 md:p-8 rounded-[1.5rem] md:rounded-[2rem] border border-slate-100 flex flex-col justify-between group hover:border-red-200 transition-colors">
                   <div className="mb-6 md:mb-8">
                     <div className="w-12 h-12 bg-red-100 rounded-2xl flex items-center justify-center mb-4 text-red-500 group-hover:scale-110 transition-transform">
@@ -492,15 +614,14 @@ export default function Admin({ user }: AdminProps) {
                     Очистить базу игр
                   </button>
                 </div>
-                
               </div>
             </div>
           </motion.div>
         )}
 
-        {/* Вкладка: Пользователи */}
+        {/* ... Вкладка Пользователи (вставляю оригинальный кусок) ... */}
         {activeTab === 'users' && (
-          <motion.div key="users" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-4 md:space-y-6">
+           <motion.div key="users" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-4 md:space-y-6">
             <div className="max-w-7xl mx-auto bg-white p-3 md:p-4 rounded-[1.5rem] md:rounded-[2rem] border border-slate-100 shadow-lg shadow-slate-200/50 flex items-center gap-3 md:gap-4 focus-within:border-brand-300 transition-colors">
               <div className="w-10 h-10 md:w-12 md:h-12 bg-slate-50 rounded-xl md:rounded-2xl flex items-center justify-center shrink-0">
                 <Search className="w-4 h-4 md:w-5 md:h-5 text-slate-400" />
@@ -615,10 +736,11 @@ export default function Admin({ user }: AdminProps) {
           </motion.div>
         )}
 
-        {/* Вкладка: Промокоды */}
+        {/* ... Вкладка Промокоды (вставляю оригинальный кусок) ... */}
         {activeTab === 'promo' && (
           <motion.div key="promo" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-6 md:space-y-8 max-w-7xl mx-auto">
-            <div className="grid grid-cols-3 md:flex bg-white p-1.5 rounded-[1.5rem] md:rounded-[2rem] border border-slate-100 shadow-lg shadow-slate-200/50 w-full md:w-fit gap-1 md:gap-2">
+             {/* ... Код вкладки promo ... */}
+             <div className="grid grid-cols-3 md:flex bg-white p-1.5 rounded-[1.5rem] md:rounded-[2rem] border border-slate-100 shadow-lg shadow-slate-200/50 w-full md:w-fit gap-1 md:gap-2">
               <button onClick={() => setPromoTab('create')} className={cn("px-2 md:px-8 py-3 rounded-xl font-black text-[9px] md:text-xs uppercase tracking-widest transition-all flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2", promoTab === 'create' ? 'bg-brand-50 text-brand-600' : 'text-slate-400 hover:text-brand-600')}>
                 <Plus className="w-4 h-4 md:w-4 md:h-4" /> <span className="truncate w-full text-center">Создать</span>
               </button>

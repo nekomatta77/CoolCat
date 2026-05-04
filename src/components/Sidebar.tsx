@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { UserProfile } from '../types';
-import { Home, HelpCircle, Gift, TrendingUp, Trophy, Settings, Phone, ShieldAlert, Gamepad2 } from 'lucide-react'; // <--- ДОБАВИЛИ ИКОНКУ Gamepad2
+import { Home, HelpCircle, Gift, TrendingUp, Trophy, Settings, Phone, ShieldAlert, Gamepad2, Network } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import OnlineCounter from './OnlineCounter';
@@ -57,13 +57,15 @@ export default function Sidebar({ user, onClose }: SidebarProps) {
   const textCfg = isMobile ? SIDEBAR_CONFIG.text.mobile : SIDEBAR_CONFIG.text.pc;
   const menuCfg = isMobile ? SIDEBAR_CONFIG.menu.mobile : SIDEBAR_CONFIG.menu.pc;
 
+  // ПОРЯДОК И НАЗВАНИЯ ВКЛАДОК ИЗМЕНЕНЫ ЗДЕСЬ
   const menuItems = [
     { icon: Home, label: 'Главная', path: '/' },
-    { icon: Gamepad2, label: 'Провайдеры', path: '/external-slots' }, // <--- ДОБАВЛЕНА НОВАЯ ССЫЛКА В МЕНЮ
-    { icon: HelpCircle, label: 'FAQ', path: '/faq' },
+    { icon: Gamepad2, label: 'Провайдеры', path: '/external-slots' },
     { icon: Gift, label: 'Бонусы', path: '/bonuses' },
+    { icon: Network, label: 'Партнеры', path: '/referral' }, // <--- Переименовано и перемещено
     { icon: TrendingUp, label: 'LvL Котика', path: '/level' },
     { icon: Trophy, label: 'Достижения', path: '/achievements' },
+    { icon: HelpCircle, label: 'FAQ', path: '/faq' },
     { icon: Settings, label: 'Настройки', path: '/profile' },
     { icon: Phone, label: 'Контакты', path: '/contacts' },
   ];

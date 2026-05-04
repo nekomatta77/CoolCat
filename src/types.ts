@@ -1,3 +1,29 @@
+// src/types.ts
+
+export interface ReferralData {
+  status: 'none' | 'pending' | 'approved' | 'rejected';
+  plan?: 'revshare' | 'special';
+  telegram?: string;
+  source?: string;
+  appliedAt?: string;
+  balance: number;
+  code?: string;
+  
+  // Статистика RevShare
+  rsDeposits?: number;
+  rsWithdrawals?: number;
+  rsCommissions?: number;
+  rsBalances?: number;
+  
+  // Статистика Special
+  spTier1Count?: number;
+  spTier2Count?: number;
+  spTier3Count?: number;
+  spTier1Profit?: number;
+  spTier2Profit?: number;
+  spTier3Profit?: number;
+}
+
 export interface UserProfile {
   uid: string;
   email?: string;
@@ -36,6 +62,10 @@ export interface UserProfile {
 
   // ТРЕКЕРЫ ДЛЯ АЧИВОК
   wxSequence?: number[];
+
+  // РЕФЕРАЛЬНАЯ СИСТЕМА
+  referralData?: ReferralData;
+  invitedBy?: string; // UID или код того, кто пригласил этого игрока
 }
 
 export interface PromoCode {
