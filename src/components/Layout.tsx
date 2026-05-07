@@ -1,10 +1,11 @@
+// src/components/Layout.tsx
 import { ReactNode, useState } from 'react';
 import Header from './Header';
 import Sidebar from './Sidebar';
 import Chat from './Chat';
 import { UserProfile } from '../types';
 import { Home, Gift, User, Plus, MessageCircle } from 'lucide-react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import DepositModal from './DepositModal';
@@ -15,12 +16,15 @@ function cn(...inputs: ClassValue[]) {
 
 interface LayoutProps {
   children: ReactNode;
-  user: UserProfile;
+  user: UserProfile | null;
   onLogout: () => void;
+  onLogin?: () => void;
+  onRegister?: () => void;
 }
 
-export default function Layout({ children, user, onLogout }: LayoutProps) {
+export default function Layout({ children, user, onLogout, onLogin, onRegister }: LayoutProps) {
   const location = useLocation();
+  const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [modalType, setModalType] = useState<'deposit' | 'withdraw' | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -30,10 +34,20 @@ export default function Layout({ children, user, onLogout }: LayoutProps) {
     { icon: Gift, path: '/bonuses' },
   ];
   
-  const mobileNavRight = [
-    { icon: MessageCircle, isButton: true, onClick: () => setIsChatOpen(true), id: 'chat' },
-    { icon: User, path: '/profile', id: 'profile' },
-  ];
+  const handleChatClick = () => {
+    if (!user && onLogin) return onLogin();
+    setIsChatOpen(true);
+  };
+
+  const handleProfileClick = () => {
+    if (!user && onLogin) return onLogin();
+    navigate('/profile');
+  };
+
+  const handleDepositClick = () => {
+    if (!user && onLogin) return onLogin();
+    setModalType('deposit');
+  };
 
   return (
     <div className="flex min-h-screen bg-slate-50 font-sans text-slate-900">
@@ -62,8 +76,10 @@ export default function Layout({ children, user, onLogout }: LayoutProps) {
           user={user} 
           onLogout={onLogout} 
           onMenuClick={() => setIsSidebarOpen(true)}
-          onDepositClick={() => setModalType('deposit')}
+          onDepositClick={handleDepositClick}
           onWithdrawClick={() => setModalType('withdraw')}
+          onLogin={onLogin}
+          onRegister={onRegister}
         />
         <main className="flex-1 p-4 lg:p-8 overflow-x-hidden">
           <div className="max-w-7xl mx-auto">
@@ -85,37 +101,23 @@ export default function Layout({ children, user, onLogout }: LayoutProps) {
         <div className="relative -mt-8 flex justify-center">
           <div className="absolute inset-0 bg-brand-500 rounded-full blur-xl opacity-40" />
           <button 
-            onClick={() => setModalType('deposit')}
+            onClick={handleDepositClick}
             className="relative bg-gradient-to-tr from-brand-600 to-brand-400 text-white p-4 rounded-full border-[6px] border-slate-50 shadow-lg transform transition-all active:scale-95 hover:-translate-y-1"
           >
             <Plus className="w-6 h-6 stroke-[3]" />
           </button>
         </div>
 
-        {mobileNavRight.map((item) => {
-          if (item.isButton) {
-            return (
-              <button key={item.id} onClick={item.onClick} className={cn("p-2 rounded-xl transition-all", isChatOpen ? "bg-brand-50 text-brand-600" : "text-slate-400")}>
-                <item.icon className="w-6 h-6" />
-              </button>
-            );
-          }
-          const isActive = location.pathname === item.path;
-          return (
-            <Link key={item.id} to={item.path!} className={cn("p-2 rounded-xl transition-all", isActive ? "bg-brand-50 text-brand-600" : "text-slate-400")}>
-              <item.icon className="w-6 h-6" />
-            </Link>
-          );
-        })}
+        <button onClick={handleChatClick} className={cn("p-2 rounded-xl transition-all", isChatOpen ? "bg-brand-50 text-brand-600" : "text-slate-400")}>
+          <MessageCircle className="w-6 h-6" />
+        </button>
+        <button onClick={handleProfileClick} className={cn("p-2 rounded-xl transition-all", location.pathname === '/profile' ? "bg-brand-50 text-brand-600" : "text-slate-400")}>
+          <User className="w-6 h-6" />
+        </button>
       </nav>
 
-      <DepositModal 
-        isOpen={modalType !== null} 
-        type={modalType || 'deposit'}
-        onClose={() => setModalType(null)} 
-      />
-
-      <Chat user={user} isOpen={isChatOpen} setIsOpen={setIsChatOpen} />
+      {user && <DepositModal isOpen={modalType !== null} type={modalType || 'deposit'} onClose={() => setModalType(null)} />}
+      {user && <Chat user={user} isOpen={isChatOpen} setIsOpen={setIsChatOpen} />}
 
     </div>
   );

@@ -11,26 +11,11 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-// ============================================================================
-// 🛠 НАСТРОЙКИ ПОЗИЦИОНИРОВАНИЯ И РАЗМЕРОВ (САЙДБАР)
-// ============================================================================
 const SIDEBAR_CONFIG = {
-  menu: {
-    pc: { x: 0, y: 100 },
-    mobile: { x: 0, y: 40 },
-  },
-  logo: {
-    pc: { x: 60, y: 35, scale: 3.6, size: 40 },
-    mobile: { x: 0, y: 20, scale: 3, size: 36 },
-  },
-  text: {
-    pc: { x: -18, y: 115, scale: 1.35 },
-    mobile: { x: 20, y: 50, scale: 1.2 },
-  }
+  menu: { pc: { x: 0, y: 100 }, mobile: { x: 0, y: 40 } },
+  logo: { pc: { x: 60, y: 35, scale: 3.6, size: 40 }, mobile: { x: 0, y: 20, scale: 3, size: 36 } },
+  text: { pc: { x: -18, y: 115, scale: 1.35 }, mobile: { x: 20, y: 50, scale: 1.2 } }
 };
-// ============================================================================
-
-// Цвет для слова "Cool"
 const LOGO_COLOR_COOL = "#feb1d1";
 
 function useIsMobile() {
@@ -45,7 +30,7 @@ function useIsMobile() {
 }
 
 interface SidebarProps {
-  user: UserProfile;
+  user: UserProfile | null;
   onClose?: () => void;
 }
 
@@ -57,12 +42,11 @@ export default function Sidebar({ user, onClose }: SidebarProps) {
   const textCfg = isMobile ? SIDEBAR_CONFIG.text.mobile : SIDEBAR_CONFIG.text.pc;
   const menuCfg = isMobile ? SIDEBAR_CONFIG.menu.mobile : SIDEBAR_CONFIG.menu.pc;
 
-  // ПОРЯДОК И НАЗВАНИЯ ВКЛАДОК ИЗМЕНЕНЫ ЗДЕСЬ
   const menuItems = [
     { icon: Home, label: 'Главная', path: '/' },
     { icon: Gamepad2, label: 'Провайдеры', path: '/external-slots' },
     { icon: Gift, label: 'Бонусы', path: '/bonuses' },
-    { icon: Network, label: 'Партнеры', path: '/referral' }, // <--- Переименовано и перемещено
+    { icon: Network, label: 'Партнеры', path: '/referral' },
     { icon: TrendingUp, label: 'LvL Котика', path: '/level' },
     { icon: Trophy, label: 'Достижения', path: '/achievements' },
     { icon: HelpCircle, label: 'FAQ', path: '/faq' },
@@ -70,7 +54,7 @@ export default function Sidebar({ user, onClose }: SidebarProps) {
     { icon: Phone, label: 'Контакты', path: '/contacts' },
   ];
 
-  if (user.rank === 'admin') {
+  if (user?.rank === 'admin') {
     menuItems.push({ icon: ShieldAlert, label: 'Админка', path: '/admin' });
   }
 
@@ -78,69 +62,23 @@ export default function Sidebar({ user, onClose }: SidebarProps) {
     <aside className="w-64 bg-white border-r border-slate-100 flex flex-col sticky top-0 h-screen z-50">
       <div className="p-8 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-3 group outline-none" onClick={onClose}>
-          
           <div className="relative flex items-center transition-all duration-300 md:group-hover:scale-[1.02] md:group-hover:-translate-y-0.5 md:group-hover:opacity-90">
-            <div 
-              className="flex items-center justify-center origin-center"
-              style={{ 
-                width: `${logoCfg.size}px`, 
-                height: `${logoCfg.size}px`,
-                transform: `translate(${logoCfg.x}px, ${logoCfg.y}px) scale(${logoCfg.scale})`
-              }}
-            >
-              <img 
-                src="/assets/CoolCat_logo.webp" 
-                alt="CoolCat Logo" 
-                className="w-full h-full object-contain drop-shadow-lg" 
-              />
+            <div className="flex items-center justify-center origin-center" style={{ width: `${logoCfg.size}px`, height: `${logoCfg.size}px`, transform: `translate(${logoCfg.x}px, ${logoCfg.y}px) scale(${logoCfg.scale})` }}>
+              <img src="/assets/CoolCat_logo.webp" alt="CoolCat Logo" className="w-full h-full object-contain drop-shadow-lg" />
             </div>
-            
-            <span 
-              className="text-2xl font-black tracking-tighter origin-left block relative"
-              style={{
-                transform: `translate(${textCfg.x}px, ${textCfg.y}px) scale(${textCfg.scale})`
-              }}
-            >
-              <span
-                className="absolute inset-0 z-0 drop-shadow-sm"
-                style={{
-                  WebkitTextStroke: '6px #5c2f3c',
-                  color: 'transparent'
-                }}
-                aria-hidden="true"
-              >
-                CoolCat
-              </span>
-              <span className="relative z-10">
-                <span style={{ color: LOGO_COLOR_COOL }}>Cool</span>
-                <span className="text-white">Cat</span>
-              </span>
+            <span className="text-2xl font-black tracking-tighter origin-left block relative" style={{ transform: `translate(${textCfg.x}px, ${textCfg.y}px) scale(${textCfg.scale})` }}>
+              <span className="absolute inset-0 z-0 drop-shadow-sm" style={{ WebkitTextStroke: '6px #5c2f3c', color: 'transparent' }} aria-hidden="true">CoolCat</span>
+              <span className="relative z-10"><span style={{ color: LOGO_COLOR_COOL }}>Cool</span><span className="text-white">Cat</span></span>
             </span>
           </div>
-
         </Link>
       </div>
 
-      <nav 
-        className="flex-1 px-4 space-y-1"
-        style={{
-          transform: `translate(${menuCfg.x}px, ${menuCfg.y}px)`
-        }}
-      >
+      <nav className="flex-1 px-4 space-y-1" style={{ transform: `translate(${menuCfg.x}px, ${menuCfg.y}px)` }}>
         {menuItems.map((item) => {
           const isActive = location.pathname === item.path;
           return (
-            <Link
-              key={item.path}
-              to={item.path}
-              onClick={onClose}
-              className={cn(
-                "flex items-center gap-4 px-4 py-3 rounded-2xl transition-all font-bold text-sm group",
-                isActive
-                  ? "bg-brand-500 text-white shadow-lg shadow-brand-100"
-                  : "text-slate-400 hover:bg-slate-50 hover:text-brand-600"
-              )}
-            >
+            <Link key={item.path} to={item.path} onClick={onClose} className={cn("flex items-center gap-4 px-4 py-3 rounded-2xl transition-all font-bold text-sm group", isActive ? "bg-brand-500 text-white shadow-lg shadow-brand-100" : "text-slate-400 hover:bg-slate-50 hover:text-brand-600")}>
               <item.icon className={cn("w-5 h-5 transition-colors", isActive ? "text-white" : "text-slate-400 group-hover:text-brand-600")} />
               {item.label}
             </Link>
@@ -151,17 +89,22 @@ export default function Sidebar({ user, onClose }: SidebarProps) {
       <div className="p-6 flex flex-col gap-4">
         <OnlineCounter />
 
-        <div className="bg-slate-50 rounded-3xl p-4 border border-slate-100 relative overflow-hidden group">
-          <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-brand-200/30 rounded-full blur-2xl group-hover:scale-150 transition-transform" />
-          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Ваш Ранг</p>
-          <p className="text-lg font-black text-slate-900 leading-none mb-1 capitalize">{user.rank}</p>
-          <div className="w-full bg-slate-200 h-1.5 rounded-full mt-3 overflow-hidden">
-            <div
-              className="bg-brand-500 h-full rounded-full transition-all duration-1000"
-              style={{ width: `${(user.xp / (user.level * 1000)) * 100}%` }}
-            />
+        {user ? (
+          <div className="bg-slate-50 rounded-3xl p-4 border border-slate-100 relative overflow-hidden group">
+            <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-brand-200/30 rounded-full blur-2xl group-hover:scale-150 transition-transform" />
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Ваш Ранг</p>
+            <p className="text-lg font-black text-slate-900 leading-none mb-1 capitalize">{user.rank}</p>
+            <div className="w-full bg-slate-200 h-1.5 rounded-full mt-3 overflow-hidden">
+              <div className="bg-brand-500 h-full rounded-full transition-all duration-1000" style={{ width: `${(user.xp / (user.level * 1000)) * 100}%` }} />
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="bg-slate-50 rounded-3xl p-4 border border-slate-100 text-center relative overflow-hidden">
+             <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-brand-200/40 rounded-full blur-[20px]" />
+             <p className="text-xs font-black text-slate-700 leading-snug mb-1">Присоединяйся!</p>
+             <p className="text-[10px] font-bold text-slate-400">Играй и получай бонусы</p>
+          </div>
+        )}
       </div>
     </aside>
   );

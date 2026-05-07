@@ -1,129 +1,81 @@
+// src/pages/Home.tsx
 import { Link } from 'react-router-dom';
 import { UserProfile } from '../types';
-import { Sparkles, Star, Zap, ChevronRight, Play } from 'lucide-react';
+import { Sparkles, Star, Zap, ChevronRight, Play, User as UserIcon } from 'lucide-react';
 import { motion } from 'motion/react';
-import { cn, useIsMobile } from '../lib/utils'; // Используем единый хук
+import { cn, useIsMobile } from '../lib/utils';
 
-// ============================================================================
-// 🛠 НАСТРОЙКИ ПОЗИЦИОНИРОВАНИЯ И РАЗМЕРОВ (ГЛАВНАЯ СТРАНИЦА)
-// ============================================================================
 const TROPHY_CONFIG = {
   pc: { x: 0, y: 20, scale: 1.4 },
   mobile: { x: 0, y: 10, scale: 1.6 },
 };
 
 interface HomeProps {
-  user: UserProfile;
+  user: UserProfile | null;
+  onLogin?: () => void;
 }
 
-export default function Home({ user }: HomeProps) {
+export default function Home({ user, onLogin }: HomeProps) {
   const isMobile = useIsMobile();
   const trophyCfg = isMobile ? TROPHY_CONFIG.mobile : TROPHY_CONFIG.pc;
 
-  // Массив игр: обновили ссылку, название и id для WheelX + добавили Slots
   const games = [
-    { 
-      id: 'dice', 
-      name: 'Dice', 
-      image: '/assets/dice_cat_original.webp', 
-      path: '/dice',
-      config: { 
-        pc: { x: 0, y: 0, scale: 2 },
-        mobile: { x: 0, y: 18, scale: 2.6 }
-      }
-    },
-    { 
-      id: 'mines', 
-      name: 'Mines', 
-      image: '/assets/mines_cat_original.webp', 
-      path: '/mines',
-      config: { 
-        pc: { x: 0, y: 0, scale: 2 },
-        mobile: { x: -7, y: 10, scale: 2.7 }
-      }
-    },
-    { 
-      id: 'keno', 
-      name: 'Keno', 
-      image: '/assets/keno_cat_original.webp', 
-      path: '/keno',
-      config: { 
-        pc: { x: 0, y: 0, scale: 2.2 },
-        mobile: { x: 0, y: 16, scale: 2.6 }
-      }
-    },
-    { 
-      id: 'wheelx',
-      name: 'WheelX',
-      image: '/assets/wheel_cat_original.webp', 
-      path: '/wheelx', 
-      config: { 
-        pc: { x: 0, y: 5, scale: 1.4 },
-        mobile: { x: 0, y: 10, scale: 1.6 }
-      }
-    },
-    { 
-      id: 'slots',          
-      name: 'Slots',        
-      image: '/assets/slot_cat_original.webp', 
-      path: '/slots',       
-      config: { 
-        pc: { x: 0, y: 0, scale: 1.8 },
-        mobile: { x: 0, y: 10, scale: 2.2 }
-      }
-    },
+    { id: 'dice', name: 'Dice', image: '/assets/dice_cat_original.webp', path: '/dice', config: { pc: { x: 0, y: 0, scale: 2 }, mobile: { x: 0, y: 18, scale: 2.6 } } },
+    { id: 'mines', name: 'Mines', image: '/assets/mines_cat_original.webp', path: '/mines', config: { pc: { x: 0, y: 0, scale: 2 }, mobile: { x: -7, y: 10, scale: 2.7 } } },
+    { id: 'keno', name: 'Keno', image: '/assets/keno_cat_original.webp', path: '/keno', config: { pc: { x: 0, y: 0, scale: 2.2 }, mobile: { x: 0, y: 16, scale: 2.6 } } },
+    { id: 'wheelx', name: 'WheelX', image: '/assets/wheel_cat_original.webp', path: '/wheelx', config: { pc: { x: 0, y: 5, scale: 1.4 }, mobile: { x: 0, y: 10, scale: 1.6 } } },
+    { id: 'slots', name: 'Slots', image: '/assets/slot_cat_original.webp', path: '/slots', config: { pc: { x: 0, y: 0, scale: 1.8 }, mobile: { x: 0, y: 10, scale: 2.2 } } },
   ];
 
   return (
     <div className="space-y-8 lg:space-y-12 pb-8 lg:pb-12">
       <header className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 lg:gap-8">
         <div className="space-y-3 lg:space-y-4">
-          <motion.div 
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="flex items-center gap-2 text-brand-600 font-bold text-[10px] lg:text-xs uppercase tracking-[0.2em]"
-          >
+          <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-2 text-brand-600 font-bold text-[10px] lg:text-xs uppercase tracking-[0.2em]">
             <Sparkles className="w-3 h-3 lg:w-4 lg:h-4" />
-            <span>С возвращением в CoolCat</span>
+            <span>{user ? 'С возвращением в CoolCat' : 'Добро пожаловать в CoolCat'}</span>
           </motion.div>
-          <motion.h1 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="text-4xl lg:text-7xl font-black text-slate-900 tracking-tighter leading-[0.9]"
-          >
-            Привет, {user.nickname}!
+          <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="text-4xl lg:text-7xl font-black text-slate-900 tracking-tighter leading-[0.9]">
+            Привет, {user ? user.nickname : 'Гость'}!
           </motion.h1>
-          <motion.p 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            className="text-slate-400 font-medium text-sm lg:text-xl max-w-xl"
-          >
-            Выберите игру и начните побеждать сегодня. Твоя удача ждет тебя!
+          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className="text-slate-400 font-medium text-sm lg:text-xl max-w-xl">
+            {user ? 'Выберите игру и начните побеждать сегодня. Твоя удача ждет тебя!' : 'Войди в аккаунт, чтобы получать бонусы и подниматься в топе!'}
           </motion.p>
         </div>
         
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.3 }}
-          className="hidden lg:flex items-center gap-6 bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-2xl shadow-slate-200/50 relative overflow-hidden group"
-        >
+        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.3 }} className="hidden lg:flex items-center gap-6 bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-2xl shadow-slate-200/50 relative overflow-hidden group">
           <div className="absolute inset-0 bg-gradient-to-br from-brand-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-          <div className="relative z-10 w-16 h-16 bg-brand-50 rounded-2xl flex items-center justify-center group-hover:bg-brand-600 transition-colors">
-            <Zap className="w-8 h-8 text-brand-600 group-hover:text-white transition-colors" />
-          </div>
-          <div className="relative z-10">
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Ваш текущий уровень</p>
-            <div className="flex items-baseline gap-2">
-              <p className="text-3xl font-black text-slate-900 leading-none">{user.level}</p>
-              <p className="text-sm font-black text-brand-500 uppercase tracking-widest">LVL</p>
-            </div>
-          </div>
-          <Link to="/level" className="relative z-10 w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center hover:bg-brand-500 hover:text-white transition-all">
-            <ChevronRight className="w-5 h-5" />
-          </Link>
+          
+          {user ? (
+            <>
+              <div className="relative z-10 w-16 h-16 bg-brand-50 rounded-2xl flex items-center justify-center group-hover:bg-brand-600 transition-colors">
+                <Zap className="w-8 h-8 text-brand-600 group-hover:text-white transition-colors" />
+              </div>
+              <div className="relative z-10">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Ваш текущий уровень</p>
+                <div className="flex items-baseline gap-2">
+                  <p className="text-3xl font-black text-slate-900 leading-none">{user.level}</p>
+                  <p className="text-sm font-black text-brand-500 uppercase tracking-widest">LVL</p>
+                </div>
+              </div>
+              <Link to="/level" className="relative z-10 w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center hover:bg-brand-500 hover:text-white transition-all">
+                <ChevronRight className="w-5 h-5" />
+              </Link>
+            </>
+          ) : (
+            <>
+              <div className="relative z-10 w-16 h-16 bg-brand-50 rounded-2xl flex items-center justify-center group-hover:bg-brand-600 transition-colors">
+                <UserIcon className="w-8 h-8 text-brand-600 group-hover:text-white transition-colors" />
+              </div>
+              <div className="relative z-10">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Войдите в аккаунт</p>
+                <p className="text-sm font-black text-slate-900 leading-tight pr-4">Для сохранения <br/>прогресса</p>
+              </div>
+              <button onClick={onLogin} className="relative z-10 w-10 h-10 bg-brand-500 text-white rounded-full flex items-center justify-center hover:bg-brand-600 transition-all shadow-md shadow-brand-200">
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </>
+          )}
         </motion.div>
       </header>
 
@@ -131,46 +83,19 @@ export default function Home({ user }: HomeProps) {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-6">
         {games.map((game, i) => {
           const gameCfg = isMobile ? game.config.mobile : game.config.pc;
-          
           return (
-            <motion.div
-              key={game.id}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: i * 0.1 }}
-            >
-              <Link
-                to={game.path}
-                className="group relative bg-white p-4 lg:p-8 rounded-[2rem] lg:rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/50 hover:shadow-2xl transition-all flex flex-col items-center text-center overflow-hidden h-full"
-              >
+            <motion.div key={game.id} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }}>
+              <Link to={game.path} className="group relative bg-white p-4 lg:p-8 rounded-[2rem] lg:rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/50 hover:shadow-2xl transition-all flex flex-col items-center text-center overflow-hidden h-full">
                 <div className="w-24 h-24 lg:w-40 lg:h-40 mb-4 lg:mb-8 flex items-center justify-center relative">
-                  
                   <div className="absolute inset-0 bg-slate-100 rounded-full blur-2xl scale-50 group-hover:scale-100 transition-transform duration-500 opacity-60" />
-                  
-                  <div 
-                    className="relative z-10 w-full h-full flex items-center justify-center transition-transform duration-300"
-                    style={{
-                      transform: `translate(${gameCfg.x}px, ${gameCfg.y}px) scale(${gameCfg.scale})`
-                    }}
-                  >
-                    <img 
-                      src={game.image} 
-                      alt={game.name} 
-                      className="w-full h-full object-contain drop-shadow-2xl group-hover:rotate-6 transition-transform duration-500" 
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = '/assets/CoolCat_logo.webp';
-                      }}
-                    />
+                  <div className="relative z-10 w-full h-full flex items-center justify-center transition-transform duration-300" style={{ transform: `translate(${gameCfg.x}px, ${gameCfg.y}px) scale(${gameCfg.scale})` }}>
+                    <img src={game.image} alt={game.name} className="w-full h-full object-contain drop-shadow-2xl group-hover:rotate-6 transition-transform duration-500" onError={(e) => { (e.target as HTMLImageElement).src = '/assets/CoolCat_logo.webp'; }} />
                   </div>
                 </div>
-
                 <h3 className="text-xl lg:text-3xl font-black text-slate-900 mb-6 lg:mb-8 tracking-tight leading-none mt-2">{game.name}</h3>
-                
                 <div className="mt-auto w-full py-3 lg:py-5 bg-slate-50 rounded-xl lg:rounded-2xl text-slate-600 font-black text-[10px] lg:text-xs uppercase tracking-[0.2em] group-hover:bg-brand-600 group-hover:text-white transition-all flex items-center justify-center gap-1 lg:gap-2">
                   Играть <Play className="w-3 h-3 lg:w-4 lg:h-4 fill-current" />
                 </div>
-
                 <div className="absolute -right-4 -top-4 w-20 h-20 lg:-right-8 lg:-top-8 lg:w-32 lg:h-32 bg-slate-50 rounded-full blur-2xl lg:blur-3xl group-hover:bg-brand-50 transition-all opacity-50 -z-10" />
               </Link>
             </motion.div>
@@ -208,26 +133,14 @@ export default function Home({ user }: HomeProps) {
           <div className="w-full lg:w-2/5 aspect-square bg-white/5 backdrop-blur-sm rounded-[2.5rem] lg:rounded-[4rem] flex items-center justify-center border border-white/10 relative group">
             <div className="absolute inset-0 bg-brand-500/20 blur-[60px] lg:blur-[100px] group-hover:bg-brand-500/40 transition-all" />
             <div className="relative z-10 flex flex-col items-center gap-4 lg:gap-6">
-              
               <div className="w-32 h-32 lg:w-48 lg:h-48 flex items-center justify-center p-3 relative">
                 <div className="absolute inset-0 bg-brand-500/30 rounded-full blur-2xl animate-pulse" />
-                
-                <div 
-                  className="w-full h-full relative z-10 transition-transform duration-300"
-                  style={{
-                    transform: `translate(${trophyCfg.x}px, ${trophyCfg.y}px) scale(${trophyCfg.scale})`
-                  }}
-                >
+                <div className="w-full h-full relative z-10 transition-transform duration-300" style={{ transform: `translate(${trophyCfg.x}px, ${trophyCfg.y}px) scale(${trophyCfg.scale})` }}>
                   <div className="w-full h-full animate-float">
-                    <img 
-                      src="/assets/CoolCat_trophey.webp" 
-                      alt="Cat King Trophy" 
-                      className="w-full h-full object-contain drop-shadow-2xl" 
-                    />
+                    <img src="/assets/CoolCat_trophey.webp" alt="Cat King Trophy" className="w-full h-full object-contain drop-shadow-2xl" />
                   </div>
                 </div>
               </div>
-
               <div className="text-center mt-2">
                 <span className="text-white text-3xl lg:text-5xl font-black tracking-tighter block mb-1 lg:mb-2 drop-shadow-lg">CAT KING</span>
                 <span className="text-brand-400 text-[10px] lg:text-xs font-black uppercase tracking-[0.3em]">Exclusive Rank</span>

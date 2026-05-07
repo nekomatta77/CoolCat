@@ -42,24 +42,17 @@ interface BonusesProps {
   user: UserProfile;
 }
 
-// ============================================================================
-// 🛠 НАСТРОЙКИ КОТИКОВ (ИЗОБРАЖЕНИЙ ПОДАРКА)
-// ============================================================================
-
-// 1. Настройки котика в модальном окне (когда игрок забирает бонус)
 const giftConfig = {
   mobile: { size: '140px', x: '0px', y: '-10px', scale: 1 },
   desktop: { size: '180px', x: '0px', y: '-20px', scale: 1.1 }
 };
 
-// 2. Настройки котика на самой странице (в правой карточке "Ежедневный бонус")
 const bannerGiftConfig = {
-  size: '260px', // Базовый размер контейнера (ширина и высота)
-  x: '0px',      // Сдвиг по горизонтали (например, '20px' или '-20px')
-  y: '15px',      // Сдвиг по вертикали (отрицательные значения двигают вверх)
-  scale: 1.0     // Масштаб картинки (1.0 = 100%, 1.2 = 120%, 0.8 = 80%)
+  size: '260px', 
+  x: '0px',      
+  y: '15px',      
+  scale: 1.0     
 };
-// ============================================================================
 
 export default function Bonuses({ user }: BonusesProps) {
   const [promoCode, setPromoCode] = useState('');
@@ -72,14 +65,26 @@ export default function Bonuses({ user }: BonusesProps) {
   const [claimedAmount, setClaimedAmount] = useState(0);
   
   const [activeTooltip, setActiveTooltip] = useState<number | null>(null);
-
-  // Таймер ежедневного бонуса (в миллисекундах)
   const [timeToNextBonus, setTimeToNextBonus] = useState<number | null>(null);
+
+  // СЛУШАТЕЛЬ КЛИКА ВНЕ ТУЛТИПА
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      // Если мы кликнули не по тултипу и не по кнопке его вызова, закрываем тултип
+      if (!target.closest('.tooltip-wrapper')) {
+        setActiveTooltip(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     const checkTime = () => {
       if (!user.lastDailyBonus) {
-        setTimeToNextBonus(0); // Можно забирать
+        setTimeToNextBonus(0);
         return;
       }
       const lastClaimed = new Date(user.lastDailyBonus).getTime();
@@ -93,8 +98,8 @@ export default function Bonuses({ user }: BonusesProps) {
       }
     };
 
-    checkTime(); // Первичная проверка
-    const interval = setInterval(checkTime, 1000); // Обновляем каждую секунду
+    checkTime(); 
+    const interval = setInterval(checkTime, 1000); 
     return () => clearInterval(interval);
   }, [user.lastDailyBonus]);
 
@@ -128,7 +133,6 @@ export default function Bonuses({ user }: BonusesProps) {
     if (timeToNextBonus === null || timeToNextBonus > 0) return;
 
     setLoading(true);
-    
     const bonusAmount = getRandomBonus(); 
     
     try {
@@ -207,10 +211,9 @@ export default function Bonuses({ user }: BonusesProps) {
         </div>
       </header>
 
-      {/* ВЕРХНИЙ БЛОК: ПРОМОКОД + ЕЖЕДНЕВНЫЙ БОНУС */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
-        {/* КАРТОЧКА ПРОМОКОДА (СЛЕВА) */}
+        {/* КАРТОЧКА ПРОМОКОДА */}
         <div className="lg:col-span-5 bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 flex flex-col justify-between">
           <div className="space-y-6">
             <div className="flex items-center gap-4">
@@ -280,9 +283,8 @@ export default function Bonuses({ user }: BonusesProps) {
           </div>
         </div>
 
-        {/* КАРТОЧКА ЕЖЕДНЕВНОГО БОНУСА (СПРАВА) */}
+        {/* КАРТОЧКА ЕЖЕДНЕВНОГО БОНУСА */}
         <div className="lg:col-span-7 bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 relative overflow-hidden flex flex-col md:flex-row items-center gap-8 group">
-          {/* Свечение на фоне */}
           <div className="absolute top-0 right-0 w-80 h-80 bg-brand-400/10 rounded-full blur-[60px]" />
           
           <div className="flex-1 space-y-6 z-10 relative w-full text-center md:text-left">
@@ -321,7 +323,6 @@ export default function Bonuses({ user }: BonusesProps) {
             </div>
           </div>
 
-          {/* Иллюстрация подарка (УПРАВЛЯЕТСЯ ИЗ bannerGiftConfig ВВЕРХУ) */}
           <div 
             className="shrink-0 relative z-10 hidden md:block transition-transform duration-300"
             style={{
@@ -340,7 +341,6 @@ export default function Bonuses({ user }: BonusesProps) {
         </div>
       </div>
 
-      {/* НИЖНИЙ РЯД (МИНИ КАРТОЧКИ) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {secondaryBonuses.map((card, i) => (
           <motion.div
@@ -360,15 +360,14 @@ export default function Bonuses({ user }: BonusesProps) {
                   <card.icon className="w-6 h-6 text-white" />
                 </div>
                 
-                {/* Подсказки */}
+                {/* ПОЛЕ С ТУЛТИПОМ: ОТКРЫВАЕТСЯ ТОЛЬКО ПО КЛИКУ */}
                 {card.tooltip && (
-                  <div 
-                    className="relative flex items-center"
-                    onMouseEnter={() => setActiveTooltip(i)}
-                    onMouseLeave={() => setActiveTooltip(null)}
-                  >
+                  <div className="relative flex items-center tooltip-wrapper">
                     <button 
-                      onClick={() => setActiveTooltip(activeTooltip === i ? null : i)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveTooltip(activeTooltip === i ? null : i);
+                      }}
                       className="outline-none"
                     >
                       <HelpCircle className="w-5 h-5 text-slate-300 hover:text-brand-500 transition-colors" />
@@ -380,7 +379,7 @@ export default function Bonuses({ user }: BonusesProps) {
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: 5 }}
                           transition={{ duration: 0.15 }}
-                          className="absolute bottom-full right-0 mb-2 w-max bg-slate-800 text-white text-xs font-bold py-1.5 px-3 rounded-lg z-20 pointer-events-none"
+                          className="absolute bottom-full right-0 mb-2 w-max bg-slate-800 text-white text-xs font-bold py-2 px-4 rounded-xl z-20 pointer-events-none shadow-xl"
                         >
                           {card.tooltip}
                           <div className="absolute top-full right-1.5 -mt-1 border-4 border-transparent border-t-slate-800"></div>
@@ -407,7 +406,6 @@ export default function Bonuses({ user }: BonusesProps) {
         ))}
       </div>
 
-      {/* МОДАЛКА УСПЕШНОГО ПОЛУЧЕНИЯ БОНУСА */}
       <AnimatePresence>
         {showModal && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">

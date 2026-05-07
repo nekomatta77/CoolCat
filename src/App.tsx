@@ -33,6 +33,12 @@ export default function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [dbError, setDbError] = useState<string | null>(null);
+  
+  // СОСТОЯНИЕ МОДАЛКИ АВТОРИЗАЦИИ
+  const [authConfig, setAuthConfig] = useState<{ isOpen: boolean; view: 'login' | 'register' }>({
+    isOpen: false,
+    view: 'login'
+  });
 
   const isMobile = useIsMobile();
   const loaderCfg = isMobile ? LOADER_CONFIG.mobile : LOADER_CONFIG.pc;
@@ -50,7 +56,6 @@ export default function App() {
         setLoading(true);
         setDbError(null);
         
-        // 🔒 ПРОВЕРКА НА ПОЛНОЕ УДАЛЕНИЕ (ЧЕРНЫЙ СПИСОК)
         const deletedRef = doc(db, 'deleted_users', firebaseUser.uid);
         const deletedSnap = await getDoc(deletedRef);
         
@@ -65,7 +70,6 @@ export default function App() {
         try {
           await firebaseUser.reload();
           const currentUser = auth.currentUser || firebaseUser;
-
           const userSnap = await getDoc(userRef);
 
           if (userSnap.exists()) {
@@ -105,6 +109,9 @@ export default function App() {
             }
 
             setUser(dbData as UserProfile);
+            
+            // Если пользователь успешно вошел, закрываем модалку
+            setAuthConfig(prev => ({ ...prev, isOpen: false }));
             setLoading(false);
 
             unsubscribeUser = onSnapshot(userRef, (doc) => {
@@ -143,6 +150,7 @@ export default function App() {
             };
             await setDoc(userRef, newUser);
             setUser(newUser);
+            setAuthConfig(prev => ({ ...prev, isOpen: false }));
             setLoading(false);
           }
         } catch (error) {
@@ -170,6 +178,10 @@ export default function App() {
     }
   };
 
+  const handleOpenAuth = (view: 'login' | 'register') => {
+    setAuthConfig({ isOpen: true, view });
+  };
+
   if (dbError) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-red-50 p-4 text-center">
@@ -192,7 +204,6 @@ export default function App() {
       <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 gap-8">
         <div className="relative flex flex-col items-center justify-center">
           <div className="absolute inset-0 bg-brand-400 rounded-full blur-[60px] opacity-20 animate-pulse" />
-          
           <div 
             style={{ 
               width: `${loaderCfg.size}px`, 
@@ -201,32 +212,14 @@ export default function App() {
             }}
             className="relative z-10 flex items-center justify-center"
           >
-            <img 
-              src="/assets/CoolCat_loader.webp" 
-              alt="Loading CoolCat" 
-              className="w-full h-full object-contain drop-shadow-xl animate-bounce" 
-            />
+            <img src="/assets/CoolCat_loader.webp" alt="Loading" className="w-full h-full object-contain drop-shadow-xl animate-bounce" />
           </div>
         </div>
-        
         <div className="flex flex-col items-center gap-4">
           <div className="relative inline-block pb-1">
-            <span
-              className="absolute inset-0 z-0 drop-shadow-sm block text-4xl lg:text-5xl font-black tracking-tighter"
-              style={{
-                WebkitTextStroke: '8px #5c2f3c',
-                color: 'transparent'
-              }}
-              aria-hidden="true"
-            >
-              CoolCat
-            </span>
-            <span className="relative z-10 block text-4xl lg:text-5xl font-black tracking-tighter">
-              <span style={{ color: '#feb1d1' }}>Cool</span>
-              <span className="text-white">Cat</span>
-            </span>
+            <span className="absolute inset-0 z-0 drop-shadow-sm block text-4xl lg:text-5xl font-black tracking-tighter" style={{ WebkitTextStroke: '8px #5c2f3c', color: 'transparent' }} aria-hidden="true">CoolCat</span>
+            <span className="relative z-10 block text-4xl lg:text-5xl font-black tracking-tighter"><span style={{ color: '#feb1d1' }}>Cool</span><span className="text-white">Cat</span></span>
           </div>
-
           <div className="flex gap-2 mt-2">
             <div className="w-2.5 h-2.5 bg-brand-500 rounded-full animate-bounce [animation-delay:-0.3s]" />
             <div className="w-2.5 h-2.5 bg-brand-500 rounded-full animate-bounce [animation-delay:-0.15s]" />
@@ -237,11 +230,7 @@ export default function App() {
     );
   }
 
-  if (!user) {
-    return <Auth onSuccess={() => {}} />;
-  }
-
-  if (user.banned) {
+  if (user?.banned) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-red-50 p-4">
         <div className="text-center p-8 bg-white rounded-3xl shadow-xl max-w-md w-full border-2 border-red-100">
@@ -253,27 +242,65 @@ export default function App() {
     );
   }
 
+  // Защищенный роут для неавторизованных пользователей
+  const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+    if (!user) {
+      return (
+        <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
+          <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-6">
+            <img src="/assets/CoolCat_logo.webp" className="w-16 h-16 opacity-50 grayscale" alt="Lock" />
+          </div>
+          <h2 className="text-3xl font-black text-slate-800 mb-4 tracking-tight">Требуется авторизация</h2>
+          <p className="text-slate-500 mb-8 max-w-md mx-auto font-medium">Войдите в свой аккаунт или зарегистрируйтесь, чтобы получить полный доступ к играм и функциям CoolCat.</p>
+          <div className="flex flex-wrap gap-4 justify-center">
+            <button onClick={() => handleOpenAuth('login')} className="px-8 py-3.5 bg-white text-slate-700 hover:text-brand-600 font-black uppercase tracking-widest rounded-2xl shadow-sm border border-slate-200 transition-all">
+              Войти
+            </button>
+            <button onClick={() => handleOpenAuth('register')} className="px-8 py-3.5 bg-brand-500 hover:bg-brand-600 text-white font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-brand-200 transition-all">
+              Регистрация
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return <>{children}</>;
+  };
+
   return (
     <Router>
-      <Layout user={user} onLogout={handleLogout}>
+      <Layout 
+        user={user} 
+        onLogout={handleLogout} 
+        onLogin={() => handleOpenAuth('login')} 
+        onRegister={() => handleOpenAuth('register')}
+      >
         <Routes>
-          <Route path="/" element={<Home user={user} />} />
-          <Route path="/dice" element={<Dice user={user} />} />
-          <Route path="/mines" element={<Mines user={user} />} />
-          <Route path="/keno" element={<Keno user={user} />} />
-          <Route path="/wheelx" element={<WheelX user={user} />} />
-          <Route path="/slots" element={<Slots user={user} />} />
-          <Route path="/external-slots" element={<ExternalSlots user={user} />} />
+          {/* Открытые страницы */}
+          <Route path="/" element={<Home user={user} onLogin={() => handleOpenAuth('login')} />} />
           <Route path="/faq" element={<FAQ />} />
-          <Route path="/bonuses" element={<Bonuses user={user} />} />
-          <Route path="/level" element={<Level user={user} />} />
-          <Route path="/achievements" element={<Achievements user={user} />} />
-          <Route path="/profile" element={<Profile user={user} onLogout={handleLogout} />} />
           <Route path="/contacts" element={<Contacts />} />
-          <Route path="/referral" element={<Referral user={user} />} />
-          <Route path="/admin" element={user.rank === 'admin' ? <Admin user={user} /> : <Navigate to="/" />} />
+          <Route path="/external-slots" element={<ExternalSlots user={user!} />} />
+          
+          {/* Защищенные страницы */}
+          <Route path="/dice" element={<ProtectedRoute><Dice user={user!} /></ProtectedRoute>} />
+          <Route path="/mines" element={<ProtectedRoute><Mines user={user!} /></ProtectedRoute>} />
+          <Route path="/keno" element={<ProtectedRoute><Keno user={user!} /></ProtectedRoute>} />
+          <Route path="/wheelx" element={<ProtectedRoute><WheelX user={user!} /></ProtectedRoute>} />
+          <Route path="/slots" element={<ProtectedRoute><Slots user={user!} /></ProtectedRoute>} />
+          <Route path="/bonuses" element={<ProtectedRoute><Bonuses user={user!} /></ProtectedRoute>} />
+          <Route path="/level" element={<ProtectedRoute><Level user={user!} /></ProtectedRoute>} />
+          <Route path="/achievements" element={<ProtectedRoute><Achievements user={user!} /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><Profile user={user!} onLogout={handleLogout} /></ProtectedRoute>} />
+          <Route path="/referral" element={<ProtectedRoute><Referral user={user!} /></ProtectedRoute>} />
+          <Route path="/admin" element={user?.rank === 'admin' ? <Admin user={user} /> : <Navigate to="/" />} />
         </Routes>
       </Layout>
+
+      <Auth 
+        isOpen={authConfig.isOpen} 
+        onClose={() => setAuthConfig(prev => ({ ...prev, isOpen: false }))} 
+        initialView={authConfig.view} 
+      />
     </Router>
   );
 }
