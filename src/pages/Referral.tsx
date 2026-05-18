@@ -3,8 +3,8 @@ import { useState, useEffect } from 'react';
 import { UserProfile } from '../types';
 import { doc, updateDoc, increment, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
-// Добавили иконки X и Activity
-import { Network, Send, Clock, Copy, TrendingUp, Users, DollarSign, Wallet, Star, MessageCircle, Check, Gift, X, Activity } from 'lucide-react';
+// Добавили Search, ChevronLeft, ChevronRight
+import { Network, Send, Clock, Copy, TrendingUp, Users, DollarSign, Wallet, Star, MessageCircle, Check, Gift, X, Activity, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface ReferralProps {
@@ -21,8 +21,11 @@ export default function Referral({ user }: ReferralProps) {
   const [referralsList, setReferralsList] = useState<UserProfile[]>([]);
   const [referralsCount, setReferralsCount] = useState(0);
   
-  // НОВЫЙ СТЕЙТ: Хранит выбранного реферала для показа модалки
+  // Стейты для модалки, поиска и пагинации
   const [selectedRef, setSelectedRef] = useState<UserProfile | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const refStatus = user.referralData?.status || 'none';
   const plan = user.referralData?.plan;
@@ -40,6 +43,7 @@ export default function Referral({ user }: ReferralProps) {
           snapshot.forEach((doc) => {
             refs.push(doc.data() as UserProfile);
           });
+          // Сортируем по дате или уровню, если нужно (пока просто список)
           setReferralsList(refs);
           setReferralsCount(refs.length);
         } catch (error) {
@@ -49,6 +53,11 @@ export default function Referral({ user }: ReferralProps) {
       fetchReferrals();
     }
   }, [refStatus, refCode]);
+
+  // Сбрасываем страницу на 1-ю при новом поиске
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,12 +90,21 @@ export default function Referral({ user }: ReferralProps) {
     finally { setClaiming(false); }
   };
 
-  // Предотвращаем скролл страницы, когда открыта модалка
   useEffect(() => {
     if (selectedRef) document.body.style.overflow = 'hidden';
     else document.body.style.overflow = 'unset';
     return () => { document.body.style.overflow = 'unset'; };
   }, [selectedRef]);
+
+  // Логика фильтрации и пагинации
+  const filteredReferrals = referralsList.filter(ref => 
+    ref.nickname.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  const totalPages = Math.ceil(filteredReferrals.length / itemsPerPage);
+  const paginatedReferrals = filteredReferrals.slice(
+    (currentPage - 1) * itemsPerPage, 
+    currentPage * itemsPerPage
+  );
 
   return (
     <div className="max-w-[90rem] mx-auto space-y-6 md:space-y-8 pb-12 relative px-2 md:px-0">
@@ -197,35 +215,76 @@ export default function Referral({ user }: ReferralProps) {
                 </div>
               </div>
 
-              {/* СПИСОК РЕФЕРАЛОВ (Теперь кликабельный) */}
+              {/* СПИСОК РЕФЕРАЛОВ С ПАГИНАЦИЕЙ И ПОИСКОМ */}
               <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-100 shadow-lg shadow-slate-200/50">
-                <div className="flex items-center gap-3 mb-6">
-                  <Users className="w-6 h-6 text-brand-500" />
-                  <h3 className="text-xl font-black text-slate-900">Список ваших игроков</h3>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                  <div className="flex items-center gap-3">
+                    <Users className="w-6 h-6 text-brand-500" />
+                    <h3 className="text-xl font-black text-slate-900">Список ваших игроков</h3>
+                  </div>
+                  
+                  {/* Строка поиска */}
+                  <div className="relative w-full sm:w-64">
+                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input 
+                      type="text" 
+                      placeholder="Поиск по нику..." 
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 focus:outline-none focus:border-brand-500 transition-colors"
+                    />
+                  </div>
                 </div>
                 
-                {referralsList.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {referralsList.map((refUser) => (
-                      <div 
-                        key={refUser.uid} 
-                        onClick={() => setSelectedRef(refUser)}
-                        className="bg-slate-50 border border-slate-100 p-4 rounded-2xl flex items-center gap-4 hover:border-brand-300 hover:bg-brand-50 transition-all cursor-pointer active:scale-95 group shadow-sm"
-                      >
-                        <img src={refUser.avatar || '/assets/avatars/ava1.webp'} alt="avatar" className="w-12 h-12 rounded-full bg-slate-200 shadow-sm group-hover:scale-105 transition-transform" />
-                        <div className="flex-1">
-                          <p className="font-black text-slate-900 leading-tight group-hover:text-brand-600 transition-colors">{refUser.nickname}</p>
-                          <p className="text-xs font-bold text-brand-500 mt-0.5">Уровень {refUser.level}</p>
+                {paginatedReferrals.length > 0 ? (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {paginatedReferrals.map((refUser) => (
+                        <div 
+                          key={refUser.uid} 
+                          onClick={() => setSelectedRef(refUser)}
+                          className="bg-slate-50 border border-slate-100 p-4 rounded-2xl flex items-center gap-4 hover:border-brand-300 hover:bg-brand-50 transition-all cursor-pointer active:scale-95 group shadow-sm"
+                        >
+                          <img src={refUser.avatar || '/assets/avatars/ava1.webp'} alt="avatar" className="w-12 h-12 rounded-full bg-slate-200 shadow-sm group-hover:scale-105 transition-transform" />
+                          <div className="flex-1">
+                            <p className="font-black text-slate-900 leading-tight group-hover:text-brand-600 transition-colors">{refUser.nickname}</p>
+                            <p className="text-xs font-bold text-brand-500 mt-0.5">Уровень {refUser.level}</p>
+                          </div>
+                          <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm text-slate-400 group-hover:text-brand-500 transition-colors">
+                             <Activity className="w-4 h-4" />
+                          </div>
                         </div>
-                        <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm text-slate-400 group-hover:text-brand-500 transition-colors">
-                           <Activity className="w-4 h-4" />
-                        </div>
+                      ))}
+                    </div>
+
+                    {/* Пагинация */}
+                    {totalPages > 1 && (
+                      <div className="flex items-center justify-center gap-4 mt-6 pt-6 border-t border-slate-100">
+                        <button 
+                          onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                          disabled={currentPage === 1}
+                          className="w-10 h-10 flex items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                        >
+                          <ChevronLeft className="w-5 h-5" />
+                        </button>
+                        <span className="text-xs font-black uppercase tracking-widest text-slate-500">
+                          {currentPage} ИЗ {totalPages}
+                        </span>
+                        <button 
+                          onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                          disabled={currentPage === totalPages}
+                          className="w-10 h-10 flex items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                        >
+                          <ChevronRight className="w-5 h-5" />
+                        </button>
                       </div>
-                    ))}
-                  </div>
+                    )}
+                  </>
                 ) : (
                   <div className="text-center py-10 bg-slate-50 rounded-2xl border border-slate-100 border-dashed">
-                    <p className="text-slate-400 font-medium">У вас пока нет приглашенных игроков.</p>
+                    <p className="text-slate-400 font-medium">
+                      {searchQuery ? "По вашему запросу ничего не найдено." : "У вас пока нет приглашенных игроков."}
+                    </p>
                   </div>
                 )}
               </div>
@@ -304,7 +363,6 @@ export default function Referral({ user }: ReferralProps) {
               initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} 
               className="relative bg-white w-full max-w-sm md:max-w-md rounded-[2rem] md:rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col z-10"
             >
-              {/* Шапка модалки (Цветной фон) */}
               <div className="h-28 md:h-32 bg-gradient-to-br from-brand-400 to-brand-600 relative flex items-center justify-center">
                  <button 
                    onClick={() => setSelectedRef(null)} 
@@ -314,7 +372,6 @@ export default function Referral({ user }: ReferralProps) {
                  </button>
               </div>
               
-              {/* Аватар и Основная информация */}
               <div className="px-6 pb-8 pt-0 flex flex-col items-center -mt-12 md:-mt-14 relative z-10">
                  <img 
                    src={selectedRef.avatar || '/assets/avatars/ava1.webp'} 
@@ -334,9 +391,7 @@ export default function Referral({ user }: ReferralProps) {
                    )}
                  </div>
 
-                 {/* Плитки со статистикой */}
                  <div className="w-full mt-8 grid grid-cols-2 gap-3">
-                   
                    <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-col items-center text-center shadow-inner">
                       <Wallet className="w-6 h-6 md:w-7 md:h-7 text-emerald-500 mb-2 drop-shadow-sm" />
                       <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Сумма депозитов</span>
@@ -356,7 +411,6 @@ export default function Referral({ user }: ReferralProps) {
                         <span className="text-brand-400 font-bold text-sm">CAT</span>
                       </div>
                    </div>
-
                  </div>
               </div>
             </motion.div>

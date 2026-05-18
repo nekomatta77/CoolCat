@@ -241,14 +241,14 @@ export default function WheelX({ user }: WheelXProps) {
       </AnimatePresence>
 
       {/* НОВЫЙ ХЕДЕР ДЛЯ WHEELX */}
-      <header className="flex flex-col md:flex-row items-center justify-between gap-6 bg-white p-5 lg:p-8 rounded-[2rem] md:rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50">
-        <div className="flex flex-col md:flex-row items-center gap-4 md:gap-6 text-center md:text-left">
-          <div className="w-14 h-14 md:w-16 md:h-16 bg-gradient-to-br from-brand-400 to-brand-600 rounded-2xl md:rounded-3xl flex items-center justify-center shadow-xl shadow-brand-200 shrink-0">
-            <Disc className="w-7 h-7 md:w-8 md:h-8 text-white" />
+      <header className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 lg:gap-6 shrink-0 pt-4 sm:pt-0 px-4 sm:px-0 mb-6">
+        <div className="flex items-center gap-4 lg:gap-6">
+          <div className="w-12 h-12 lg:w-16 lg:h-16 bg-brand-500 rounded-[1.2rem] lg:rounded-3xl flex items-center justify-center shadow-lg shadow-brand-200 shrink-0">
+            <Disc className="w-6 h-6 lg:w-8 lg:h-8 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl lg:text-4xl font-black text-slate-900 tracking-tighter">WheelX</h1>
-            <p className="text-slate-400 font-medium text-xs md:text-sm mt-1">Лайв-рулетка. Крути колесо вместе с другими игроками.</p>
+            <h1 className="text-3xl lg:text-4xl font-black text-slate-900 tracking-tighter leading-none mb-1">WheelX</h1>
+            <p className="text-slate-400 font-medium text-xs lg:text-base hidden sm:block">Лайв-рулетка. Крути колесо вместе с другими игроками.</p>
           </div>
         </div>
       </header>
