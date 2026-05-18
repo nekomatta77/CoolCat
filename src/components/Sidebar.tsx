@@ -2,7 +2,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { UserProfile } from '../types';
-import { Home, HelpCircle, Gift, TrendingUp, Trophy, Settings, Phone, ShieldAlert, Gamepad2, Network } from 'lucide-react';
+// Gamepad2 удален из импортов за ненадобностью
+import { Home, HelpCircle, Gift, TrendingUp, Trophy, Settings, Phone, ShieldAlert, Network } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import OnlineCounter from './OnlineCounter';
@@ -44,7 +45,6 @@ export default function Sidebar({ user, onClose }: SidebarProps) {
 
   const menuItems = [
     { icon: Home, label: 'Главная', path: '/' },
-    { icon: Gamepad2, label: 'Провайдеры', path: '/external-slots' },
     { icon: Gift, label: 'Бонусы', path: '/bonuses' },
     { icon: Network, label: 'Партнеры', path: '/referral' },
     { icon: TrendingUp, label: 'LvL Котика', path: '/level' },

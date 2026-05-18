@@ -1,9 +1,7 @@
 // src/App.tsx
 import { useEffect, useState, ReactNode } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-// ДОБАВЛЕНО: Импортируем тип User из Firebase, чтобы убрать ошибку firebaseUser
 import { onAuthStateChanged, signOut, User } from 'firebase/auth'; 
-// ДОБАВЛЕНО: Импортируем типы DocumentSnapshot и FirestoreError
 import { doc, getDoc, setDoc, onSnapshot, updateDoc, DocumentSnapshot, FirestoreError } from 'firebase/firestore'; 
 import { auth, db } from './firebase';
 import { UserProfile } from './types';
@@ -15,8 +13,6 @@ import Dice from './pages/Dice';
 import Mines from './pages/Mines';
 import Keno from './pages/Keno';
 import WheelX from './pages/WheelX';
-import Slots from './pages/Slots';
-import ExternalSlots from './pages/ExternalSlots';
 import FAQ from './pages/FAQ';
 import Bonuses from './pages/Bonuses';
 import Level from './pages/Level';
@@ -62,7 +58,6 @@ function ProtectedRoute({
   return <>{children}</>;
 }
 
-// ДОБАВЛЕНО: Создаем тип для конфигурации авторизации, чтобы TypeScript не ругался на prev
 type AuthConfigState = { isOpen: boolean; view: 'login' | 'register' };
 
 export default function App() {
@@ -81,7 +76,6 @@ export default function App() {
   useEffect(() => {
     let unsubscribeUser: (() => void) | null = null;
 
-    // ИСПРАВЛЕНИЕ: Явно указали тип User | null для firebaseUser
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser: User | null) => {
       if (unsubscribeUser) {
         unsubscribeUser();
@@ -145,12 +139,9 @@ export default function App() {
             }
 
             setUser(dbData as UserProfile);
-            
-            // ИСПРАВЛЕНИЕ: Явно указали тип для prev
             setAuthConfig((prev: AuthConfigState) => ({ ...prev, isOpen: false }));
             setLoading(false);
 
-            // ИСПРАВЛЕНИЕ: Явно указали типы DocumentSnapshot и FirestoreError
             unsubscribeUser = onSnapshot(userRef, (docSnapshot: DocumentSnapshot) => {
               if (docSnapshot.exists()) {
                 setUser(docSnapshot.data() as UserProfile);
@@ -291,7 +282,6 @@ export default function App() {
           <Route path="/" element={<Home user={user} onLogin={() => handleOpenAuth('login')} />} />
           <Route path="/faq" element={<FAQ />} />
           <Route path="/contacts" element={<Contacts />} />
-          <Route path="/external-slots" element={<ExternalSlots user={user!} />} />
           
           <Route path="/dice" element={
             <ProtectedRoute user={user} onOpenAuth={handleOpenAuth}>
@@ -314,12 +304,6 @@ export default function App() {
           <Route path="/wheelx" element={
             <ProtectedRoute user={user} onOpenAuth={handleOpenAuth}>
               <WheelX user={user!} />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/slots" element={
-            <ProtectedRoute user={user} onOpenAuth={handleOpenAuth}>
-              <Slots user={user!} />
             </ProtectedRoute>
           } />
           
