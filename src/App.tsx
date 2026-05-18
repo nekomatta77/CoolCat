@@ -2,7 +2,7 @@
 import { useEffect, useState, ReactNode } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth'; 
-import { doc, getDoc, setDoc, onSnapshot, updateDoc, DocumentSnapshot, FirestoreError } from 'firebase/firestore'; 
+import { doc, getDoc, setDoc, onSnapshot, updateDoc, DocumentSnapshot, FirestoreError, increment } from 'firebase/firestore'; 
 import { auth, db } from './firebase';
 import { UserProfile } from './types';
 import { useIsMobile } from './lib/utils';
@@ -27,15 +27,7 @@ const LOADER_CONFIG = {
   mobile: { size: 126, x: 0, y: 60 }
 };
 
-function ProtectedRoute({ 
-  user, 
-  children, 
-  onOpenAuth 
-}: { 
-  user: UserProfile | null; 
-  children: ReactNode; 
-  onOpenAuth: (view: 'login' | 'register') => void;
-}) {
+function ProtectedRoute({ user, children, onOpenAuth }: { user: UserProfile | null; children: ReactNode; onOpenAuth: (view: 'login' | 'register') => void; }) {
   if (!user) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
@@ -45,12 +37,8 @@ function ProtectedRoute({
         <h2 className="text-3xl font-black text-slate-800 mb-4 tracking-tight">Требуется авторизация</h2>
         <p className="text-slate-500 mb-8 max-w-md mx-auto font-medium">Войдите в свой аккаунт или зарегистрируйтесь, чтобы получить полный доступ к играм и функциям CoolCat.</p>
         <div className="flex flex-wrap gap-4 justify-center">
-          <button onClick={() => onOpenAuth('login')} className="px-8 py-3.5 bg-white text-slate-700 hover:text-brand-600 font-black uppercase tracking-widest rounded-2xl shadow-sm border border-slate-200 transition-all">
-            Войти
-          </button>
-          <button onClick={() => onOpenAuth('register')} className="px-8 py-3.5 bg-brand-500 hover:bg-brand-600 text-white font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-brand-200 transition-all">
-            Регистрация
-          </button>
+          <button onClick={() => onOpenAuth('login')} className="px-8 py-3.5 bg-white text-slate-700 hover:text-brand-600 font-black uppercase tracking-widest rounded-2xl shadow-sm border border-slate-200 transition-all">Войти</button>
+          <button onClick={() => onOpenAuth('register')} className="px-8 py-3.5 bg-brand-500 hover:bg-brand-600 text-white font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-brand-200 transition-all">Регистрация</button>
         </div>
       </div>
     );
@@ -65,13 +53,18 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [dbError, setDbError] = useState<string | null>(null);
   
-  const [authConfig, setAuthConfig] = useState<AuthConfigState>({
-    isOpen: false,
-    view: 'login'
-  });
+  const [authConfig, setAuthConfig] = useState<AuthConfigState>({ isOpen: false, view: 'login' });
 
   const isMobile = useIsMobile();
   const loaderCfg = isMobile ? LOADER_CONFIG.mobile : LOADER_CONFIG.pc;
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const refCode = params.get('ref');
+    if (refCode) {
+      localStorage.setItem('coolcat_ref', refCode);
+    }
+  }, []);
 
   useEffect(() => {
     let unsubscribeUser: (() => void) | null = null;
@@ -106,28 +99,11 @@ export default function App() {
             let dbData = userSnap.data() as Partial<UserProfile>;
             let needsDbUpdate = false;
 
-            if (!dbData.cardStyle) {
-              dbData.cardStyle = { background: '#ffffff', border: '#6366f1', color: '#1e293b', pattern: 'none' };
-              needsDbUpdate = true;
-            }
-            if (!dbData.unlockedAvatars) {
-              dbData.unlockedAvatars = ['/assets/avatars/ava1.webp', '/assets/avatars/ava2.webp', '/assets/avatars/ava3.webp'];
-              needsDbUpdate = true;
-            }
-            if (!dbData.avatar) {
-              dbData.avatar = currentUser.photoURL || '/assets/avatars/ava1.webp';
-              needsDbUpdate = true;
-            }
-
-            if (currentUser.displayName && dbData.nickname?.startsWith('Cat') && dbData.nickname !== currentUser.displayName) {
-              dbData.nickname = currentUser.displayName;
-              needsDbUpdate = true;
-            }
-
-            if (dbData.avatar && dbData.avatar.includes('api.dicebear.com')) {
-              dbData.avatar = '/assets/avatars/ava1.webp';
-              needsDbUpdate = true;
-            }
+            if (!dbData.cardStyle) { dbData.cardStyle = { background: '#ffffff', border: '#6366f1', color: '#1e293b', pattern: 'none' }; needsDbUpdate = true; }
+            if (!dbData.unlockedAvatars) { dbData.unlockedAvatars = ['/assets/avatars/ava1.webp', '/assets/avatars/ava2.webp', '/assets/avatars/ava3.webp']; needsDbUpdate = true; }
+            if (!dbData.avatar) { dbData.avatar = currentUser.photoURL || '/assets/avatars/ava1.webp'; needsDbUpdate = true; }
+            if (currentUser.displayName && dbData.nickname?.startsWith('Cat') && dbData.nickname !== currentUser.displayName) { dbData.nickname = currentUser.displayName; needsDbUpdate = true; }
+            if (dbData.avatar && dbData.avatar.includes('api.dicebear.com')) { dbData.avatar = '/assets/avatars/ava1.webp'; needsDbUpdate = true; }
 
             if (needsDbUpdate) {
               await updateDoc(userRef, { 
@@ -150,6 +126,8 @@ export default function App() {
               console.error("User snapshot error:", error);
             });
           } else {
+            const savedRef = localStorage.getItem('coolcat_ref');
+            
             const newUser: UserProfile = {
               uid: currentUser.uid,
               email: currentUser.email || undefined,
@@ -159,31 +137,52 @@ export default function App() {
               xp: 0,
               level: 1,
               avatar: currentUser.photoURL || '/assets/avatars/ava1.webp',
-              cardStyle: {
-                background: '#ffffff',
-                border: '#6366f1',
-                color: '#1e293b',
-                pattern: 'none'
-              },
+              cardStyle: { background: '#ffffff', border: '#6366f1', color: '#1e293b', pattern: 'none' },
               socialLinks: {},
               banned: false,
               totalDeposits: 0,
               totalWithdrawals: 0,
               wagerRequirement: 0,
-              unlockedAvatars: [
-                '/assets/avatars/ava1.webp',
-                '/assets/avatars/ava2.webp',
-                '/assets/avatars/ava3.webp'
-              ]
+              unlockedAvatars: ['/assets/avatars/ava1.webp', '/assets/avatars/ava2.webp', '/assets/avatars/ava3.webp'],
+              // ИСПРАВЛЕНИЕ: Используем правильное имя поля из types.ts
+              invitedBy: savedRef || undefined
             };
+            
             await setDoc(userRef, newUser);
+
+            // Автоматически добавляем +1 к счетчику рефералов у пригласившего
+            if (savedRef) {
+              try {
+                const referrerRef = doc(db, 'users', savedRef);
+                const refSnap = await getDoc(referrerRef);
+                if (refSnap.exists()) {
+                  const refData = refSnap.data();
+                  if (refData.referralData) {
+                    await updateDoc(referrerRef, {
+                      'referralData.registeredCount': increment(1)
+                    });
+                  } else {
+                    await updateDoc(referrerRef, {
+                      referralData: {
+                        status: 'none',
+                        balance: 0,
+                        registeredCount: 1
+                      }
+                    });
+                  }
+                }
+              } catch (e) {
+                console.error("Ошибка начисления реферала:", e);
+              }
+            }
+
             setUser(newUser);
             setAuthConfig((prev: AuthConfigState) => ({ ...prev, isOpen: false }));
             setLoading(false);
           }
         } catch (error) {
           console.error("Error fetching/creating user profile:", error);
-          setDbError("Ошибка подключения к базе данных (Firestore). Убедитесь, что вы создали базу данных Firestore Database в Firebase Console.");
+          setDbError("Ошибка подключения к базе данных (Firestore).");
           setLoading(false);
         }
       } else {
@@ -198,17 +197,8 @@ export default function App() {
     };
   }, []);
 
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
-  };
-
-  const handleOpenAuth = (view: 'login' | 'register') => {
-    setAuthConfig({ isOpen: true, view });
-  };
+  const handleLogout = async () => { try { await signOut(auth); } catch (error) { console.error('Logout error:', error); } };
+  const handleOpenAuth = (view: 'login' | 'register') => { setAuthConfig({ isOpen: true, view }); };
 
   if (dbError) {
     return (
@@ -216,12 +206,7 @@ export default function App() {
         <div className="bg-white p-8 rounded-3xl shadow-xl max-w-md w-full border-2 border-red-100">
           <h1 className="text-2xl font-black text-red-600 mb-4 tracking-tighter">ОШИБКА ДОСТУПА</h1>
           <p className="text-slate-700 font-medium mb-6 leading-relaxed">{dbError}</p>
-          <button
-            onClick={() => { setDbError(null); handleLogout(); }}
-            className="w-full bg-red-500 text-white px-6 py-4 rounded-2xl font-black hover:bg-red-600 transition-colors uppercase tracking-widest shadow-lg shadow-red-200"
-          >
-            Вернуться на главную
-          </button>
+          <button onClick={() => { setDbError(null); handleLogout(); }} className="w-full bg-red-500 text-white px-6 py-4 rounded-2xl font-black hover:bg-red-600 transition-colors uppercase tracking-widest shadow-lg shadow-red-200">Вернуться на главную</button>
         </div>
       </div>
     );
@@ -232,14 +217,7 @@ export default function App() {
       <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 gap-8">
         <div className="relative flex flex-col items-center justify-center">
           <div className="absolute inset-0 bg-brand-400 rounded-full blur-[60px] opacity-20 animate-pulse" />
-          <div 
-            style={{ 
-              width: `${loaderCfg.size}px`, 
-              height: `${loaderCfg.size}px`,
-              transform: `translate(${loaderCfg.x}px, ${loaderCfg.y}px)`
-            }}
-            className="relative z-10 flex items-center justify-center"
-          >
+          <div style={{ width: `${loaderCfg.size}px`, height: `${loaderCfg.size}px`, transform: `translate(${loaderCfg.x}px, ${loaderCfg.y}px)` }} className="relative z-10 flex items-center justify-center">
             <img src="/assets/CoolCat_loader.webp" alt="Loading" className="w-full h-full object-contain drop-shadow-xl animate-bounce" />
           </div>
         </div>
@@ -247,11 +225,6 @@ export default function App() {
           <div className="relative inline-block pb-1">
             <span className="absolute inset-0 z-0 drop-shadow-sm block text-4xl lg:text-5xl font-black tracking-tighter" style={{ WebkitTextStroke: '8px #5c2f3c', color: 'transparent' }} aria-hidden="true">CoolCat</span>
             <span className="relative z-10 block text-4xl lg:text-5xl font-black tracking-tighter"><span style={{ color: '#feb1d1' }}>Cool</span><span className="text-white">Cat</span></span>
-          </div>
-          <div className="flex gap-2 mt-2">
-            <div className="w-2.5 h-2.5 bg-brand-500 rounded-full animate-bounce [animation-delay:-0.3s]" />
-            <div className="w-2.5 h-2.5 bg-brand-500 rounded-full animate-bounce [animation-delay:-0.15s]" />
-            <div className="w-2.5 h-2.5 bg-brand-500 rounded-full animate-bounce" />
           </div>
         </div>
       </div>
@@ -272,80 +245,24 @@ export default function App() {
 
   return (
     <Router>
-      <Layout 
-        user={user} 
-        onLogout={handleLogout} 
-        onLogin={() => handleOpenAuth('login')} 
-        onRegister={() => handleOpenAuth('register')}
-      >
+      <Layout user={user} onLogout={handleLogout} onLogin={() => handleOpenAuth('login')} onRegister={() => handleOpenAuth('register')}>
         <Routes>
           <Route path="/" element={<Home user={user} onLogin={() => handleOpenAuth('login')} />} />
           <Route path="/faq" element={<FAQ />} />
           <Route path="/contacts" element={<Contacts />} />
-          
-          <Route path="/dice" element={
-            <ProtectedRoute user={user} onOpenAuth={handleOpenAuth}>
-              <Dice user={user!} />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/mines" element={
-            <ProtectedRoute user={user} onOpenAuth={handleOpenAuth}>
-              <Mines user={user!} />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/keno" element={
-            <ProtectedRoute user={user} onOpenAuth={handleOpenAuth}>
-              <Keno user={user!} />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/wheelx" element={
-            <ProtectedRoute user={user} onOpenAuth={handleOpenAuth}>
-              <WheelX user={user!} />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/bonuses" element={
-            <ProtectedRoute user={user} onOpenAuth={handleOpenAuth}>
-              <Bonuses user={user!} />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/level" element={
-            <ProtectedRoute user={user} onOpenAuth={handleOpenAuth}>
-              <Level user={user!} />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/achievements" element={
-            <ProtectedRoute user={user} onOpenAuth={handleOpenAuth}>
-              <Achievements user={user!} />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/profile" element={
-            <ProtectedRoute user={user} onOpenAuth={handleOpenAuth}>
-              <Profile user={user!} onLogout={handleLogout} />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/referral" element={
-            <ProtectedRoute user={user} onOpenAuth={handleOpenAuth}>
-              <Referral user={user!} />
-            </ProtectedRoute>
-          } />
-          
+          <Route path="/dice" element={<ProtectedRoute user={user} onOpenAuth={handleOpenAuth}><Dice user={user!} /></ProtectedRoute>} />
+          <Route path="/mines" element={<ProtectedRoute user={user} onOpenAuth={handleOpenAuth}><Mines user={user!} /></ProtectedRoute>} />
+          <Route path="/keno" element={<ProtectedRoute user={user} onOpenAuth={handleOpenAuth}><Keno user={user!} /></ProtectedRoute>} />
+          <Route path="/wheelx" element={<ProtectedRoute user={user} onOpenAuth={handleOpenAuth}><WheelX user={user!} /></ProtectedRoute>} />
+          <Route path="/bonuses" element={<ProtectedRoute user={user} onOpenAuth={handleOpenAuth}><Bonuses user={user!} /></ProtectedRoute>} />
+          <Route path="/level" element={<ProtectedRoute user={user} onOpenAuth={handleOpenAuth}><Level user={user!} /></ProtectedRoute>} />
+          <Route path="/achievements" element={<ProtectedRoute user={user} onOpenAuth={handleOpenAuth}><Achievements user={user!} /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute user={user} onOpenAuth={handleOpenAuth}><Profile user={user!} onLogout={handleLogout} /></ProtectedRoute>} />
+          <Route path="/referral" element={<ProtectedRoute user={user} onOpenAuth={handleOpenAuth}><Referral user={user!} /></ProtectedRoute>} />
           <Route path="/admin" element={user?.rank === 'admin' ? <Admin user={user} /> : <Navigate to="/" />} />
         </Routes>
       </Layout>
-
-      <Auth 
-        isOpen={authConfig.isOpen} 
-        onClose={() => setAuthConfig((prev: AuthConfigState) => ({ ...prev, isOpen: false }))} 
-        initialView={authConfig.view} 
-      />
+      <Auth isOpen={authConfig.isOpen} onClose={() => setAuthConfig((prev: AuthConfigState) => ({ ...prev, isOpen: false }))} initialView={authConfig.view} />
     </Router>
   );
 }
