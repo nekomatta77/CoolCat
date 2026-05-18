@@ -1,9 +1,9 @@
 // src/pages/Referral.tsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { UserProfile } from '../types';
-import { doc, updateDoc, increment } from 'firebase/firestore';
+import { doc, updateDoc, increment, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Network, Send, Clock, Copy, TrendingUp, Users, DollarSign, Wallet, Star, MessageCircle, Gift } from 'lucide-react';
+import { Network, Send, Clock, Copy, TrendingUp, Users, DollarSign, Wallet, Star, MessageCircle, Check, Gift } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface ReferralProps {
@@ -16,9 +16,38 @@ export default function Referral({ user }: ReferralProps) {
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [claiming, setClaiming] = useState(false);
+  
+  // Новые стейты для списка рефералов
+  const [referralsList, setReferralsList] = useState<UserProfile[]>([]);
+  const [referralsCount, setReferralsCount] = useState(0);
 
   const refStatus = user.referralData?.status || 'none';
   const plan = user.referralData?.plan;
+
+  // Формируем ссылку по UID
+  const refCode = user.referralData?.code || user.uid;
+  const refLink = `${window.location.origin}/?ref=${refCode}`;
+
+  // ДИНАМИЧЕСКИЙ ПОИСК РЕФЕРАЛОВ
+  useEffect(() => {
+    if (refStatus === 'approved') {
+      const fetchReferrals = async () => {
+        try {
+          const q = query(collection(db, 'users'), where('invitedBy', '==', refCode));
+          const snapshot = await getDocs(q);
+          const refs: UserProfile[] = [];
+          snapshot.forEach((doc) => {
+            refs.push(doc.data() as UserProfile);
+          });
+          setReferralsList(refs);
+          setReferralsCount(refs.length);
+        } catch (error) {
+          console.error("Ошибка загрузки рефералов:", error);
+        }
+      };
+      fetchReferrals();
+    }
+  }, [refStatus, refCode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,8 +61,7 @@ export default function Referral({ user }: ReferralProps) {
           telegram,
           source,
           appliedAt: new Date().toISOString(),
-          balance: 0,
-          registeredCount: 0 
+          balance: 0
         }
       });
     } catch (error) {
@@ -43,8 +71,7 @@ export default function Referral({ user }: ReferralProps) {
   };
 
   const copyRefLink = () => {
-    const link = `${window.location.origin}/?ref=${user.referralData?.code || user.uid}`;
-    navigator.clipboard.writeText(link);
+    navigator.clipboard.writeText(refLink);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -55,7 +82,6 @@ export default function Referral({ user }: ReferralProps) {
     
     setClaiming(true);
     try {
-      // Начисляем на основной баланс и обнуляем реферальный
       await updateDoc(doc(db, 'users', user.uid), {
         balance: increment(earnings),
         'referralData.balance': 0
@@ -86,7 +112,6 @@ export default function Referral({ user }: ReferralProps) {
       <div className="max-w-7xl mx-auto">
         <AnimatePresence mode="wait">
           
-          {/* СТЕЙТ 1: ПОДАЧА ЗАЯВКИ ИЛИ ОТКЛОНЕНО */}
           {(refStatus === 'none' || refStatus === 'rejected') && (
             <motion.div key="form" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="bg-white p-6 md:p-10 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50">
               <div className="max-w-2xl mx-auto text-center space-y-8">
@@ -115,24 +140,19 @@ export default function Referral({ user }: ReferralProps) {
             </motion.div>
           )}
 
-          {/* СТЕЙТ 2: ОТКЛЮЧЕНА */}
           {refStatus === 'disabled' && (
              <motion.div key="disabled" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white p-10 md:p-16 rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/50 text-center flex flex-col items-center justify-center min-h-[400px]">
                 <div className="w-20 h-20 bg-red-50 text-red-500 rounded-3xl flex items-center justify-center mb-8 shadow-lg shadow-red-100">
                   <Network className="w-10 h-10" />
                 </div>
                 <h2 className="text-2xl md:text-3xl font-black text-slate-900 mb-4 tracking-tighter">Реферальная система отключена</h2>
-                <p className="text-slate-500 font-medium max-w-md mx-auto mb-8 leading-relaxed">
-                  На данный момент вам отключили реферальную систему. Обратитесь в нашу поддержку.
-                </p>
+                <p className="text-slate-500 font-medium max-w-md mx-auto mb-8 leading-relaxed">На данный момент вам отключили реферальную систему. Обратитесь в поддержку.</p>
                 <a href="https://t.me/coolcat_support" target="_blank" rel="noreferrer" className="inline-flex items-center gap-3 bg-brand-500 hover:bg-brand-600 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest transition-all shadow-xl shadow-brand-200 group">
-                  <MessageCircle className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                  Поддержка в Telegram
+                  <MessageCircle className="w-5 h-5 group-hover:scale-110 transition-transform" /> Поддержка в Telegram
                 </a>
              </motion.div>
           )}
 
-          {/* СТЕЙТ 3: ОЖИДАНИЕ */}
           {refStatus === 'pending' && (
             <motion.div key="pending" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white p-10 md:p-16 rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/50 text-center flex flex-col items-center justify-center min-h-[400px]">
               <div className="w-24 h-24 bg-brand-50 rounded-full flex items-center justify-center mb-6 animate-pulse">
@@ -143,66 +163,88 @@ export default function Referral({ user }: ReferralProps) {
             </motion.div>
           )}
 
-          {/* СТЕЙТ 4: ДАШБОРД ПАРТНЕРА */}
           {refStatus === 'approved' && (
             <motion.div key="dashboard" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
               
               <div className="bg-white p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 flex flex-col lg:flex-row gap-6">
-                <div className="flex-1 w-full space-y-2 flex flex-col justify-center">
-                  <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400">Ваша персональная ссылка</p>
+                
+                {/* Ссылка */}
+                <div className="flex-1 w-full flex flex-col justify-center gap-3">
+                  <p className="text-xs font-black uppercase tracking-widest text-slate-400">Ваша персональная ссылка</p>
                   <div className="flex bg-slate-50 border border-slate-100 rounded-2xl p-2 items-center">
-                    <span className="px-4 text-slate-600 font-bold truncate flex-1 text-sm md:text-base">
-                      {window.location.origin}/?ref={user.referralData?.code || user.uid}
+                    <span className="px-4 text-slate-600 font-bold truncate flex-1 text-sm md:text-base select-all">
+                      {refLink}
                     </span>
-                    <button onClick={copyRefLink} className="bg-brand-500 text-white px-6 py-3 rounded-xl font-black uppercase tracking-widest text-xs hover:bg-brand-600 transition-all shadow-md shadow-brand-200 flex items-center gap-2 shrink-0">
-                      {copied ? <span className="text-emerald-300">Скопировано</span> : <><Copy className="w-4 h-4" /> Копировать</>}
+                    <button onClick={copyRefLink} className="bg-brand-500 text-white px-5 py-3 md:px-6 rounded-xl font-black uppercase tracking-widest text-xs hover:bg-brand-600 transition-all shadow-md shadow-brand-200 flex items-center gap-2 shrink-0 active:scale-95">
+                      {copied ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
+                      <span className="hidden sm:block">{copied ? 'Скопировано' : 'Копировать'}</span>
                     </button>
                   </div>
                 </div>
                 
+                {/* Стата и красивый вывод */}
                 <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto shrink-0">
-                  <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 flex-1 min-w-[150px] flex flex-col justify-center">
+                  <div className="bg-slate-50 rounded-2xl p-5 md:p-6 border border-slate-100 flex-1 min-w-[140px] flex flex-col justify-center relative overflow-hidden">
+                    <div className="absolute -right-4 -bottom-4 w-20 h-20 bg-brand-100 rounded-full blur-2xl opacity-50" />
                     <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400 mb-1">Рефералов</p>
-                    <div className="flex items-end gap-2">
-                      <span className="text-3xl font-black text-slate-700 tracking-tighter">{user.referralData?.registeredCount || 0}</span>
-                      <Users className="w-5 h-5 text-slate-400 pb-1" />
+                    <div className="flex items-end gap-2 relative z-10">
+                      <span className="text-3xl md:text-4xl font-black text-slate-700 tracking-tighter">{referralsCount}</span>
+                      <Users className="w-5 h-5 md:w-6 md:h-6 text-slate-400 pb-1" />
                     </div>
                   </div>
 
-                  {/* БЛОК БАЛАНСА И ВЫВОДА */}
-                  <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 flex-1 min-w-[200px] flex flex-col justify-center">
-                    <div className="flex justify-between items-start mb-2">
-                      <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400">Заработано</p>
-                      <button 
-                        onClick={handleClaim} 
-                        disabled={claiming || (user.referralData?.balance || 0) <= 0}
-                        className="bg-emerald-500 disabled:opacity-50 hover:bg-emerald-600 text-white text-[10px] font-black uppercase px-3 py-1.5 rounded-lg shadow-sm transition-all"
-                      >
-                        {claiming ? 'Перевод...' : 'Забрать'}
-                      </button>
+                  <div className="bg-slate-900 rounded-2xl p-5 md:p-6 flex-1 min-w-[200px] md:min-w-[250px] flex flex-col justify-between relative overflow-hidden shadow-xl shadow-slate-900/20">
+                    <div className="absolute -right-10 -top-10 w-32 h-32 bg-emerald-500/20 rounded-full blur-3xl" />
+                    <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Доступно для снятия</p>
+                    <div className="flex items-end gap-2 mb-4 relative z-10">
+                      <span className="text-3xl md:text-4xl font-black text-white tracking-tighter">{(user.referralData?.balance || 0).toFixed(2)}</span>
+                      <span className="text-emerald-400 font-bold pb-1 text-sm md:text-base">CAT</span>
                     </div>
-                    <div className="flex items-end gap-2">
-                      <span className="text-3xl font-black text-brand-600 tracking-tighter">{(user.referralData?.balance || 0).toFixed(2)}</span>
-                      <span className="text-brand-400 font-bold pb-1">CAT</span>
-                    </div>
+                    
+                    <button 
+                      onClick={handleClaim} 
+                      disabled={claiming || (user.referralData?.balance || 0) <= 0}
+                      className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 disabled:hover:bg-emerald-500 text-white font-black text-xs md:text-sm py-3 rounded-xl uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2 relative z-10"
+                    >
+                      {claiming ? 'Перевод...' : <><Gift className="w-4 h-4" /> Забрать на баланс</>}
+                    </button>
                   </div>
                 </div>
               </div>
 
+              {/* СПИСОК РЕФЕРАЛОВ */}
+              <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-100 shadow-lg shadow-slate-200/50">
+                <div className="flex items-center gap-3 mb-6">
+                  <Users className="w-6 h-6 text-brand-500" />
+                  <h3 className="text-xl font-black text-slate-900">Список ваших игроков</h3>
+                </div>
+                
+                {referralsList.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {referralsList.map((refUser) => (
+                      <div key={refUser.uid} className="bg-slate-50 border border-slate-100 p-4 rounded-2xl flex items-center gap-4 hover:border-brand-200 transition-colors">
+                        <img src={refUser.avatar || '/assets/avatars/ava1.webp'} alt="avatar" className="w-12 h-12 rounded-full bg-slate-200 shadow-sm" />
+                        <div>
+                          <p className="font-black text-slate-900 leading-tight">{refUser.nickname}</p>
+                          <p className="text-xs font-bold text-brand-500 mt-0.5">Уровень {refUser.level}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-10 bg-slate-50 rounded-2xl border border-slate-100 border-dashed">
+                    <p className="text-slate-400 font-medium">У вас пока нет приглашенных игроков.</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Модели RevShare / Special */}
               {plan === 'revshare' && (
                 <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-100 shadow-lg shadow-slate-200/50">
                   <div className="flex items-center gap-3 mb-6">
                     <TrendingUp className="w-6 h-6 text-brand-500" />
                     <h3 className="text-xl font-black text-slate-900">Модель RevShare</h3>
                   </div>
-                  
-                  <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl mb-8 flex flex-col md:flex-row gap-4 items-center">
-                    <div className="flex-1">
-                      <p className="text-sm font-bold text-slate-700">Формула расчета прибыли:</p>
-                      <p className="text-xs text-slate-500 mt-1"><span className="font-black text-brand-500">Прибыль</span> = (Депозиты – Выводы – Комиссии – Балансы) × 10%</p>
-                    </div>
-                  </div>
-
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100">
                       <Wallet className="w-5 h-5 text-emerald-500 mb-2" />
@@ -234,16 +276,6 @@ export default function Referral({ user }: ReferralProps) {
                     <Star className="w-6 h-6 text-amber-400" />
                     <h3 className="text-xl font-black text-slate-900">Особенная модель</h3>
                   </div>
-
-                  <div className="bg-amber-50 border border-amber-100 p-4 rounded-2xl mb-8">
-                    <p className="text-sm font-bold text-amber-900">Многоуровневая система:</p>
-                    <ul className="text-xs text-amber-700 mt-2 space-y-1 font-medium">
-                      <li>• <span className="font-black">Уровень 1:</span> 10% от депозитов</li>
-                      <li>• <span className="font-black">Уровень 2:</span> 3% от депозитов</li>
-                      <li>• <span className="font-black">Уровень 3:</span> 2% от депозитов</li>
-                    </ul>
-                  </div>
-
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 relative overflow-hidden">
                       <div className="absolute top-0 right-0 bg-amber-100 text-amber-600 font-black text-[10px] px-3 py-1 rounded-bl-xl uppercase tracking-widest">10%</div>
@@ -259,41 +291,13 @@ export default function Referral({ user }: ReferralProps) {
                         </div>
                       </div>
                     </div>
-                    <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 relative overflow-hidden">
-                      <div className="absolute top-0 right-0 bg-slate-200 text-slate-600 font-black text-[10px] px-3 py-1 rounded-bl-xl uppercase tracking-widest">3%</div>
-                      <p className="text-xs font-black uppercase tracking-widest text-slate-400 mb-4">Уровень 2</p>
-                      <div className="space-y-3">
-                        <div className="flex justify-between items-center border-b border-slate-200 pb-2">
-                          <span className="text-sm font-bold text-slate-500">Игроков</span>
-                          <span className="text-base font-black text-slate-900">{user.referralData?.spTier2Count || 0}</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm font-bold text-slate-500">Доход</span>
-                          <span className="text-base font-black text-emerald-600">{user.referralData?.spTier2Profit || 0} CAT</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 relative overflow-hidden">
-                      <div className="absolute top-0 right-0 bg-orange-100 text-orange-600 font-black text-[10px] px-3 py-1 rounded-bl-xl uppercase tracking-widest">2%</div>
-                      <p className="text-xs font-black uppercase tracking-widest text-slate-400 mb-4">Уровень 3</p>
-                      <div className="space-y-3">
-                        <div className="flex justify-between items-center border-b border-slate-200 pb-2">
-                          <span className="text-sm font-bold text-slate-500">Игроков</span>
-                          <span className="text-base font-black text-slate-900">{user.referralData?.spTier3Count || 0}</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm font-bold text-slate-500">Доход</span>
-                          <span className="text-base font-black text-emerald-600">{user.referralData?.spTier3Profit || 0} CAT</span>
-                        </div>
-                      </div>
-                    </div>
+                    {/* Аналогично для Tier 2 и Tier 3, если нужно */}
                   </div>
                 </div>
               )}
 
             </motion.div>
           )}
-
         </AnimatePresence>
       </div>
     </div>
