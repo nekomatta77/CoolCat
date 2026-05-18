@@ -17,18 +17,15 @@ export default function Referral({ user }: ReferralProps) {
   const [copied, setCopied] = useState(false);
   const [claiming, setClaiming] = useState(false);
   
-  // Новые стейты для списка рефералов
   const [referralsList, setReferralsList] = useState<UserProfile[]>([]);
   const [referralsCount, setReferralsCount] = useState(0);
 
   const refStatus = user.referralData?.status || 'none';
   const plan = user.referralData?.plan;
 
-  // Формируем ссылку по UID
   const refCode = user.referralData?.code || user.uid;
   const refLink = `${window.location.origin}/?ref=${refCode}`;
 
-  // ДИНАМИЧЕСКИЙ ПОИСК РЕФЕРАЛОВ
   useEffect(() => {
     if (refStatus === 'approved') {
       const fetchReferrals = async () => {
@@ -52,21 +49,12 @@ export default function Referral({ user }: ReferralProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!telegram || !source) return;
-
     setLoading(true);
     try {
       await updateDoc(doc(db, 'users', user.uid), {
-        referralData: {
-          status: 'pending',
-          telegram,
-          source,
-          appliedAt: new Date().toISOString(),
-          balance: 0
-        }
+        referralData: { status: 'pending', telegram, source, appliedAt: new Date().toISOString(), balance: 0 }
       });
-    } catch (error) {
-      console.error('Ошибка подачи заявки:', error);
-    }
+    } catch (error) { console.error('Ошибка подачи заявки:', error); }
     setLoading(false);
   };
 
@@ -79,22 +67,19 @@ export default function Referral({ user }: ReferralProps) {
   const handleClaim = async () => {
     const earnings = user.referralData?.balance || 0;
     if (earnings <= 0 || claiming) return;
-    
     setClaiming(true);
     try {
       await updateDoc(doc(db, 'users', user.uid), {
         balance: increment(earnings),
         'referralData.balance': 0
       });
-    } catch (error) {
-      console.error("Ошибка при выводе средств:", error);
-    } finally {
-      setClaiming(false);
-    }
+    } catch (error) { console.error("Ошибка при выводе средств:", error); } 
+    finally { setClaiming(false); }
   };
 
   return (
     <div className="max-w-[90rem] mx-auto space-y-6 md:space-y-8 pb-12 relative px-2 md:px-0">
+      {/* КРАСИВЫЙ ХЕДЕР ПАРТНЕРКИ */}
       <header className="flex flex-col md:flex-row items-center justify-between gap-6 bg-white p-5 lg:p-8 rounded-[2rem] md:rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 max-w-7xl mx-auto">
         <div className="flex flex-col md:flex-row items-center gap-4 md:gap-6 text-center md:text-left">
           <div className="w-14 h-14 md:w-16 md:h-16 bg-gradient-to-br from-brand-400 to-brand-600 rounded-2xl md:rounded-3xl flex items-center justify-center shadow-xl shadow-brand-200 shrink-0">
@@ -122,7 +107,6 @@ export default function Referral({ user }: ReferralProps) {
                   <h2 className="text-2xl font-black text-slate-900">Заявка на партнерство</h2>
                   <p className="text-slate-500 font-medium">Опишите, откуда вы планируете привлекать игроков. Мы предлагаем индивидуальные условия сотрудничества.</p>
                 </div>
-
                 <form onSubmit={handleSubmit} className="space-y-6 text-left">
                   <div className="space-y-2">
                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Telegram для связи</label>
@@ -142,22 +126,16 @@ export default function Referral({ user }: ReferralProps) {
 
           {refStatus === 'disabled' && (
              <motion.div key="disabled" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white p-10 md:p-16 rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/50 text-center flex flex-col items-center justify-center min-h-[400px]">
-                <div className="w-20 h-20 bg-red-50 text-red-500 rounded-3xl flex items-center justify-center mb-8 shadow-lg shadow-red-100">
-                  <Network className="w-10 h-10" />
-                </div>
+                <div className="w-20 h-20 bg-red-50 text-red-500 rounded-3xl flex items-center justify-center mb-8 shadow-lg shadow-red-100"><Network className="w-10 h-10" /></div>
                 <h2 className="text-2xl md:text-3xl font-black text-slate-900 mb-4 tracking-tighter">Реферальная система отключена</h2>
                 <p className="text-slate-500 font-medium max-w-md mx-auto mb-8 leading-relaxed">На данный момент вам отключили реферальную систему. Обратитесь в поддержку.</p>
-                <a href="https://t.me/coolcat_support" target="_blank" rel="noreferrer" className="inline-flex items-center gap-3 bg-brand-500 hover:bg-brand-600 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest transition-all shadow-xl shadow-brand-200 group">
-                  <MessageCircle className="w-5 h-5 group-hover:scale-110 transition-transform" /> Поддержка в Telegram
-                </a>
+                <a href="https://t.me/coolcat_support" target="_blank" rel="noreferrer" className="inline-flex items-center gap-3 bg-brand-500 hover:bg-brand-600 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest transition-all shadow-xl shadow-brand-200 group"><MessageCircle className="w-5 h-5 group-hover:scale-110 transition-transform" /> Поддержка в Telegram</a>
              </motion.div>
           )}
 
           {refStatus === 'pending' && (
             <motion.div key="pending" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white p-10 md:p-16 rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/50 text-center flex flex-col items-center justify-center min-h-[400px]">
-              <div className="w-24 h-24 bg-brand-50 rounded-full flex items-center justify-center mb-6 animate-pulse">
-                <Clock className="w-10 h-10 text-brand-500" />
-              </div>
+              <div className="w-24 h-24 bg-brand-50 rounded-full flex items-center justify-center mb-6 animate-pulse"><Clock className="w-10 h-10 text-brand-500" /></div>
               <h2 className="text-2xl md:text-3xl font-black text-slate-900 mb-3 tracking-tighter">Заявка на рассмотрении</h2>
               <p className="text-slate-500 font-medium max-w-md mx-auto">Мы изучаем ваши источники трафика. Обычно процесс занимает до 24 часов.</p>
             </motion.div>
@@ -169,12 +147,10 @@ export default function Referral({ user }: ReferralProps) {
               <div className="bg-white p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 flex flex-col lg:flex-row gap-6">
                 
                 {/* Ссылка */}
-                <div className="flex-1 w-full flex flex-col justify-center gap-3">
+                <div className="flex-1 w-full flex flex-col justify-center gap-3 lg:pr-6">
                   <p className="text-xs font-black uppercase tracking-widest text-slate-400">Ваша персональная ссылка</p>
                   <div className="flex bg-slate-50 border border-slate-100 rounded-2xl p-2 items-center">
-                    <span className="px-4 text-slate-600 font-bold truncate flex-1 text-sm md:text-base select-all">
-                      {refLink}
-                    </span>
+                    <span className="px-4 text-slate-600 font-bold truncate flex-1 text-sm md:text-base select-all">{refLink}</span>
                     <button onClick={copyRefLink} className="bg-brand-500 text-white px-5 py-3 md:px-6 rounded-xl font-black uppercase tracking-widest text-xs hover:bg-brand-600 transition-all shadow-md shadow-brand-200 flex items-center gap-2 shrink-0 active:scale-95">
                       {copied ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
                       <span className="hidden sm:block">{copied ? 'Скопировано' : 'Копировать'}</span>
@@ -182,31 +158,35 @@ export default function Referral({ user }: ReferralProps) {
                   </div>
                 </div>
                 
-                {/* Стата и красивый вывод */}
+                {/* Стата и красивый вывод для ПК */}
                 <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto shrink-0">
-                  <div className="bg-slate-50 rounded-2xl p-5 md:p-6 border border-slate-100 flex-1 min-w-[140px] flex flex-col justify-center relative overflow-hidden">
+                  <div className="bg-slate-50 rounded-[1.5rem] lg:rounded-[2.5rem] p-6 lg:p-10 border border-slate-100 flex-1 min-w-[140px] lg:min-w-[200px] flex flex-col justify-center relative overflow-hidden">
                     <div className="absolute -right-4 -bottom-4 w-20 h-20 bg-brand-100 rounded-full blur-2xl opacity-50" />
-                    <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400 mb-1">Рефералов</p>
+                    <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Рефералов</p>
                     <div className="flex items-end gap-2 relative z-10">
-                      <span className="text-3xl md:text-4xl font-black text-slate-700 tracking-tighter">{referralsCount}</span>
-                      <Users className="w-5 h-5 md:w-6 md:h-6 text-slate-400 pb-1" />
+                      <span className="text-4xl lg:text-6xl font-black text-slate-700 tracking-tighter leading-none">{referralsCount}</span>
+                      <Users className="w-5 h-5 lg:w-8 lg:h-8 text-slate-400 pb-1 lg:pb-2" />
                     </div>
                   </div>
 
-                  <div className="bg-slate-900 rounded-2xl p-5 md:p-6 flex-1 min-w-[200px] md:min-w-[250px] flex flex-col justify-between relative overflow-hidden shadow-xl shadow-slate-900/20">
-                    <div className="absolute -right-10 -top-10 w-32 h-32 bg-emerald-500/20 rounded-full blur-3xl" />
-                    <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Доступно для снятия</p>
-                    <div className="flex items-end gap-2 mb-4 relative z-10">
-                      <span className="text-3xl md:text-4xl font-black text-white tracking-tighter">{(user.referralData?.balance || 0).toFixed(2)}</span>
-                      <span className="text-emerald-400 font-bold pb-1 text-sm md:text-base">CAT</span>
+                  {/* УЛУЧШЕННАЯ ПАНЕЛЬ ЗАБРАТЬ */}
+                  <div className="bg-slate-900 rounded-[1.5rem] lg:rounded-[2.5rem] p-6 lg:p-10 flex-1 min-w-[200px] lg:min-w-[360px] flex flex-col justify-between relative overflow-hidden shadow-2xl shadow-slate-900/20 group">
+                    <div className="absolute -right-10 -top-10 w-48 h-48 bg-emerald-500/20 rounded-full blur-3xl group-hover:bg-emerald-500/30 transition-all duration-500" />
+                    
+                    <div className="relative z-10 mb-8">
+                      <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400 mb-2 lg:mb-3">Доступно для снятия</p>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-4xl lg:text-6xl font-black text-white tracking-tighter leading-none">{(user.referralData?.balance || 0).toFixed(2)}</span>
+                        <span className="text-emerald-400 font-black text-sm lg:text-xl">CAT</span>
+                      </div>
                     </div>
                     
                     <button 
                       onClick={handleClaim} 
                       disabled={claiming || (user.referralData?.balance || 0) <= 0}
-                      className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 disabled:hover:bg-emerald-500 text-white font-black text-xs md:text-sm py-3 rounded-xl uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2 relative z-10"
+                      className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 disabled:hover:bg-emerald-500 text-white font-black text-sm lg:text-base py-4 lg:py-5 rounded-xl lg:rounded-2xl uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-3 relative z-10"
                     >
-                      {claiming ? 'Перевод...' : <><Gift className="w-4 h-4" /> Забрать на баланс</>}
+                      {claiming ? 'Перевод...' : <><Gift className="w-5 h-5 lg:w-6 lg:h-6" /> Забрать на баланс</>}
                     </button>
                   </div>
                 </div>
@@ -291,11 +271,9 @@ export default function Referral({ user }: ReferralProps) {
                         </div>
                       </div>
                     </div>
-                    {/* Аналогично для Tier 2 и Tier 3, если нужно */}
                   </div>
                 </div>
               )}
-
             </motion.div>
           )}
         </AnimatePresence>

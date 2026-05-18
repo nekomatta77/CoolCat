@@ -57,13 +57,15 @@ export default function FAQ() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-12 pb-12">
-      <header className="flex flex-col items-center text-center space-y-6">
-        <div className="w-20 h-20 bg-brand-500 rounded-[2rem] flex items-center justify-center shadow-2xl shadow-brand-200 -rotate-6">
-          <HelpCircle className="w-10 h-10 text-white" />
-        </div>
-        <div className="space-y-2">
-          <h1 className="text-5xl font-black text-slate-900 tracking-tighter">Правила и FAQ</h1>
-          <p className="text-slate-400 text-lg font-medium">Все, что вам нужно знать о CoolCat Casino</p>
+      <header className="flex flex-col md:flex-row items-center justify-between gap-6 bg-white p-5 lg:p-8 rounded-[2rem] md:rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 max-w-7xl mx-auto mb-6 md:space-y-0">
+        <div className="flex flex-col md:flex-row items-center gap-4 md:gap-6 text-center md:text-left w-full">
+          <div className="w-14 h-14 md:w-16 md:h-16 bg-gradient-to-br from-brand-400 to-brand-600 rounded-2xl md:rounded-3xl flex items-center justify-center shadow-xl shadow-brand-200 shrink-0">
+            <HelpCircle className="w-7 h-7 md:w-8 md:h-8 text-white" />
+          </div>
+          <div>
+            <h1 className="text-2xl md:text-3xl lg:text-4xl font-black text-slate-900 tracking-tighter">Часто задаваемые вопросы</h1>
+            <p className="text-slate-400 font-medium text-xs md:text-sm mt-1">Узнай больше о работе CoolCat Casino и правилах игр.</p>
+          </div>
         </div>
       </header>
 
