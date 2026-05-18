@@ -284,47 +284,34 @@ export default function Keno({ user }: KenoProps) {
         <div className="order-1 lg:order-2 lg:col-span-8 bg-white sm:rounded-[3rem] sm:border border-slate-100 sm:shadow-xl sm:shadow-slate-200/50 p-4 sm:p-6 lg:p-10 flex flex-col items-center relative overflow-hidden h-fit">
           
           <AnimatePresence>
-            {showResultModal && gameState === 'finished' && (
+            {/* ИСПРАВЛЕНИЕ: Показываем карточку ТОЛЬКО если выигрыш > 0 */}
+            {showResultModal && gameState === 'finished' && payout > 0 && (
               <motion.div
                 initial={fastMode ? false : { opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: fastMode ? 0 : 0.2 }}
                 onClick={() => setShowResultModal(false)}
-                className="absolute inset-0 z-50 flex items-center justify-center p-6 cursor-pointer"
+                className="absolute inset-0 z-50 flex items-center justify-center p-4 cursor-pointer"
               >
                 <motion.div
                   initial={fastMode ? false : { scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }} transition={{ duration: fastMode ? 0 : 0.3 }}
                   onClick={(e) => e.stopPropagation()} 
                   className={cn(
-                    "relative overflow-hidden w-full max-w-[280px] sm:max-w-[320px] rounded-[2rem] p-6 text-center border backdrop-blur-md",
+                    "relative overflow-hidden w-full max-w-[200px] sm:max-w-[320px] rounded-[1.5rem] sm:rounded-[2rem] p-4 sm:p-6 text-center border backdrop-blur-md",
                     fastMode ? "" : "transition-all duration-300",
-                    payout > 0 ? "bg-slate-900/40 border-emerald-500/30 shadow-[0_0_40px_-10px_rgba(16,185,129,0.3)] ring-1 ring-emerald-500/20" : "bg-slate-900/40 border-slate-700/40 shadow-[0_20px_40px_-10px_rgba(0,0,0,0.3)] ring-1 ring-white/5"
+                    "bg-slate-900/40 border-emerald-500/30 shadow-[0_0_40px_-10px_rgba(16,185,129,0.3)] ring-1 ring-emerald-500/20"
                   )}
                 >
                   <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-white/10 to-transparent opacity-30 pointer-events-none" />
                   
-                  <div className="relative z-10 flex flex-col items-center gap-3">
-                    {payout > 0 ? (
-                      <>
-                        <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 flex items-center justify-center border border-emerald-500/40 shadow-[inset_0_0_20px_rgba(16,185,129,0.3)]">
-                           <img src="/assets/keno/keno_paw.webp" alt="paw win" className="w-7 h-7 drop-shadow-[0_0_15px_rgba(16,185,129,0.8)]" />
-                        </div>
-                        <div>
-                          <p className="text-emerald-400 font-black uppercase tracking-[0.3em] text-[10px] mb-1 drop-shadow-md">Winner!</p>
-                          <p className="text-3xl font-black text-white drop-shadow-[0_2px_10px_rgba(16,185,129,0.5)]">+{formatBalance(payout)}</p>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="w-14 h-14 rounded-2xl bg-slate-800/40 flex items-center justify-center border border-slate-600/50">
-                           <img src="/assets/keno/grey_paw_keno.webp" alt="paw lose" className="w-7 h-7 opacity-60" />
-                        </div>
-                        <div>
-                          <p className="text-slate-300 font-black uppercase tracking-[0.3em] text-[10px] mb-1 drop-shadow-md">Проигрыш</p>
-                          <p className="text-3xl font-black text-white drop-shadow-md">0.00</p>
-                        </div>
-                      </>
-                    )}
+                  <div className="relative z-10 flex flex-col items-center gap-2 sm:gap-3">
+                    <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-emerald-500/20 flex items-center justify-center border border-emerald-500/40 shadow-[inset_0_0_20px_rgba(16,185,129,0.3)]">
+                       <img src="/assets/keno/keno_paw.webp" alt="paw win" className="w-6 h-6 sm:w-7 sm:h-7 drop-shadow-[0_0_15px_rgba(16,185,129,0.8)]" />
+                    </div>
+                    <div>
+                      <p className="text-emerald-400 font-black uppercase tracking-[0.3em] text-[8px] sm:text-[10px] mb-0.5 sm:mb-1 drop-shadow-md">Winner!</p>
+                      <p className="text-xl sm:text-3xl font-black text-white drop-shadow-[0_2px_10px_rgba(16,185,129,0.5)]">+{formatBalance(payout)}</p>
+                    </div>
                     
-                    <div className="mt-2 px-5 py-2 rounded-xl bg-white/10 border border-white/20 text-[10px] font-bold text-white uppercase tracking-widest backdrop-blur-md drop-shadow-sm">
+                    <div className="mt-1 sm:mt-2 px-3 py-1.5 sm:px-5 sm:py-2 rounded-lg sm:rounded-xl bg-white/10 border border-white/20 text-[8px] sm:text-[10px] font-bold text-white uppercase tracking-widest backdrop-blur-md drop-shadow-sm">
                       Ставка: {formatBalance(bet)}
                     </div>
                   </div>

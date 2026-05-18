@@ -1,7 +1,7 @@
 // src/pages/WheelX.tsx
 import { useState, useEffect, useRef } from 'react';
 import { UserProfile } from '../types';
-import { Users, Coins, AlertCircle, ShieldCheck } from 'lucide-react';
+import { Users, Coins, AlertCircle, ShieldCheck, Disc } from 'lucide-react';
 import { motion, AnimatePresence, useMotionValue, useTransform, animate } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -35,19 +35,20 @@ const CENTER_CONFIG_PC = { timerScale: 1, timerX: 0, timerY: -25, textScale: 1, 
 const CENTER_CONFIG_MOBILE = { timerScale: 1, timerX: 0, timerY: -15, textScale: 0.85, textX: 0, textY: -15 };
 const LOGO_COLOR_COOL = "#feb1d1";
 
+// НОВАЯ ПОСЛЕДОВАТЕЛЬНОСТЬ ИЗ 32 ЭЛЕМЕНТОВ
 const WHEEL_PATTERN = [
-  { type: 'orange', mult: 30, color: 'url(#gradOrange)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
-  { type: 'blue', mult: 3, color: 'url(#gradBlue)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
+  { type: 'pink', mult: 5, color: 'url(#gradPink)' }, { type: 'orange', mult: 30, color: 'url(#gradOrange)' },
   { type: 'pink', mult: 5, color: 'url(#gradPink)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
   { type: 'blue', mult: 3, color: 'url(#gradBlue)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
-  { type: 'pink', mult: 5, color: 'url(#gradPink)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
+  { type: 'blue', mult: 3, color: 'url(#gradBlue)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
   { type: 'blue', mult: 3, color: 'url(#gradBlue)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
   { type: 'pink', mult: 5, color: 'url(#gradPink)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
-  { type: 'blue', mult: 3, color: 'url(#gradBlue)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
   { type: 'pink', mult: 5, color: 'url(#gradPink)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
   { type: 'blue', mult: 3, color: 'url(#gradBlue)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
-  { type: 'pink', mult: 5, color: 'url(#gradPink)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
   { type: 'blue', mult: 3, color: 'url(#gradBlue)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
+  { type: 'blue', mult: 3, color: 'url(#gradBlue)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
+  { type: 'blue', mult: 3, color: 'url(#gradBlue)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
+  { type: 'pink', mult: 5, color: 'url(#gradPink)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
   { type: 'pink', mult: 5, color: 'url(#gradPink)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
   { type: 'blue', mult: 3, color: 'url(#gradBlue)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
   { type: 'blue', mult: 3, color: 'url(#gradBlue)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
@@ -97,16 +98,13 @@ export default function WheelX({ user }: WheelXProps) {
   });
   const pawRotation = useTransform(pawFlick, (flick) => activePawConfig.baseRotation + flick);
 
-  // ПОДКЛЮЧЕНИЕ К VPS ЧЕРЕЗ WEBSOCKET
   useEffect(() => {
-    // Получаем состояние игры каждую секунду от сервера
     const handleState = (data: any) => {
       setGameState(data.gameState);
       setTimeLeft(data.timeLeft);
       setHistory(data.history);
       setAllBets(data.bets);
 
-      // Ищем наши ставки в общем пуле
       const myCurrent = data.bets.find((b: BetData) => b.userId === user.uid);
       if (myCurrent) {
         setMyBets({ black: myCurrent.black, blue: myCurrent.blue, pink: myCurrent.pink, orange: myCurrent.orange });
@@ -120,7 +118,6 @@ export default function WheelX({ user }: WheelXProps) {
       }
     };
 
-    // Слушаем сигнал вращения от сервера
     const handleSpin = (data: { winningIndex: number }) => {
       if (!hasSpunRef.current) {
         hasSpunRef.current = true;
@@ -131,11 +128,9 @@ export default function WheelX({ user }: WheelXProps) {
             return ((currentSpins + 20) * 360) + (data.winningIndex * (360 / 32));
         });
 
-        // Ждем 8 секунд (время вращения рулетки), затем показываем выигрыш
         setTimeout(() => {
           setHistory(prev => [slice.mult, ...prev].slice(0, 30));
           
-          // Вычисляем, выиграли ли мы локально (VPS уже зачислил деньги в Firebase)
           const myBetOnWinColor = myBets[slice.type as keyof typeof myBets] || 0;
           if (myBetOnWinColor > 0) {
              setLastWinInfo({ mult: slice.mult, payout: myBetOnWinColor * slice.mult });
@@ -186,17 +181,10 @@ export default function WheelX({ user }: WheelXProps) {
   const handleMinBet = () => { if (gameState !== 'betting') return; setGlobalBet('1'); };
   const handleMaxBet = () => { if (gameState !== 'betting') return; setGlobalBet(Math.max(1, Number(user.balance.toFixed(2))).toString()); };
 
-  // ОТПРАВЛЯЕМ СТАВКУ НА VPS ВМЕСТО FIREBASE
   const placeBet = (color: 'black' | 'blue' | 'pink' | 'orange') => {
     if (gameState !== 'betting' || currentBetNum < 1 || currentBetNum > user.balance) return;
-    
-    // Просим сервер принять ставку (он сам спишет баланс в Firebase)
     vpsSocket.emit('placeBet', {
-      userId: user.uid,
-      nickname: user.nickname,
-      avatar: user.avatar,
-      color: color,
-      amount: currentBetNum
+      userId: user.uid, nickname: user.nickname, avatar: user.avatar, color: color, amount: currentBetNum
     });
   };
 
@@ -217,24 +205,14 @@ export default function WheelX({ user }: WheelXProps) {
       <div className="bg-white rounded-2xl p-3 sm:p-4 flex flex-col gap-3 sm:gap-4 border border-slate-100 shadow-md h-[220px] sm:h-[280px]">
         <div className="flex justify-between items-center px-1">
             <span className={cn("text-2xl sm:text-4xl font-black leading-none", titleColor)}>{mult}x</span>
-            <div className="text-slate-400 text-[10px] sm:text-xs font-bold flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-md border border-slate-100">
-                <Users className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                {playersList.length}
-            </div>
+            <div className="text-slate-400 text-[10px] sm:text-xs font-bold flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-md border border-slate-100"><Users className="w-3 h-3 sm:w-3.5 sm:h-3.5" />{playersList.length}</div>
         </div>
-        
-        <button 
-          disabled={gameState !== 'betting'} onClick={() => placeBet(type)}
-          className={cn("w-full py-2.5 sm:py-3.5 rounded-xl font-black text-xs sm:text-sm text-white tracking-wider transition-all disabled:opacity-50 hover:-translate-y-0.5 active:scale-95 shadow-sm", btnClass)}
-        >
+        <button disabled={gameState !== 'betting'} onClick={() => placeBet(type)} className={cn("w-full py-2.5 sm:py-3.5 rounded-xl font-black text-xs sm:text-sm text-white tracking-wider transition-all disabled:opacity-50 hover:-translate-y-0.5 active:scale-95 shadow-sm", btnClass)}>
           ПОСТАВИТЬ
         </button>
-
         <div className="flex justify-between items-center px-2 bg-slate-50 rounded-lg py-1.5 border border-slate-100">
-            <Coins className="w-3.5 h-3.5 text-brand-500" />
-            <span className="text-xs sm:text-sm font-black text-slate-700">{currentPool.toFixed(0)}</span>
+            <Coins className="w-3.5 h-3.5 text-brand-500" /><span className="text-xs sm:text-sm font-black text-slate-700">{currentPool.toFixed(0)}</span>
         </div>
-
         <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
           {playersList.map((p, i) => (
             <div key={i} className="flex items-center justify-between hover:bg-slate-50 p-1 rounded-md transition-colors">
@@ -251,7 +229,7 @@ export default function WheelX({ user }: WheelXProps) {
   };
 
   return (
-    <div className="max-w-[1200px] mx-auto space-y-6 sm:space-y-8 pb-12 overflow-visible relative">
+    <div className="max-w-[1200px] mx-auto space-y-6 sm:space-y-8 pb-12 overflow-visible relative px-2 sm:px-0">
       
       <AnimatePresence>
         {betError && (
@@ -262,8 +240,20 @@ export default function WheelX({ user }: WheelXProps) {
         )}
       </AnimatePresence>
 
-      <div className="bg-white rounded-none sm:rounded-[3rem] border-0 sm:border border-slate-100 shadow-xl shadow-slate-200/50 pt-8 sm:pt-12 relative overflow-visible flex flex-col">
-        
+      {/* НОВЫЙ ХЕДЕР ДЛЯ WHEELX */}
+      <header className="flex flex-col md:flex-row items-center justify-between gap-6 bg-white p-5 lg:p-8 rounded-[2rem] md:rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50">
+        <div className="flex flex-col md:flex-row items-center gap-4 md:gap-6 text-center md:text-left">
+          <div className="w-14 h-14 md:w-16 md:h-16 bg-gradient-to-br from-brand-400 to-brand-600 rounded-2xl md:rounded-3xl flex items-center justify-center shadow-xl shadow-brand-200 shrink-0">
+            <Disc className="w-7 h-7 md:w-8 md:h-8 text-white" />
+          </div>
+          <div>
+            <h1 className="text-2xl md:text-3xl lg:text-4xl font-black text-slate-900 tracking-tighter">WheelX</h1>
+            <p className="text-slate-400 font-medium text-xs md:text-sm mt-1">Лайв-рулетка. Крути колесо вместе с другими игроками.</p>
+          </div>
+        </div>
+      </header>
+
+      <div className="bg-white rounded-[2rem] sm:rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/50 pt-8 sm:pt-12 relative overflow-visible flex flex-col">
         {/* КОЛЕСО */}
         <div className="relative w-full max-w-[800px] mx-auto h-[220px] sm:h-[350px] flex justify-center" style={{ clipPath: 'polygon(-50% -200%, 150% -200%, 150% 100%, -50% 100%)' }}>
           <div className="absolute top-0 left-1/2 -translate-x-1/2 z-[45] pointer-events-none">
@@ -308,7 +298,7 @@ export default function WheelX({ user }: WheelXProps) {
                       {lastWinInfo.payout > 0 && (
                           <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.2, type: "spring" }} className="bg-black/25 backdrop-blur-sm rounded-[1rem] sm:rounded-2xl px-4 py-2 sm:px-6 sm:py-3 flex items-center gap-2 border border-white/20 shadow-inner">
                               <Coins className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-400 drop-shadow-md" />
-                              <span className="text-lg sm:text-2xl font-black text-white">+{lastWinInfo.payout.toFixed(0)}</span>
+                              <span className="text-lg sm:text-2xl font-black text-white">+{lastWinInfo.payout.toFixed(2)}</span>
                           </motion.div>
                       )}
                   </div>
@@ -334,7 +324,7 @@ export default function WheelX({ user }: WheelXProps) {
             <div className="w-full h-[1px] bg-slate-100 max-w-[1000px] mx-auto mt-4 sm:mt-6"></div>
         </div>
 
-        <div className={cn("w-full bg-white relative z-20 px-4 sm:px-8 pb-6 sm:pb-10 pt-4 sm:pt-6 rounded-b-none sm:rounded-b-[3rem] transition-opacity duration-300", gameState !== 'betting' && "opacity-50 pointer-events-none")}>
+        <div className={cn("w-full bg-white relative z-20 px-4 sm:px-8 pb-6 sm:pb-10 pt-4 sm:pt-6 rounded-b-[2rem] sm:rounded-b-[3rem] transition-opacity duration-300", gameState !== 'betting' && "opacity-50 pointer-events-none")}>
             <div className="flex flex-col md:flex-row gap-3 sm:gap-6 items-center max-w-[1000px] mx-auto">
                 <div className="relative w-full md:w-1/2">
                     <span className="absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm sm:text-lg">₽</span>
@@ -351,14 +341,14 @@ export default function WheelX({ user }: WheelXProps) {
         </div>
       </div>
 
-      <div className={cn("grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 px-4 sm:px-0 mt-4 sm:mt-6", gameState !== 'betting' && "opacity-50 pointer-events-none")}>
+      <div className={cn("grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mt-4 sm:mt-6", gameState !== 'betting' && "opacity-50 pointer-events-none")}>
           <BetCard type="black" mult={2} titleColor="text-slate-800" btnClass="bg-slate-800 hover:bg-slate-700" />
           <BetCard type="blue" mult={3} titleColor="text-blue-500" btnClass="bg-blue-500 hover:bg-blue-600" />
           <BetCard type="pink" mult={5} titleColor="text-pink-500" btnClass="bg-pink-500 hover:bg-pink-600" />
           <BetCard type="orange" mult={30} titleColor="text-orange-500" btnClass="bg-orange-500 hover:bg-orange-600 shadow-orange-500/30" />
       </div>
 
-      <div className="mt-8 w-full max-w-sm mx-auto px-4 sm:px-0">
+      <div className="mt-8 w-full max-w-sm mx-auto">
         <div className="flex items-center justify-between bg-white border border-slate-100 p-4 rounded-[1.5rem] shadow-sm hover:shadow-md transition-all group">
            <div className="flex items-center gap-3">
              <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
@@ -371,7 +361,6 @@ export default function WheelX({ user }: WheelXProps) {
            </div>
         </div>
       </div>
-
     </div>
   );
 }

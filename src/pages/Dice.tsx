@@ -36,7 +36,9 @@ const formatBalance = (val: number, forceDecimals: boolean = false) => {
 
 export default function Dice({ user }: DiceProps) {
   const [betInput, setBetInput] = useState('10');
-  const bet = parseFloat(betInput.replace(',', '.')) || 0;
+  
+  const parsedBet = parseFloat(betInput.replace(',', '.')) || 0;
+  const bet = Math.round(parsedBet * 100) / 100;
 
   const [chance, setChance] = useState<number | string>(50);
   const parsedChance = parseFloat(String(chance).replace(',', '.')) || 50;
@@ -53,8 +55,12 @@ export default function Dice({ user }: DiceProps) {
   const [gameHash, setGameHash] = useState(generateMockHash());
   const isRolling = useRef(false);
 
-  const multiplier = (100 / activeChance).toFixed(2);
-  const potentialWinAmount = bet * parseFloat(multiplier);
+  // ИСПРАВЛЕНИЕ: Математически точный множитель (без округлений)
+  const exactMultiplier = 100 / activeChance;
+  // Для красивого вывода в UI показываем до 4 знаков (например, 94.3396)
+  const displayMultiplier = parseFloat(exactMultiplier.toFixed(4)).toString();
+  // Точная сумма выигрыша (например, 106 * (100 / 1.06) = 10000 ровно)
+  const potentialWinAmount = bet * exactMultiplier;
 
   const handleHalfBet = () => {
     if (loading) return;
@@ -106,7 +112,9 @@ export default function Dice({ user }: DiceProps) {
 
     const roll = Math.random() * 100;
     const isWin = type === 'under' ? roll <= activeChance : roll >= (100 - activeChance);
-    const payout = isWin ? Number((bet * parseFloat(multiplier)).toFixed(2)) : 0;
+    
+    // ИСПРАВЛЕНИЕ: Вычисляем выигрыш с точным множителем и округляем до копеек
+    const payout = isWin ? Math.round(bet * exactMultiplier * 100) / 100 : 0;
 
     setResult(roll);
     setWin(isWin);
@@ -182,7 +190,7 @@ export default function Dice({ user }: DiceProps) {
           diceWinStreak: newWinStreak, 
           diceLossStreak: newLossStreak 
         }),
-        addDoc(collection(db, 'gameSessions'), { userId: user.uid, gameType: 'dice', bet: Number(bet.toFixed(2)), multiplier: isWin ? parseFloat(multiplier) : 0, payout, timestamp: new Date().toISOString() }),
+        addDoc(collection(db, 'gameSessions'), { userId: user.uid, gameType: 'dice', bet: Number(bet.toFixed(2)), multiplier: isWin ? exactMultiplier : 0, payout, timestamp: new Date().toISOString() }),
         ...updates.map(ach => updateDoc(doc(db, 'achievements', ach.id as string), { progress: ach.progress, completed: ach.completed })),
         ...newAchsToCreate.map(ach => { const { id, ...data } = ach; return addDoc(collection(db, 'achievements'), data); })
       ]);
@@ -224,7 +232,7 @@ export default function Dice({ user }: DiceProps) {
   );
 
   return (
-    <div className="max-w-6xl mx-auto lg:ml-0 lg:mr-auto space-y-6 pb-12 relative flex flex-col min-h-[calc(100vh-120px)]">
+    <div className="max-w-6xl mx-auto lg:ml-0 lg:mr-auto space-y-6 pb-12 relative flex flex-col min-h-[calc(100vh-120px)] px-2 sm:px-0">
       
       <AnimatePresence>
         {unlockedAch && (
@@ -254,16 +262,21 @@ export default function Dice({ user }: DiceProps) {
         )}
       </AnimatePresence>
 
-      <header className="flex flex-col gap-4">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-brand-600 rounded-[1.2rem] flex items-center justify-center shadow-lg shadow-brand-200 shrink-0">
-            <Dice5 className="w-6 h-6 text-white" />
+      <header className="flex flex-col md:flex-row items-center justify-between gap-6 bg-white p-5 lg:p-8 rounded-[2rem] md:rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 mb-2">
+        <div className="flex flex-col md:flex-row items-center gap-4 md:gap-6 text-center md:text-left">
+          <div className="w-14 h-14 md:w-16 md:h-16 bg-gradient-to-br from-brand-400 to-brand-600 rounded-2xl md:rounded-3xl flex items-center justify-center shadow-xl shadow-brand-200 shrink-0">
+            <Dice5 className="w-7 h-7 md:w-8 md:h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tighter">Dice</h1>
-        </div>
-        <div className="flex bg-white p-1 rounded-xl w-fit border border-slate-100 shadow-sm">
-          <button onClick={() => setDiceMode('classic')} className={cn("px-5 py-2 rounded-lg text-xs font-black transition-all uppercase tracking-wider", diceMode === 'classic' ? "bg-brand-50 shadow-sm text-brand-600" : "text-slate-400 hover:text-slate-600")}>Classic</button>
-          <button onClick={() => setDiceMode('switch')} className={cn("px-5 py-2 rounded-lg text-xs font-black transition-all uppercase tracking-wider", diceMode === 'switch' ? "bg-brand-50 shadow-sm text-brand-600" : "text-slate-400 hover:text-slate-600")}>Switch</button>
+          <div>
+            <div className="flex items-center gap-4">
+              <h1 className="text-2xl md:text-3xl lg:text-4xl font-black text-slate-900 tracking-tighter">Dice</h1>
+              <div className="flex bg-slate-50 p-1 rounded-xl border border-slate-100 shadow-sm ml-2">
+                <button onClick={() => setDiceMode('classic')} className={cn("px-4 py-1.5 rounded-lg text-[10px] font-black transition-all uppercase tracking-wider", diceMode === 'classic' ? "bg-white shadow-sm text-brand-600" : "text-slate-400 hover:text-slate-600")}>Classic</button>
+                <button onClick={() => setDiceMode('switch')} className={cn("px-4 py-1.5 rounded-lg text-[10px] font-black transition-all uppercase tracking-wider", diceMode === 'switch' ? "bg-white shadow-sm text-brand-600" : "text-slate-400 hover:text-slate-600")}>Switch</button>
+              </div>
+            </div>
+            <p className="text-slate-400 font-medium text-xs md:text-sm mt-1">Классические кости. Установи шанс и бросай.</p>
+          </div>
         </div>
       </header>
 
@@ -317,7 +330,7 @@ export default function Dice({ user }: DiceProps) {
                     <div className="flex justify-between items-center mb-2 sm:mb-3">
                       <span className="text-[9px] sm:text-xs font-black uppercase text-slate-400 tracking-wider">Шанс %</span>
                       <span className="text-[9px] sm:text-xs font-black uppercase text-slate-500 tracking-widest bg-slate-200/50 px-2 sm:px-2.5 py-1 rounded-md sm:rounded-lg hidden sm:block">
-                        x{multiplier}
+                        x{displayMultiplier}
                       </span>
                     </div>
                     <div className="flex items-center">
@@ -417,7 +430,7 @@ export default function Dice({ user }: DiceProps) {
           <div className="flex flex-col items-center justify-center text-center mb-6 sm:mb-8 mt-2">
             <span className="font-black text-slate-900 text-4xl sm:text-5xl tracking-tight relative z-10 mb-1">{formatBalance(potentialWinAmount, true)}</span>
             <span className="text-[10px] sm:text-[11px] font-black uppercase text-slate-400 tracking-widest relative z-10 flex items-center gap-1 sm:gap-2">
-              Возможный выигрыш <span className="text-slate-800 bg-slate-100 border border-slate-200 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-md sm:rounded-lg">x{multiplier}</span>
+              Возможный выигрыш <span className="text-slate-800 bg-slate-100 border border-slate-200 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-md sm:rounded-lg">x{displayMultiplier}</span>
             </span>
           </div>
 
