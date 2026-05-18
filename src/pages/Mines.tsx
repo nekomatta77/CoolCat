@@ -22,6 +22,14 @@ interface MutableAchievement {
 }
 
 export default function Mines({ user }: MinesProps) {
+  // --- ДОБАВЛЕНО: Отслеживаем жизненный цикл компонента для отлова бага ---
+  useEffect(() => {
+    console.log('🟢 Компонент Mines был СОЗДАН (Mounted)');
+    return () => {
+      console.log('🔴 Компонент Mines был УНИЧТОЖЕН (Unmounted) - если это произошло после ставки, значит проблема в роутере App.tsx!');
+    };
+  }, []);
+
   const [betInput, setBetInput] = useState('10');
   const bet = parseFloat(betInput.replace(',', '.')) || 0;
 
@@ -93,33 +101,49 @@ export default function Mines({ user }: MinesProps) {
     setBetInput(Number(next.toFixed(2)).toString());
   };
 
+  // --- ИЗМЕНЕНО: Более безопасный и логируемый старт игры ---
   const startGame = async () => {
-    if (bet > user.balance || bet < 1 || isProcessing.current) return;
+    console.log('▶️ Попытка старта игры. Ставка:', bet, 'Баланс:', user.balance);
+    if (!user?.uid) {
+      console.error('❌ Ошибка: Не найден ID пользователя');
+      return;
+    }
+    if (bet > user.balance || bet < 1 || isProcessing.current) {
+      console.log('⚠️ Отмена старта: нехватка баланса или процесс уже идет.');
+      return;
+    }
+    
     isProcessing.current = true;
 
     try {
+      console.log('💸 Списываем баланс в Firebase...');
       await updateDoc(doc(db, 'users', user.uid), {
         balance: increment(-bet)
       });
-    } catch (error) {
-      isProcessing.current = false;
-      return;
-    }
+      console.log('✅ Баланс успешно списан!');
 
-    const newGrid = Array(25).fill(false);
-    let placed = 0;
-    while (placed < minesCount) {
-      const idx = Math.floor(Math.random() * 25);
-      if (!newGrid[idx]) {
-        newGrid[idx] = true;
-        placed++;
+      const newGrid = Array(25).fill(false);
+      let placed = 0;
+      while (placed < minesCount) {
+        const idx = Math.floor(Math.random() * 25);
+        if (!newGrid[idx]) {
+          newGrid[idx] = true;
+          placed++;
+        }
       }
+      
+      console.log('🎲 Сетка сгенерирована, меняем состояние на playing...');
+      setGrid(newGrid);
+      setRevealed(Array(25).fill(false));
+      setMultiplier(1);
+      setGameState('playing');
+      console.log('🚀 Игра официально началась (локальное состояние обновлено)!');
+
+    } catch (error) {
+      console.error('❌ Критическая ошибка при старте игры:', error);
+    } finally {
+      isProcessing.current = false;
     }
-    setGrid(newGrid);
-    setRevealed(Array(25).fill(false));
-    setGameState('playing');
-    setMultiplier(1);
-    isProcessing.current = false;
   };
 
   const handleTileClick = async (idx: number) => {
@@ -157,7 +181,7 @@ export default function Mines({ user }: MinesProps) {
     try {
       const achQuery = query(collection(db, 'achievements'), where('userId', '==', user.uid), where('category', '==', 'mines'));
       const achSnapshot = await getDocs(achQuery);
-      const userAchs: MutableAchievement[] = achSnapshot.docs.map(d => ({ id: d.id, ...d.data() } as MutableAchievement));
+      const userAchs: MutableAchievement[] = achSnapshot.docs.map((d: any) => ({ id: d.id, ...d.data() } as MutableAchievement));
 
       const getAch = (type: string): MutableAchievement => {
         const existing = userAchs.find(a => a.type === type);
@@ -351,7 +375,7 @@ export default function Mines({ user }: MinesProps) {
               <div className="flex justify-between items-center px-1">
                 <label className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-slate-400">Ставка</label>
                 <span className="text-[10px] font-black text-brand-500 uppercase bg-brand-50 px-2 py-0.5 rounded-md hidden sm:block">
-                  Баланс: {user.balance.toFixed(2)}
+                  Баланс: {user?.balance?.toFixed(2) || '0.00'}
                 </span>
               </div>
               

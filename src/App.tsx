@@ -1,8 +1,10 @@
 // src/App.tsx
-import { useEffect, useState } from 'react';
+import { useEffect, useState, ReactNode } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { doc, getDoc, setDoc, onSnapshot, updateDoc } from 'firebase/firestore';
+// ДОБАВЛЕНО: Импортируем тип User из Firebase, чтобы убрать ошибку firebaseUser
+import { onAuthStateChanged, signOut, User } from 'firebase/auth'; 
+// ДОБАВЛЕНО: Импортируем типы DocumentSnapshot и FirestoreError
+import { doc, getDoc, setDoc, onSnapshot, updateDoc, DocumentSnapshot, FirestoreError } from 'firebase/firestore'; 
 import { auth, db } from './firebase';
 import { UserProfile } from './types';
 import { useIsMobile } from './lib/utils';
@@ -29,13 +31,46 @@ const LOADER_CONFIG = {
   mobile: { size: 126, x: 0, y: 60 }
 };
 
+function ProtectedRoute({ 
+  user, 
+  children, 
+  onOpenAuth 
+}: { 
+  user: UserProfile | null; 
+  children: ReactNode; 
+  onOpenAuth: (view: 'login' | 'register') => void;
+}) {
+  if (!user) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
+        <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-6">
+          <img src="/assets/CoolCat_logo.webp" className="w-16 h-16 opacity-50 grayscale" alt="Lock" />
+        </div>
+        <h2 className="text-3xl font-black text-slate-800 mb-4 tracking-tight">Требуется авторизация</h2>
+        <p className="text-slate-500 mb-8 max-w-md mx-auto font-medium">Войдите в свой аккаунт или зарегистрируйтесь, чтобы получить полный доступ к играм и функциям CoolCat.</p>
+        <div className="flex flex-wrap gap-4 justify-center">
+          <button onClick={() => onOpenAuth('login')} className="px-8 py-3.5 bg-white text-slate-700 hover:text-brand-600 font-black uppercase tracking-widest rounded-2xl shadow-sm border border-slate-200 transition-all">
+            Войти
+          </button>
+          <button onClick={() => onOpenAuth('register')} className="px-8 py-3.5 bg-brand-500 hover:bg-brand-600 text-white font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-brand-200 transition-all">
+            Регистрация
+          </button>
+        </div>
+      </div>
+    );
+  }
+  return <>{children}</>;
+}
+
+// ДОБАВЛЕНО: Создаем тип для конфигурации авторизации, чтобы TypeScript не ругался на prev
+type AuthConfigState = { isOpen: boolean; view: 'login' | 'register' };
+
 export default function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [dbError, setDbError] = useState<string | null>(null);
   
-  // СОСТОЯНИЕ МОДАЛКИ АВТОРИЗАЦИИ
-  const [authConfig, setAuthConfig] = useState<{ isOpen: boolean; view: 'login' | 'register' }>({
+  const [authConfig, setAuthConfig] = useState<AuthConfigState>({
     isOpen: false,
     view: 'login'
   });
@@ -46,7 +81,8 @@ export default function App() {
   useEffect(() => {
     let unsubscribeUser: (() => void) | null = null;
 
-    const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
+    // ИСПРАВЛЕНИЕ: Явно указали тип User | null для firebaseUser
+    const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser: User | null) => {
       if (unsubscribeUser) {
         unsubscribeUser();
         unsubscribeUser = null;
@@ -110,15 +146,16 @@ export default function App() {
 
             setUser(dbData as UserProfile);
             
-            // Если пользователь успешно вошел, закрываем модалку
-            setAuthConfig(prev => ({ ...prev, isOpen: false }));
+            // ИСПРАВЛЕНИЕ: Явно указали тип для prev
+            setAuthConfig((prev: AuthConfigState) => ({ ...prev, isOpen: false }));
             setLoading(false);
 
-            unsubscribeUser = onSnapshot(userRef, (doc) => {
-              if (doc.exists()) {
-                setUser(doc.data() as UserProfile);
+            // ИСПРАВЛЕНИЕ: Явно указали типы DocumentSnapshot и FirestoreError
+            unsubscribeUser = onSnapshot(userRef, (docSnapshot: DocumentSnapshot) => {
+              if (docSnapshot.exists()) {
+                setUser(docSnapshot.data() as UserProfile);
               }
-            }, (error) => {
+            }, (error: FirestoreError) => {
               console.error("User snapshot error:", error);
             });
           } else {
@@ -150,7 +187,7 @@ export default function App() {
             };
             await setDoc(userRef, newUser);
             setUser(newUser);
-            setAuthConfig(prev => ({ ...prev, isOpen: false }));
+            setAuthConfig((prev: AuthConfigState) => ({ ...prev, isOpen: false }));
             setLoading(false);
           }
         } catch (error) {
@@ -242,30 +279,6 @@ export default function App() {
     );
   }
 
-  // Защищенный роут для неавторизованных пользователей
-  const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-    if (!user) {
-      return (
-        <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
-          <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-6">
-            <img src="/assets/CoolCat_logo.webp" className="w-16 h-16 opacity-50 grayscale" alt="Lock" />
-          </div>
-          <h2 className="text-3xl font-black text-slate-800 mb-4 tracking-tight">Требуется авторизация</h2>
-          <p className="text-slate-500 mb-8 max-w-md mx-auto font-medium">Войдите в свой аккаунт или зарегистрируйтесь, чтобы получить полный доступ к играм и функциям CoolCat.</p>
-          <div className="flex flex-wrap gap-4 justify-center">
-            <button onClick={() => handleOpenAuth('login')} className="px-8 py-3.5 bg-white text-slate-700 hover:text-brand-600 font-black uppercase tracking-widest rounded-2xl shadow-sm border border-slate-200 transition-all">
-              Войти
-            </button>
-            <button onClick={() => handleOpenAuth('register')} className="px-8 py-3.5 bg-brand-500 hover:bg-brand-600 text-white font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-brand-200 transition-all">
-              Регистрация
-            </button>
-          </div>
-        </div>
-      );
-    }
-    return <>{children}</>;
-  };
-
   return (
     <Router>
       <Layout 
@@ -275,30 +288,78 @@ export default function App() {
         onRegister={() => handleOpenAuth('register')}
       >
         <Routes>
-          {/* Открытые страницы */}
           <Route path="/" element={<Home user={user} onLogin={() => handleOpenAuth('login')} />} />
           <Route path="/faq" element={<FAQ />} />
           <Route path="/contacts" element={<Contacts />} />
           <Route path="/external-slots" element={<ExternalSlots user={user!} />} />
           
-          {/* Защищенные страницы */}
-          <Route path="/dice" element={<ProtectedRoute><Dice user={user!} /></ProtectedRoute>} />
-          <Route path="/mines" element={<ProtectedRoute><Mines user={user!} /></ProtectedRoute>} />
-          <Route path="/keno" element={<ProtectedRoute><Keno user={user!} /></ProtectedRoute>} />
-          <Route path="/wheelx" element={<ProtectedRoute><WheelX user={user!} /></ProtectedRoute>} />
-          <Route path="/slots" element={<ProtectedRoute><Slots user={user!} /></ProtectedRoute>} />
-          <Route path="/bonuses" element={<ProtectedRoute><Bonuses user={user!} /></ProtectedRoute>} />
-          <Route path="/level" element={<ProtectedRoute><Level user={user!} /></ProtectedRoute>} />
-          <Route path="/achievements" element={<ProtectedRoute><Achievements user={user!} /></ProtectedRoute>} />
-          <Route path="/profile" element={<ProtectedRoute><Profile user={user!} onLogout={handleLogout} /></ProtectedRoute>} />
-          <Route path="/referral" element={<ProtectedRoute><Referral user={user!} /></ProtectedRoute>} />
+          <Route path="/dice" element={
+            <ProtectedRoute user={user} onOpenAuth={handleOpenAuth}>
+              <Dice user={user!} />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/mines" element={
+            <ProtectedRoute user={user} onOpenAuth={handleOpenAuth}>
+              <Mines user={user!} />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/keno" element={
+            <ProtectedRoute user={user} onOpenAuth={handleOpenAuth}>
+              <Keno user={user!} />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/wheelx" element={
+            <ProtectedRoute user={user} onOpenAuth={handleOpenAuth}>
+              <WheelX user={user!} />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/slots" element={
+            <ProtectedRoute user={user} onOpenAuth={handleOpenAuth}>
+              <Slots user={user!} />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/bonuses" element={
+            <ProtectedRoute user={user} onOpenAuth={handleOpenAuth}>
+              <Bonuses user={user!} />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/level" element={
+            <ProtectedRoute user={user} onOpenAuth={handleOpenAuth}>
+              <Level user={user!} />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/achievements" element={
+            <ProtectedRoute user={user} onOpenAuth={handleOpenAuth}>
+              <Achievements user={user!} />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/profile" element={
+            <ProtectedRoute user={user} onOpenAuth={handleOpenAuth}>
+              <Profile user={user!} onLogout={handleLogout} />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/referral" element={
+            <ProtectedRoute user={user} onOpenAuth={handleOpenAuth}>
+              <Referral user={user!} />
+            </ProtectedRoute>
+          } />
+          
           <Route path="/admin" element={user?.rank === 'admin' ? <Admin user={user} /> : <Navigate to="/" />} />
         </Routes>
       </Layout>
 
       <Auth 
         isOpen={authConfig.isOpen} 
-        onClose={() => setAuthConfig(prev => ({ ...prev, isOpen: false }))} 
+        onClose={() => setAuthConfig((prev: AuthConfigState) => ({ ...prev, isOpen: false }))} 
         initialView={authConfig.view} 
       />
     </Router>
