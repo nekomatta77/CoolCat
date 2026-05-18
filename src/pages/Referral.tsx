@@ -3,7 +3,8 @@ import { useState, useEffect } from 'react';
 import { UserProfile } from '../types';
 import { doc, updateDoc, increment, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Network, Send, Clock, Copy, TrendingUp, Users, DollarSign, Wallet, Star, MessageCircle, Check, Gift } from 'lucide-react';
+// Добавили иконки X и Activity
+import { Network, Send, Clock, Copy, TrendingUp, Users, DollarSign, Wallet, Star, MessageCircle, Check, Gift, X, Activity } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface ReferralProps {
@@ -19,6 +20,9 @@ export default function Referral({ user }: ReferralProps) {
   
   const [referralsList, setReferralsList] = useState<UserProfile[]>([]);
   const [referralsCount, setReferralsCount] = useState(0);
+  
+  // НОВЫЙ СТЕЙТ: Хранит выбранного реферала для показа модалки
+  const [selectedRef, setSelectedRef] = useState<UserProfile | null>(null);
 
   const refStatus = user.referralData?.status || 'none';
   const plan = user.referralData?.plan;
@@ -77,8 +81,16 @@ export default function Referral({ user }: ReferralProps) {
     finally { setClaiming(false); }
   };
 
+  // Предотвращаем скролл страницы, когда открыта модалка
+  useEffect(() => {
+    if (selectedRef) document.body.style.overflow = 'hidden';
+    else document.body.style.overflow = 'unset';
+    return () => { document.body.style.overflow = 'unset'; };
+  }, [selectedRef]);
+
   return (
     <div className="max-w-[90rem] mx-auto space-y-6 md:space-y-8 pb-12 relative px-2 md:px-0">
+      
       {/* КРАСИВЫЙ ХЕДЕР ПАРТНЕРКИ */}
       <header className="flex flex-col md:flex-row items-center justify-between gap-6 bg-white p-5 lg:p-8 rounded-[2rem] md:rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 max-w-7xl mx-auto">
         <div className="flex flex-col md:flex-row items-center gap-4 md:gap-6 text-center md:text-left">
@@ -158,7 +170,7 @@ export default function Referral({ user }: ReferralProps) {
                   </div>
                 </div>
                 
-                {/* Стата и красивый вывод для ПК */}
+                {/* Стата и вывод */}
                 <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto shrink-0">
                   <div className="bg-slate-50 rounded-[1.5rem] lg:rounded-[2.5rem] p-6 lg:p-10 border border-slate-100 flex-1 min-w-[140px] lg:min-w-[200px] flex flex-col justify-center relative overflow-hidden">
                     <div className="absolute -right-4 -bottom-4 w-20 h-20 bg-brand-100 rounded-full blur-2xl opacity-50" />
@@ -169,10 +181,8 @@ export default function Referral({ user }: ReferralProps) {
                     </div>
                   </div>
 
-                  {/* УЛУЧШЕННАЯ ПАНЕЛЬ ЗАБРАТЬ */}
                   <div className="bg-slate-900 rounded-[1.5rem] lg:rounded-[2.5rem] p-6 lg:p-10 flex-1 min-w-[200px] lg:min-w-[360px] flex flex-col justify-between relative overflow-hidden shadow-2xl shadow-slate-900/20 group">
                     <div className="absolute -right-10 -top-10 w-48 h-48 bg-emerald-500/20 rounded-full blur-3xl group-hover:bg-emerald-500/30 transition-all duration-500" />
-                    
                     <div className="relative z-10 mb-8">
                       <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400 mb-2 lg:mb-3">Доступно для снятия</p>
                       <div className="flex items-baseline gap-2">
@@ -180,19 +190,14 @@ export default function Referral({ user }: ReferralProps) {
                         <span className="text-emerald-400 font-black text-sm lg:text-xl">CAT</span>
                       </div>
                     </div>
-                    
-                    <button 
-                      onClick={handleClaim} 
-                      disabled={claiming || (user.referralData?.balance || 0) <= 0}
-                      className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 disabled:hover:bg-emerald-500 text-white font-black text-sm lg:text-base py-4 lg:py-5 rounded-xl lg:rounded-2xl uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-3 relative z-10"
-                    >
+                    <button onClick={handleClaim} disabled={claiming || (user.referralData?.balance || 0) <= 0} className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 disabled:hover:bg-emerald-500 text-white font-black text-sm lg:text-base py-4 lg:py-5 rounded-xl lg:rounded-2xl uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-3 relative z-10">
                       {claiming ? 'Перевод...' : <><Gift className="w-5 h-5 lg:w-6 lg:h-6" /> Забрать на баланс</>}
                     </button>
                   </div>
                 </div>
               </div>
 
-              {/* СПИСОК РЕФЕРАЛОВ */}
+              {/* СПИСОК РЕФЕРАЛОВ (Теперь кликабельный) */}
               <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-100 shadow-lg shadow-slate-200/50">
                 <div className="flex items-center gap-3 mb-6">
                   <Users className="w-6 h-6 text-brand-500" />
@@ -202,11 +207,18 @@ export default function Referral({ user }: ReferralProps) {
                 {referralsList.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {referralsList.map((refUser) => (
-                      <div key={refUser.uid} className="bg-slate-50 border border-slate-100 p-4 rounded-2xl flex items-center gap-4 hover:border-brand-200 transition-colors">
-                        <img src={refUser.avatar || '/assets/avatars/ava1.webp'} alt="avatar" className="w-12 h-12 rounded-full bg-slate-200 shadow-sm" />
-                        <div>
-                          <p className="font-black text-slate-900 leading-tight">{refUser.nickname}</p>
+                      <div 
+                        key={refUser.uid} 
+                        onClick={() => setSelectedRef(refUser)}
+                        className="bg-slate-50 border border-slate-100 p-4 rounded-2xl flex items-center gap-4 hover:border-brand-300 hover:bg-brand-50 transition-all cursor-pointer active:scale-95 group shadow-sm"
+                      >
+                        <img src={refUser.avatar || '/assets/avatars/ava1.webp'} alt="avatar" className="w-12 h-12 rounded-full bg-slate-200 shadow-sm group-hover:scale-105 transition-transform" />
+                        <div className="flex-1">
+                          <p className="font-black text-slate-900 leading-tight group-hover:text-brand-600 transition-colors">{refUser.nickname}</p>
                           <p className="text-xs font-bold text-brand-500 mt-0.5">Уровень {refUser.level}</p>
+                        </div>
+                        <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm text-slate-400 group-hover:text-brand-500 transition-colors">
+                           <Activity className="w-4 h-4" />
                         </div>
                       </div>
                     ))}
@@ -278,6 +290,80 @@ export default function Referral({ user }: ReferralProps) {
           )}
         </AnimatePresence>
       </div>
+
+      {/* МОДАЛЬНОЕ ОКНО СТАТИСТИКИ РЕФЕРАЛА */}
+      <AnimatePresence>
+        {selectedRef && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} 
+              onClick={() => setSelectedRef(null)} 
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" 
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} 
+              className="relative bg-white w-full max-w-sm md:max-w-md rounded-[2rem] md:rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col z-10"
+            >
+              {/* Шапка модалки (Цветной фон) */}
+              <div className="h-28 md:h-32 bg-gradient-to-br from-brand-400 to-brand-600 relative flex items-center justify-center">
+                 <button 
+                   onClick={() => setSelectedRef(null)} 
+                   className="absolute top-4 right-4 w-8 h-8 bg-black/20 hover:bg-black/30 text-white rounded-full flex items-center justify-center transition-colors"
+                 >
+                   <X className="w-5 h-5" />
+                 </button>
+              </div>
+              
+              {/* Аватар и Основная информация */}
+              <div className="px-6 pb-8 pt-0 flex flex-col items-center -mt-12 md:-mt-14 relative z-10">
+                 <img 
+                   src={selectedRef.avatar || '/assets/avatars/ava1.webp'} 
+                   className="w-24 h-24 md:w-28 md:h-28 rounded-full border-4 border-white shadow-lg bg-slate-200 mb-3 object-cover" 
+                   alt="avatar" 
+                 />
+                 <h3 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight text-center">{selectedRef.nickname}</h3>
+                 
+                 <div className="flex gap-2 mt-2">
+                   <span className="px-3 py-1 bg-brand-50 text-brand-600 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest shadow-sm">
+                     Уровень {selectedRef.level}
+                   </span>
+                   {selectedRef.rank === 'admin' && (
+                     <span className="px-3 py-1 bg-rose-50 text-rose-600 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest shadow-sm">
+                       {selectedRef.rank}
+                     </span>
+                   )}
+                 </div>
+
+                 {/* Плитки со статистикой */}
+                 <div className="w-full mt-8 grid grid-cols-2 gap-3">
+                   
+                   <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-col items-center text-center shadow-inner">
+                      <Wallet className="w-6 h-6 md:w-7 md:h-7 text-emerald-500 mb-2 drop-shadow-sm" />
+                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Сумма депозитов</span>
+                      <span className="text-lg md:text-xl font-black text-slate-900">{selectedRef.totalDeposits || 0} ₽</span>
+                   </div>
+                   
+                   <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-col items-center text-center shadow-inner">
+                      <DollarSign className="w-6 h-6 md:w-7 md:h-7 text-rose-500 mb-2 drop-shadow-sm" />
+                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Сумма выводов</span>
+                      <span className="text-lg md:text-xl font-black text-slate-900">{selectedRef.totalWithdrawals || 0} ₽</span>
+                   </div>
+                   
+                   <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-4 flex flex-col items-center text-center col-span-2 shadow-lg">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Текущий баланс</span>
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-2xl md:text-3xl font-black text-white">{selectedRef.balance?.toFixed(2) || 0}</span>
+                        <span className="text-brand-400 font-bold text-sm">CAT</span>
+                      </div>
+                   </div>
+
+                 </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }
