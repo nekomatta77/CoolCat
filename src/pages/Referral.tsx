@@ -1,9 +1,9 @@
 // src/pages/Referral.tsx
 import { useState } from 'react';
 import { UserProfile } from '../types';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, increment } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Network, Send, Clock, Copy, TrendingUp, Users, DollarSign, Wallet, Star, MessageCircle } from 'lucide-react';
+import { Network, Send, Clock, Copy, TrendingUp, Users, DollarSign, Wallet, Star, MessageCircle, Gift } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface ReferralProps {
@@ -15,6 +15,7 @@ export default function Referral({ user }: ReferralProps) {
   const [source, setSource] = useState('');
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [claiming, setClaiming] = useState(false);
 
   const refStatus = user.referralData?.status || 'none';
   const plan = user.referralData?.plan;
@@ -32,7 +33,7 @@ export default function Referral({ user }: ReferralProps) {
           source,
           appliedAt: new Date().toISOString(),
           balance: 0,
-          registeredCount: 0 // Инициализируем счетчик при заявке
+          registeredCount: 0 
         }
       });
     } catch (error) {
@@ -42,10 +43,28 @@ export default function Referral({ user }: ReferralProps) {
   };
 
   const copyRefLink = () => {
-    const link = `${window.location.origin}/?ref=${user.referralData?.code}`;
+    const link = `${window.location.origin}/?ref=${user.referralData?.code || user.uid}`;
     navigator.clipboard.writeText(link);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleClaim = async () => {
+    const earnings = user.referralData?.balance || 0;
+    if (earnings <= 0 || claiming) return;
+    
+    setClaiming(true);
+    try {
+      // Начисляем на основной баланс и обнуляем реферальный
+      await updateDoc(doc(db, 'users', user.uid), {
+        balance: increment(earnings),
+        'referralData.balance': 0
+      });
+    } catch (error) {
+      console.error("Ошибка при выводе средств:", error);
+    } finally {
+      setClaiming(false);
+    }
   };
 
   return (
@@ -96,7 +115,7 @@ export default function Referral({ user }: ReferralProps) {
             </motion.div>
           )}
 
-          {/* СТЕЙТ 2: ОТКЛЮЧЕНА (БЛОКИРОВКА) */}
+          {/* СТЕЙТ 2: ОТКЛЮЧЕНА */}
           {refStatus === 'disabled' && (
              <motion.div key="disabled" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white p-10 md:p-16 rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/50 text-center flex flex-col items-center justify-center min-h-[400px]">
                 <div className="w-20 h-20 bg-red-50 text-red-500 rounded-3xl flex items-center justify-center mb-8 shadow-lg shadow-red-100">
@@ -104,14 +123,9 @@ export default function Referral({ user }: ReferralProps) {
                 </div>
                 <h2 className="text-2xl md:text-3xl font-black text-slate-900 mb-4 tracking-tighter">Реферальная система отключена</h2>
                 <p className="text-slate-500 font-medium max-w-md mx-auto mb-8 leading-relaxed">
-                  На данный момент вам отключили реферальную систему. Если вы считаете это ошибкой или хотите обсудить условия, пожалуйста, обратитесь в нашу поддержку.
+                  На данный момент вам отключили реферальную систему. Обратитесь в нашу поддержку.
                 </p>
-                <a 
-                  href="https://t.me/coolcat_support" 
-                  target="_blank" 
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-3 bg-brand-500 hover:bg-brand-600 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest transition-all shadow-xl shadow-brand-200 group"
-                >
+                <a href="https://t.me/coolcat_support" target="_blank" rel="noreferrer" className="inline-flex items-center gap-3 bg-brand-500 hover:bg-brand-600 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest transition-all shadow-xl shadow-brand-200 group">
                   <MessageCircle className="w-5 h-5 group-hover:scale-110 transition-transform" />
                   Поддержка в Telegram
                 </a>
@@ -133,15 +147,12 @@ export default function Referral({ user }: ReferralProps) {
           {refStatus === 'approved' && (
             <motion.div key="dashboard" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
               
-              {/* Блок со ссылкой и счетчиками */}
               <div className="bg-white p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 flex flex-col lg:flex-row gap-6">
-                
-                {/* Левая часть: Ссылка */}
                 <div className="flex-1 w-full space-y-2 flex flex-col justify-center">
                   <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400">Ваша персональная ссылка</p>
                   <div className="flex bg-slate-50 border border-slate-100 rounded-2xl p-2 items-center">
                     <span className="px-4 text-slate-600 font-bold truncate flex-1 text-sm md:text-base">
-                      {window.location.origin}/?ref={user.referralData?.code}
+                      {window.location.origin}/?ref={user.referralData?.code || user.uid}
                     </span>
                     <button onClick={copyRefLink} className="bg-brand-500 text-white px-6 py-3 rounded-xl font-black uppercase tracking-widest text-xs hover:bg-brand-600 transition-all shadow-md shadow-brand-200 flex items-center gap-2 shrink-0">
                       {copied ? <span className="text-emerald-300">Скопировано</span> : <><Copy className="w-4 h-4" /> Копировать</>}
@@ -149,9 +160,7 @@ export default function Referral({ user }: ReferralProps) {
                   </div>
                 </div>
                 
-                {/* Правая часть: Статистика */}
                 <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto shrink-0">
-                  {/* Счетчик рефералов */}
                   <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 flex-1 min-w-[150px] flex flex-col justify-center">
                     <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400 mb-1">Рефералов</p>
                     <div className="flex items-end gap-2">
@@ -160,18 +169,26 @@ export default function Referral({ user }: ReferralProps) {
                     </div>
                   </div>
 
-                  {/* Баланс */}
-                  <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 flex-1 min-w-[180px] flex flex-col justify-center">
-                    <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400 mb-1">Заработано</p>
+                  {/* БЛОК БАЛАНСА И ВЫВОДА */}
+                  <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 flex-1 min-w-[200px] flex flex-col justify-center">
+                    <div className="flex justify-between items-start mb-2">
+                      <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400">Заработано</p>
+                      <button 
+                        onClick={handleClaim} 
+                        disabled={claiming || (user.referralData?.balance || 0) <= 0}
+                        className="bg-emerald-500 disabled:opacity-50 hover:bg-emerald-600 text-white text-[10px] font-black uppercase px-3 py-1.5 rounded-lg shadow-sm transition-all"
+                      >
+                        {claiming ? 'Перевод...' : 'Забрать'}
+                      </button>
+                    </div>
                     <div className="flex items-end gap-2">
-                      <span className="text-3xl font-black text-brand-600 tracking-tighter">{user.referralData?.balance || 0}</span>
+                      <span className="text-3xl font-black text-brand-600 tracking-tighter">{(user.referralData?.balance || 0).toFixed(2)}</span>
                       <span className="text-brand-400 font-bold pb-1">CAT</span>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* ДАШБОРД REVSHARE */}
               {plan === 'revshare' && (
                 <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-100 shadow-lg shadow-slate-200/50">
                   <div className="flex items-center gap-3 mb-6">
@@ -211,7 +228,6 @@ export default function Referral({ user }: ReferralProps) {
                 </div>
               )}
 
-              {/* ДАШБОРД SPECIAL */}
               {plan === 'special' && (
                 <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-100 shadow-lg shadow-slate-200/50">
                   <div className="flex items-center gap-3 mb-6">

@@ -1,12 +1,11 @@
 // src/pages/WheelX.tsx
 import { useState, useEffect, useRef } from 'react';
 import { UserProfile } from '../types';
-import { doc, updateDoc, increment, setDoc, collection, onSnapshot, serverTimestamp } from 'firebase/firestore';
-import { db } from '../firebase';
 import { Users, Coins, AlertCircle, ShieldCheck } from 'lucide-react';
 import { motion, AnimatePresence, useMotionValue, useTransform, animate } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { vpsSocket } from '../lib/vpsSocket';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -73,27 +72,12 @@ export default function WheelX({ user }: WheelXProps) {
   
   const historyContainerRef = useRef<HTMLDivElement>(null);
   const [maxHistory, setMaxHistory] = useState(10);
+  const hasSpunRef = useRef(false);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 640);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  useEffect(() => {
-    const updateHistoryCount = () => {
-      if (historyContainerRef.current) {
-        const width = historyContainerRef.current.clientWidth;
-        const isMob = window.innerWidth < 640;
-        const itemWidth = isMob ? 20 : 28; 
-        const gap = isMob ? 6 : 8; 
-        const count = Math.floor(width / (itemWidth + gap));
-        setMaxHistory(Math.max(1, count));
-      }
-    };
-    setTimeout(updateHistoryCount, 100); 
-    window.addEventListener('resize', updateHistoryCount);
-    return () => window.removeEventListener('resize', updateHistoryCount);
   }, []);
 
   const activePawConfig = isMobile ? PAW_CONFIG_MOBILE : PAW_CONFIG_PC;
@@ -102,7 +86,6 @@ export default function WheelX({ user }: WheelXProps) {
   const activeCenterConfig = isMobile ? CENTER_CONFIG_MOBILE : CENTER_CONFIG_PC;
 
   const wheelRotValue = useMotionValue(0);
-  
   const pawFlick = useTransform(wheelRotValue, (r) => {
     const sliceAngle = 360 / 32;
     const normalizedRot = (Math.abs(r) % sliceAngle);
@@ -112,70 +95,72 @@ export default function WheelX({ user }: WheelXProps) {
     else flickRotation = 22 * (1 - (progress - 0.85) / 0.15); 
     return flickRotation;
   });
-
   const pawRotation = useTransform(pawFlick, (flick) => activePawConfig.baseRotation + flick);
 
-  const myBetsRef = useRef(myBets);
-  useEffect(() => { myBetsRef.current = myBets; }, [myBets]);
-
-  const hasSpunRef = useRef(false);
-
+  // ПОДКЛЮЧЕНИЕ К VPS ЧЕРЕЗ WEBSOCKET
   useEffect(() => {
-    const betsRef = collection(db, 'live', 'wheelx', 'bets');
-    const unsubscribeBets = onSnapshot(betsRef, (snapshot) => {
-      const betsList: BetData[] = [];
-      let myCurrentBets = { black: 0, blue: 0, pink: 0, orange: 0 };
-      snapshot.forEach((doc) => {
-        const data = doc.data() as Omit<BetData, 'userId'>;
-        betsList.push({ userId: doc.id, ...data } as BetData);
-        if (doc.id === user.uid) {
-          myCurrentBets = { black: data.black || 0, blue: data.blue || 0, pink: data.pink || 0, orange: data.orange || 0 };
-        }
-      });
-      setAllBets(betsList); setMyBets(myCurrentBets); 
-    });
-    return () => unsubscribeBets();
-  }, [user.uid]);
+    // Получаем состояние игры каждую секунду от сервера
+    const handleState = (data: any) => {
+      setGameState(data.gameState);
+      setTimeLeft(data.timeLeft);
+      setHistory(data.history);
+      setAllBets(data.bets);
 
-  useEffect(() => {
-    const unsubscribeGame = onSnapshot(doc(db, 'live', 'wheelx'), (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.data();
-        setGameState(data.gameState);
-        if (data.gameState === 'betting') {
-          if (data.history && data.history.length > 0) setHistory(data.history);
-          hasSpunRef.current = false; setLastWinInfo(null);
-        } else if (data.gameState === 'spinning' && !hasSpunRef.current && data.winningIndex !== undefined) {
-          hasSpunRef.current = true;
-          const winningIndex = data.winningIndex;
-          const winningSlice = WHEEL_PATTERN[winningIndex];
-          const betPlacedAtSpin = myBetsRef.current[winningSlice.type as keyof typeof myBetsRef.current] || 0;
-          setRotation(prev => {
-              const currentSpins = Math.floor(prev / 360);
-              const nextSpins = currentSpins + 20; 
-              return (nextSpins * 360) + (winningIndex * (360 / 32));
-          });
-          setTimeout(() => {
-            if (betPlacedAtSpin > 0) {
-              const expectedPayout = betPlacedAtSpin * winningSlice.mult;
-              setLastWinInfo({ mult: winningSlice.mult, payout: expectedPayout });
-            } else {
-              setLastWinInfo(null);
-            }
-            setHistory(prev => [winningSlice.mult, ...prev].slice(0, 30));
-          }, 8000); 
-        }
+      // Ищем наши ставки в общем пуле
+      const myCurrent = data.bets.find((b: BetData) => b.userId === user.uid);
+      if (myCurrent) {
+        setMyBets({ black: myCurrent.black, blue: myCurrent.blue, pink: myCurrent.pink, orange: myCurrent.orange });
+      } else {
+        setMyBets({ black: 0, blue: 0, pink: 0, orange: 0 });
       }
-    });
-    return () => unsubscribeGame();
-  }, []); 
 
-  useEffect(() => {
-    if (gameState !== 'betting') { setTimeLeft(0); return; }
-    setTimeLeft(20);
-    const interval = setInterval(() => { setTimeLeft(prev => prev <= 1 ? 0 : prev - 1); }, 1000); 
-    return () => clearInterval(interval);
-  }, [gameState]);
+      if (data.gameState === 'betting') {
+        hasSpunRef.current = false;
+        setLastWinInfo(null);
+      }
+    };
+
+    // Слушаем сигнал вращения от сервера
+    const handleSpin = (data: { winningIndex: number }) => {
+      if (!hasSpunRef.current) {
+        hasSpunRef.current = true;
+        const slice = WHEEL_PATTERN[data.winningIndex];
+        
+        setRotation(prev => {
+            const currentSpins = Math.floor(prev / 360);
+            return ((currentSpins + 20) * 360) + (data.winningIndex * (360 / 32));
+        });
+
+        // Ждем 8 секунд (время вращения рулетки), затем показываем выигрыш
+        setTimeout(() => {
+          setHistory(prev => [slice.mult, ...prev].slice(0, 30));
+          
+          // Вычисляем, выиграли ли мы локально (VPS уже зачислил деньги в Firebase)
+          const myBetOnWinColor = myBets[slice.type as keyof typeof myBets] || 0;
+          if (myBetOnWinColor > 0) {
+             setLastWinInfo({ mult: slice.mult, payout: myBetOnWinColor * slice.mult });
+          } else {
+             setLastWinInfo(null);
+          }
+        }, 8000); 
+      }
+    };
+
+    const handleBetError = (msg: string) => {
+      setBetError(msg);
+      setTimeout(() => setBetError(null), 3500);
+    };
+
+    vpsSocket.on('wheelState', handleState);
+    vpsSocket.on('wheelSpin', handleSpin);
+    vpsSocket.on('betError', handleBetError);
+
+    return () => {
+      vpsSocket.off('wheelState', handleState);
+      vpsSocket.off('wheelSpin', handleSpin);
+      vpsSocket.off('betError', handleBetError);
+    };
+  }, [user.uid, myBets]);
 
   useEffect(() => {
     if (gameState === 'spinning' && hasSpunRef.current) {
@@ -201,21 +186,18 @@ export default function WheelX({ user }: WheelXProps) {
   const handleMinBet = () => { if (gameState !== 'betting') return; setGlobalBet('1'); };
   const handleMaxBet = () => { if (gameState !== 'betting') return; setGlobalBet(Math.max(1, Number(user.balance.toFixed(2))).toString()); };
 
-  const placeBet = async (color: 'black' | 'blue' | 'pink' | 'orange') => {
+  // ОТПРАВЛЯЕМ СТАВКУ НА VPS ВМЕСТО FIREBASE
+  const placeBet = (color: 'black' | 'blue' | 'pink' | 'orange') => {
     if (gameState !== 'betting' || currentBetNum < 1 || currentBetNum > user.balance) return;
-    const currentBetOnColor = myBetsRef.current[color] || 0;
-    if (currentBetOnColor + currentBetNum > 5000) {
-        setBetError(`Лимит ставки: не более 5000 CAT на один цвет! (Уже поставлено: ${currentBetOnColor})`);
-        setTimeout(() => setBetError(null), 3500); return;
-    }
-    if ('Notification' in window && Notification.permission === 'default') { Notification.requestPermission().catch(() => {}); }
-    try {
-      await updateDoc(doc(db, 'users', user.uid), { balance: increment(-currentBetNum) });
-      const betRef = doc(db, 'live', 'wheelx', 'bets', user.uid);
-      await setDoc(betRef, { [color]: increment(currentBetNum), nickname: user.nickname, avatar: user.avatar, timestamp: serverTimestamp() }, { merge: true });
-    } catch (e) {
-      console.error('Ошибка ставки', e);
-    }
+    
+    // Просим сервер принять ставку (он сам спишет баланс в Firebase)
+    vpsSocket.emit('placeBet', {
+      userId: user.uid,
+      nickname: user.nickname,
+      avatar: user.avatar,
+      color: color,
+      amount: currentBetNum
+    });
   };
 
   const getWinPanelStyle = (mult: number) => {
@@ -376,7 +358,6 @@ export default function WheelX({ user }: WheelXProps) {
           <BetCard type="orange" mult={30} titleColor="text-orange-500" btnClass="bg-orange-500 hover:bg-orange-600 shadow-orange-500/30" />
       </div>
 
-      {/* Provably Fair */}
       <div className="mt-8 w-full max-w-sm mx-auto px-4 sm:px-0">
         <div className="flex items-center justify-between bg-white border border-slate-100 p-4 rounded-[1.5rem] shadow-sm hover:shadow-md transition-all group">
            <div className="flex items-center gap-3">
