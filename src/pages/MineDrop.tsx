@@ -34,7 +34,7 @@ const ASSETS = {
     opened: `${GH_BASE}/chest_opened.webp`,
   },
   blocks: {
-    dirt: `${GH_BASE}/dirt.webp`, // Позже можешь добавить dirt_grass
+    dirt: `${GH_BASE}/dirt.webp`,
     stone: `${GH_BASE}/stone.webp`,
     redstone: `${GH_BASE}/redstone.webp`,
     gold: `${GH_BASE}/gold.webp`,
@@ -80,7 +80,6 @@ export default function MineDrop({ user }: MineDropProps) {
   const autoPlayRef = useRef(autoPlay);
   useEffect(() => { autoPlayRef.current = autoPlay; }, [autoPlay]);
 
-  // Следим за состоянием полноэкранного режима
   useEffect(() => {
     const onFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
@@ -103,7 +102,6 @@ export default function MineDrop({ user }: MineDropProps) {
     }
   };
 
-  // Предзагрузка текстур
   useEffect(() => {
     let loadedCount = 0;
     if (ALL_IMAGE_URLS.length === 0) { setIsLoaded(true); return; }
@@ -233,7 +231,7 @@ export default function MineDrop({ user }: MineDropProps) {
           if (!currentBlocks[c][r].destroyed) {
             currentBlocks[c][r].shattering = true;
             setBlocks([...currentBlocks]);
-            await delay(200);
+            await delay(300); // Немного увеличил для красивой анимации взрыва
             currentBlocks[c][r].shattering = false;
             currentBlocks[c][r].destroyed = true;
             currentWin += currentBlocks[c][r].value * bet;
@@ -293,7 +291,7 @@ export default function MineDrop({ user }: MineDropProps) {
             }
 
             if (struckThisTurn) {
-                await delay(200);
+                await delay(300); // Даем время на проигрыш анимации потрескивания блока
                 for (let c = 0; c < 5; c++) {
                     let maxMult = 1;
                     currentInv[c].forEach((item: InvItem) => {
@@ -383,14 +381,24 @@ export default function MineDrop({ user }: MineDropProps) {
   }, [bonusSpinsLeft, isBonusMode, loading]);
 
   return (
-    <div className="w-full flex flex-col items-center justify-center">
+    <div className="w-full flex flex-col items-center justify-center relative">
       
+      {/* Стили для анимации облаков */}
+      <style>{`
+        @keyframes slideClouds {
+          from { background-position: 0 0; }
+          to { background-position: -2000px 0; }
+        }
+        .animate-clouds {
+          animation: slideClouds 60s linear infinite;
+        }
+      `}</style>
+
       {/* Форсированное кэширование текстур в видеопамять */}
       <div className="absolute opacity-0 pointer-events-none w-0 h-0 overflow-hidden">
         {ALL_IMAGE_URLS.map(url => <img key={url} src={url} alt="preload" />)}
       </div>
 
-      {/* ГЛАВНЫЙ ИГРОВОЙ БЛОК (Адаптивный + Оконный/Фуллскрин) */}
       <div 
         ref={containerRef} 
         className={cn(
@@ -402,13 +410,15 @@ export default function MineDrop({ user }: MineDropProps) {
       >
           {/* ФОН ИГРЫ */}
           <div className="absolute inset-0 z-0 bg-cover bg-bottom opacity-80" style={{ backgroundImage: `url(${ASSETS.bg})`, imageRendering: 'pixelated' }} />
+          {/* АНИМАЦИЯ ЛЕТЯЩИХ ОБЛАКОВ */}
+          <div className="absolute inset-0 z-0 opacity-40 animate-clouds" style={{ backgroundImage: `url(${ASSETS.clouds})`, backgroundSize: 'cover', imageRendering: 'pixelated' }} />
           <div className="absolute inset-0 bg-black/40 z-0" />
 
           {/* ПРЕЛОАДЕР */}
           <AnimatePresence>
             {!isLoaded && (
                 <motion.div exit={{ opacity: 0 }} className="absolute inset-0 z-[40] bg-[#78A7FF] flex flex-col items-center justify-center">
-                    <div className="absolute inset-0 bg-clouds opacity-70" style={{ backgroundImage: `url(${ASSETS.clouds})`, backgroundSize: 'cover', imageRendering: 'pixelated' }} />
+                    <div className="absolute inset-0 bg-clouds opacity-70 animate-clouds" style={{ backgroundImage: `url(${ASSETS.clouds})`, backgroundSize: 'cover', imageRendering: 'pixelated' }} />
                     <div className="relative z-10 flex flex-col items-center gap-4 p-6 bg-black/50 backdrop-blur-sm border-4 border-slate-800 rounded-2xl shadow-2xl text-center max-w-[90%]">
                         <h2 className="text-3xl sm:text-4xl font-black text-white drop-shadow-[2px_2px_0_#000] tracking-widest leading-none">MINEDROP</h2>
                         <p className="text-white font-bold drop-shadow-md text-xs sm:text-sm">Загрузка ресурсов...</p>
@@ -447,14 +457,13 @@ export default function MineDrop({ user }: MineDropProps) {
                            )}
                        </AnimatePresence>
                        
-                       {/* Кнопка Развернуть/Свернуть */}
                        <button onClick={toggleFullscreen} className="p-1.5 bg-black/60 border-[3px] border-slate-700 rounded-lg text-slate-300 hover:text-white transition-colors active:scale-95">
                            {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
                        </button>
                    </div>
                 </div>
 
-                {/* РЕЗИНОВАЯ СЕТКА ИГРЫ (Идеально подстраивается под высоту экрана) */}
+                {/* РЕЗИНОВАЯ СЕТКА ИГРЫ */}
                 <div className="w-full max-w-[450px] mx-auto flex flex-col flex-1 min-h-0 px-2 gap-1.5 sm:gap-2 justify-center pb-2">
                     
                     {/* ИНВЕНТАРЬ (3 строки) */}
@@ -468,8 +477,15 @@ export default function MineDrop({ user }: MineDropProps) {
                                 <AnimatePresence mode="popLayout">
                                   {item.type !== 'empty' && (
                                     <motion.div 
-                                        initial={{ scale: 0 }} animate={{ scale: 1, y: item.striking ? 10 : 0, rotate: item.striking ? 20 : 0 }} exit={{ scale: 0, opacity: 0 }} 
-                                        transition={{ type: "spring", stiffness: 300, damping: 15 }}
+                                        initial={{ scale: 0 }} 
+                                        // Анимация подпрыгивания и удара кирки
+                                        animate={item.striking ? { 
+                                          y: [0, -25, 15, 0], 
+                                          rotate: [0, -30, 45, 0],
+                                          scale: [1, 1.2, 1, 1]
+                                        } : { y: 0, rotate: 0, scale: 1 }} 
+                                        exit={{ scale: 0, opacity: 0 }} 
+                                        transition={item.striking ? { duration: 0.4, times: [0, 0.3, 0.6, 1] } : { type: "spring", stiffness: 300, damping: 15 }}
                                         className="relative w-full h-full flex items-center justify-center p-0.5"
                                     >
                                       {item.type === 'pickaxe' && <img src={ASSETS.pickaxes[item.tier as keyof typeof ASSETS.pickaxes]} className="w-full h-full object-contain" style={{ imageRendering: 'pixelated' }} alt="pickaxe" />}
@@ -501,10 +517,24 @@ export default function MineDrop({ user }: MineDropProps) {
                                        <img src={ASSETS.blocks[block.type as keyof typeof ASSETS.blocks]} className="w-full h-full object-cover rounded-sm" style={{ imageRendering: 'pixelated' }} alt={block.type} />
                                     </motion.div>
                                   )}
+                                  
+                                  {/* Анимация потрескивания/разрушения */}
                                   {block.shattering && (
-                                      <motion.div initial={{ scale: 1 }} animate={{ scale: 1.5, opacity: 0 }} transition={{ duration: 0.3 }} className="absolute inset-0 flex flex-wrap">
-                                          <div className="w-1/2 h-1/2 bg-white/40" /><div className="w-1/2 h-1/2 bg-black/20" />
-                                          <div className="w-1/2 h-1/2 bg-black/40" /><div className="w-1/2 h-1/2 bg-white/20" />
+                                      <motion.div 
+                                        initial={{ x: 0, y: 0, scale: 1 }} 
+                                        animate={{ 
+                                          x: [2, -2, 3, -3, 0], 
+                                          y: [-2, 2, -3, 3, 0], 
+                                          scale: 1.1, 
+                                          opacity: [1, 0.5, 0] 
+                                        }} 
+                                        transition={{ duration: 0.3 }} 
+                                        className="absolute inset-0 z-20 overflow-hidden rounded-sm"
+                                      >
+                                          {/* Сам блок со вспышкой */}
+                                          <img src={ASSETS.blocks[block.type as keyof typeof ASSETS.blocks]} className="w-full h-full object-cover brightness-150 contrast-125" style={{ imageRendering: 'pixelated' }} alt={block.type} />
+                                          {/* Эффект трещин (градиенты поверх блока) */}
+                                          <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_45%,rgba(255,255,255,0.8)_50%,transparent_55%),linear-gradient(-45deg,transparent_45%,rgba(255,255,255,0.8)_50%,transparent_55%)] mix-blend-overlay" />
                                       </motion.div>
                                   )}
                                 </AnimatePresence>
@@ -553,7 +583,7 @@ export default function MineDrop({ user }: MineDropProps) {
             </motion.div>
           )}
 
-          {/* ПАНЕЛЬ УПРАВЛЕНИЯ MINECRAFT (Абсолют к низу контейнера) */}
+          {/* ПАНЕЛЬ УПРАВЛЕНИЯ MINECRAFT */}
           <div className="absolute bottom-0 left-0 w-full h-[80px] sm:h-[100px] bg-[#c6c6c6] border-t-[4px] sm:border-t-[6px] border-t-[#ffffff] shadow-[inset_0_-6px_0_#555555] p-2 sm:p-4 z-20 flex flex-nowrap items-center justify-between sm:justify-center gap-1 sm:gap-4 overflow-x-auto custom-scrollbar">
               
               <div className="flex items-center gap-1 sm:gap-2 bg-[#8b8b8b] border-[3px] sm:border-[4px] border-t-[#555] border-l-[#555] border-b-[#fff] border-r-[#fff] p-1 shrink-0">
@@ -575,9 +605,9 @@ export default function MineDrop({ user }: MineDropProps) {
                  onClick={handlePlayClick}
                  disabled={(loading && !autoPlay) || isBonusMode}
                  className={cn(
-                     "shrink-0 px-4 sm:px-8 py-2 sm:py-3 text-white font-black text-sm sm:text-lg border-[4px] sm:border-[5px] active:border-t-[#555] active:border-l-[#555] uppercase tracking-widest",
+                     "shrink-0 px-4 sm:px-8 py-2 sm:py-3 text-white font-black text-sm sm:text-lg border-[4px] sm:border-[5px] active:border-t-[#555] active:border-l-[#555] uppercase tracking-widest transition-transform",
                      autoPlay ? "bg-rose-600 border-t-[#f43f5e] border-l-[#f43f5e] border-b-[#881337] border-r-[#881337]" : "bg-emerald-600 border-t-[#34d399] border-l-[#34d399] border-b-[#064e3b] border-r-[#064e3b]",
-                     (loading && !autoPlay) || isBonusMode ? "opacity-50" : ""
+                     (loading && !autoPlay) || isBonusMode ? "opacity-50" : "active:scale-95"
                  )}
               >
                  {autoPlay ? 'STOP' : 'SPIN'}
@@ -588,7 +618,7 @@ export default function MineDrop({ user }: MineDropProps) {
                      onClick={handleAutoPlayClick}
                      disabled={isBonusMode}
                      className={cn(
-                        "px-2 sm:px-3 py-1.5 sm:py-2 bg-[#c6c6c6] text-[#333] font-bold text-[9px] sm:text-xs border-[3px] border-t-[#fff] border-l-[#fff] border-b-[#555] border-r-[#555] flex items-center justify-center gap-1",
+                        "px-2 sm:px-3 py-1.5 sm:py-2 bg-[#c6c6c6] text-[#333] font-bold text-[9px] sm:text-xs border-[3px] border-t-[#fff] border-l-[#fff] border-b-[#555] border-r-[#555] flex items-center justify-center gap-1 active:border-t-[#555] active:border-l-[#555] active:border-b-[#fff] active:border-r-[#fff]",
                         autoPlay ? "border-t-[#555] border-l-[#555] border-b-[#fff] border-r-[#fff] bg-[#999]" : ""
                      )}
                   >
@@ -598,7 +628,7 @@ export default function MineDrop({ user }: MineDropProps) {
                   <button 
                      onClick={buyBonus}
                      disabled={loading || autoPlay || isBonusMode || bet * 100 > user.balance}
-                     className="px-2 sm:px-3 py-1.5 sm:py-2 bg-purple-600 text-white font-bold text-[9px] sm:text-xs border-[3px] border-t-purple-400 border-l-purple-400 border-b-purple-900 border-r-purple-900 flex items-center justify-center gap-1 disabled:opacity-50"
+                     className="px-2 sm:px-3 py-1.5 sm:py-2 bg-purple-600 text-white font-bold text-[9px] sm:text-xs border-[3px] border-t-purple-400 border-l-purple-400 border-b-purple-900 border-r-purple-900 flex items-center justify-center gap-1 disabled:opacity-50 active:border-t-purple-900 active:border-l-purple-900 active:border-b-purple-400 active:border-r-purple-400"
                   >
                      <Diamond className="w-3 h-3 fill-current" /> BUY ({(bet * 100).toFixed(0)})
                   </button>
