@@ -13,6 +13,7 @@ import Dice from './pages/Dice';
 import Mines from './pages/Mines';
 import Keno from './pages/Keno';
 import WheelX from './pages/WheelX';
+import MineDrop from './pages/MineDrop';
 import FAQ from './pages/FAQ';
 import Bonuses from './pages/Bonuses';
 import Level from './pages/Level';
@@ -144,13 +145,11 @@ export default function App() {
               totalWithdrawals: 0,
               wagerRequirement: 0,
               unlockedAvatars: ['/assets/avatars/ava1.webp', '/assets/avatars/ava2.webp', '/assets/avatars/ava3.webp'],
-              // ИСПРАВЛЕНИЕ: Используем правильное имя поля из types.ts
               invitedBy: savedRef || undefined
             };
             
             await setDoc(userRef, newUser);
 
-            // Автоматически добавляем +1 к счетчику рефералов у пригласившего
             if (savedRef) {
               try {
                 const referrerRef = doc(db, 'users', savedRef);
@@ -254,6 +253,7 @@ export default function App() {
           <Route path="/mines" element={<ProtectedRoute user={user} onOpenAuth={handleOpenAuth}><Mines user={user!} /></ProtectedRoute>} />
           <Route path="/keno" element={<ProtectedRoute user={user} onOpenAuth={handleOpenAuth}><Keno user={user!} /></ProtectedRoute>} />
           <Route path="/wheelx" element={<ProtectedRoute user={user} onOpenAuth={handleOpenAuth}><WheelX user={user!} /></ProtectedRoute>} />
+          <Route path="/minedrop" element={<ProtectedRoute user={user} onOpenAuth={handleOpenAuth}><MineDrop user={user!} /></ProtectedRoute>} />
           <Route path="/bonuses" element={<ProtectedRoute user={user} onOpenAuth={handleOpenAuth}><Bonuses user={user!} /></ProtectedRoute>} />
           <Route path="/level" element={<ProtectedRoute user={user} onOpenAuth={handleOpenAuth}><Level user={user!} /></ProtectedRoute>} />
           <Route path="/achievements" element={<ProtectedRoute user={user} onOpenAuth={handleOpenAuth}><Achievements user={user!} /></ProtectedRoute>} />
