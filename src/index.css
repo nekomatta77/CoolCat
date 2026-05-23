@@ -64,3 +64,11 @@
 ::-webkit-scrollbar-thumb {
   @apply bg-slate-200 rounded-full hover:bg-slate-300 transition-colors;
 }
+
+@keyframes cloudMove {
+  from { background-position: 0 0; }
+  to { background-position: 2000px 0; }
+}
+.bg-clouds {
+  animation: cloudMove 40s linear infinite;
+}
