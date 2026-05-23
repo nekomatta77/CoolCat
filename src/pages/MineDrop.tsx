@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { UserProfile } from '../types';
 import { doc, updateDoc, increment } from 'firebase/firestore';
 import { db } from '../firebase';
-import { RotateCcw, Diamond, Maximize } from 'lucide-react';
+import { RotateCcw, Diamond, Maximize, Minimize } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 
@@ -14,7 +14,6 @@ interface MineDropProps {
 const PICKAXE_TIERS = ['wood', 'stone', 'gold', 'iron', 'diamond'];
 const PICKAXE_MULT = { wood: 1, stone: 1.5, gold: 2, iron: 3, diamond: 5 };
 
-// Прямые ссылки на твой репозиторий whatsacas
 const GH_BASE = 'https://raw.githubusercontent.com/nekomatta77/whatsacas/main/MineDrop';
 
 const ASSETS = {
@@ -35,7 +34,7 @@ const ASSETS = {
     opened: `${GH_BASE}/chest_opened.webp`,
   },
   blocks: {
-    dirt: `${GH_BASE}/dirt.webp`,
+    dirt: `${GH_BASE}/dirt.webp`, // Позже можешь добавить dirt_grass
     stone: `${GH_BASE}/stone.webp`,
     redstone: `${GH_BASE}/redstone.webp`,
     gold: `${GH_BASE}/gold.webp`,
@@ -44,7 +43,6 @@ const ASSETS = {
   }
 };
 
-const BLOCK_TYPES = ['dirt', 'stone', 'redstone', 'gold', 'diamond', 'obsidian'];
 const BLOCK_VALUES = { dirt: 0.1, stone: 0.2, redstone: 0.5, gold: 1, diamond: 2, obsidian: 5 };
 
 type InvItem = { type: 'empty' | 'pickaxe' | 'bomb' | 'book' | 'eye'; tier?: string; dur?: number; glow?: boolean; striking?: boolean };
@@ -53,14 +51,19 @@ type BlockItem = { type: string; destroyed: boolean; value: number; highlight?: 
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 const formatBalance = (val: number) => (Math.floor(val * 100) / 100).toFixed(2);
 
+const ALL_IMAGE_URLS = [
+  ...Object.values(ASSETS.pickaxes),
+  ASSETS.book, ASSETS.eye, ASSETS.bomb, ASSETS.bg, ASSETS.clouds,
+  ...Object.values(ASSETS.chests),
+  ...Object.values(ASSETS.blocks)
+];
+
 export default function MineDrop({ user }: MineDropProps) {
-  // === СОСТОЯНИЯ ЗАГРУЗКИ И ФУЛЛСКРИНА ===
   const [loadProgress, setLoadProgress] = useState(0);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [isStarted, setIsStarted] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // === ИГРОВЫЕ СОСТОЯНИЯ ===
   const [betInput, setBetInput] = useState('10');
   const bet = parseFloat(betInput.replace(',', '.')) || 0;
   const [loading, setLoading] = useState(false);
@@ -77,52 +80,46 @@ export default function MineDrop({ user }: MineDropProps) {
   const autoPlayRef = useRef(autoPlay);
   useEffect(() => { autoPlayRef.current = autoPlay; }, [autoPlay]);
 
-  // === ПРЕДЗАГРУЗКА ТЕКСТУР (PRELOADER) ===
+  // Следим за состоянием полноэкранного режима
   useEffect(() => {
-    const imageUrls = [
-      ...Object.values(ASSETS.pickaxes),
-      ASSETS.book, ASSETS.eye, ASSETS.bomb, ASSETS.bg, ASSETS.clouds,
-      ...Object.values(ASSETS.chests),
-      ...Object.values(ASSETS.blocks)
-    ];
-    let loadedCount = 0;
-    
-    if (imageUrls.length === 0) {
-        setIsLoaded(true);
-        return;
-    }
-
-    imageUrls.forEach(url => {
-      const img = new Image();
-      img.src = url;
-      img.onload = () => {
-        loadedCount++;
-        setLoadProgress(Math.floor((loadedCount / imageUrls.length) * 100));
-        if (loadedCount === imageUrls.length) setTimeout(() => setIsLoaded(true), 500);
-      };
-      img.onerror = () => {
-        loadedCount++;
-        setLoadProgress(Math.floor((loadedCount / imageUrls.length) * 100));
-        if (loadedCount === imageUrls.length) setTimeout(() => setIsLoaded(true), 500);
-      };
-    });
+    const onFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
   }, []);
 
-  // === ПЕРЕХОД В ПОЛНЫЙ ЭКРАН ===
-  const handleStartFullscreen = async () => {
-    if (containerRef.current) {
-      try {
-        if (containerRef.current.requestFullscreen) {
-          await containerRef.current.requestFullscreen();
-        } else if ((containerRef.current as any).webkitRequestFullscreen) {
-          await (containerRef.current as any).webkitRequestFullscreen();
-        }
-      } catch (e) {
-        console.error("Ошибка перехода в полный экран", e);
+  const toggleFullscreen = async () => {
+    if (!document.fullscreenElement) {
+      if (containerRef.current?.requestFullscreen) {
+        await containerRef.current.requestFullscreen();
+      } else if ((containerRef.current as any)?.webkitRequestFullscreen) {
+        await (containerRef.current as any).webkitRequestFullscreen();
+      }
+    } else {
+      if (document.exitFullscreen) {
+        await document.exitFullscreen();
       }
     }
-    setIsStarted(true);
   };
+
+  // Предзагрузка текстур
+  useEffect(() => {
+    let loadedCount = 0;
+    if (ALL_IMAGE_URLS.length === 0) { setIsLoaded(true); return; }
+
+    ALL_IMAGE_URLS.forEach(url => {
+      const img = new Image();
+      img.src = url;
+      const onDone = () => {
+        loadedCount++;
+        setLoadProgress(Math.floor((loadedCount / ALL_IMAGE_URLS.length) * 100));
+        if (loadedCount === ALL_IMAGE_URLS.length) setTimeout(() => setIsLoaded(true), 600);
+      };
+      img.onload = onDone;
+      img.onerror = onDone;
+    });
+  }, []);
 
   const handleHalfBet = () => {
     if (loading || autoPlay || isBonusMode) return;
@@ -386,228 +383,229 @@ export default function MineDrop({ user }: MineDropProps) {
   }, [bonusSpinsLeft, isBonusMode, loading]);
 
   return (
-    <div 
-      ref={containerRef} 
-      className={cn(
-          "relative w-full flex flex-col items-center bg-slate-950 font-mono overflow-hidden transition-all duration-500",
-          isStarted ? "fixed inset-0 z-[9999] h-screen w-screen" : "h-[calc(100vh-120px)] mt-4 rounded-[2rem] sm:rounded-[3rem] border-8 border-slate-900"
-      )}
-    >
-        {/* ФОН ИГРЫ */}
-        <div className="absolute inset-0 z-0 bg-cover bg-bottom opacity-80" style={{ backgroundImage: `url(${ASSETS.bg})`, imageRendering: 'pixelated' }} />
-        <div className="absolute inset-0 bg-black/40 z-0" />
+    <div className="w-full flex flex-col items-center justify-center">
+      
+      {/* Форсированное кэширование текстур в видеопамять */}
+      <div className="absolute opacity-0 pointer-events-none w-0 h-0 overflow-hidden">
+        {ALL_IMAGE_URLS.map(url => <img key={url} src={url} alt="preload" />)}
+      </div>
 
-        {/* ПРЕЛОАДЕР (ЭКРАН ЗАГРУЗКИ) */}
-        {!isLoaded && (
-            <div className="absolute inset-0 z-[100] bg-[#78A7FF] flex flex-col items-center justify-center">
-                <div className="absolute inset-0 bg-clouds opacity-70" style={{ backgroundImage: `url(${ASSETS.clouds})`, backgroundSize: 'cover', imageRendering: 'pixelated' }} />
-                
-                <div className="relative z-10 flex flex-col items-center gap-6 p-8 bg-black/40 backdrop-blur-sm border-4 border-slate-800 rounded-xl shadow-[0_0_30px_rgba(0,0,0,0.5)]">
-                    <h2 className="text-4xl sm:text-5xl font-black text-white drop-shadow-[2px_2px_0_#000] tracking-widest">MINEDROP</h2>
-                    <p className="text-white font-bold drop-shadow-md">Загрузка текстур...</p>
-                    
-                    <div className="w-64 sm:w-80 h-8 bg-slate-800 border-[4px] border-slate-900 rounded-sm relative overflow-hidden shadow-inner">
-                       <div className="h-full bg-emerald-500 transition-all duration-200" style={{ width: `${loadProgress}%` }}>
-                          <div className="w-full h-full bg-[linear-gradient(45deg,rgba(255,255,255,0.15)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.15)_50%,rgba(255,255,255,0.15)_75%,transparent_75%,transparent)] bg-[length:20px_20px] opacity-50" />
-                       </div>
+      {/* ГЛАВНЫЙ ИГРОВОЙ БЛОК (Адаптивный + Оконный/Фуллскрин) */}
+      <div 
+        ref={containerRef} 
+        className={cn(
+            "relative flex flex-col items-center bg-slate-950 font-mono overflow-hidden transition-all duration-300",
+            isFullscreen 
+               ? "fixed inset-0 z-[9999] w-screen h-screen rounded-none border-0" 
+               : "w-full max-w-[800px] h-[calc(100vh-140px)] min-h-[600px] rounded-[2rem] sm:rounded-[3rem] border-[4px] sm:border-[8px] border-slate-900 shadow-2xl mx-auto"
+        )}
+      >
+          {/* ФОН ИГРЫ */}
+          <div className="absolute inset-0 z-0 bg-cover bg-bottom opacity-80" style={{ backgroundImage: `url(${ASSETS.bg})`, imageRendering: 'pixelated' }} />
+          <div className="absolute inset-0 bg-black/40 z-0" />
+
+          {/* ПРЕЛОАДЕР */}
+          <AnimatePresence>
+            {!isLoaded && (
+                <motion.div exit={{ opacity: 0 }} className="absolute inset-0 z-[40] bg-[#78A7FF] flex flex-col items-center justify-center">
+                    <div className="absolute inset-0 bg-clouds opacity-70" style={{ backgroundImage: `url(${ASSETS.clouds})`, backgroundSize: 'cover', imageRendering: 'pixelated' }} />
+                    <div className="relative z-10 flex flex-col items-center gap-4 p-6 bg-black/50 backdrop-blur-sm border-4 border-slate-800 rounded-2xl shadow-2xl text-center max-w-[90%]">
+                        <h2 className="text-3xl sm:text-4xl font-black text-white drop-shadow-[2px_2px_0_#000] tracking-widest leading-none">MINEDROP</h2>
+                        <p className="text-white font-bold drop-shadow-md text-xs sm:text-sm">Загрузка ресурсов...</p>
+                        <div className="w-56 sm:w-72 h-6 bg-slate-800 border-[3px] border-slate-900 rounded-sm relative overflow-hidden shadow-inner">
+                           <div className="h-full bg-emerald-500 transition-all duration-300" style={{ width: `${loadProgress}%` }}>
+                              <div className="w-full h-full bg-[linear-gradient(45deg,rgba(255,255,255,0.15)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.15)_50%,rgba(255,255,255,0.15)_75%,transparent_75%,transparent)] bg-[length:20px_20px] opacity-50" />
+                           </div>
+                        </div>
+                        <span className="text-white font-black drop-shadow-md">{loadProgress}%</span>
                     </div>
-                    <span className="text-white font-black drop-shadow-md">{loadProgress}%</span>
-                </div>
-            </div>
-        )}
+                </motion.div>
+            )}
+          </AnimatePresence>
 
-        {/* OVERLAY С КНОПКОЙ "НАЧАТЬ" */}
-        {isLoaded && !isStarted && (
-            <div className="absolute inset-0 z-[90] bg-black/80 flex flex-col items-center justify-center backdrop-blur-sm">
-                <motion.button 
-                    initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-                    onClick={handleStartFullscreen}
-                    className="px-12 py-5 bg-[#c6c6c6] text-[#333] font-black text-3xl border-[6px] border-t-[#fff] border-l-[#fff] border-b-[#555] border-r-[#555] active:border-t-[#555] active:border-l-[#555] active:border-b-[#fff] active:border-r-[#fff] hover:bg-[#d6d6d6] transition-colors shadow-[0_10px_30px_rgba(0,0,0,0.8)] uppercase tracking-widest flex items-center gap-4"
-                >
-                    Начать <Maximize className="w-8 h-8" />
-                </motion.button>
-                <p className="text-slate-400 mt-6 font-medium tracking-wide">Развернуть игру на весь экран</p>
-            </div>
-        )}
-
-        {/* ИГРОВОЙ ИНТЕРФЕЙС */}
-        <div className="relative z-10 w-full max-w-[800px] flex flex-col items-center justify-between h-full pt-4 pb-[130px] sm:pb-[100px] px-2 sm:px-4">
-            
-            {/* ИНДИКАТОР БОНУСА / ГЛАЗ */}
-            <div className="w-full flex justify-between items-center mb-2 sm:mb-4">
-               <div className="flex items-center gap-2 bg-black/60 border-[3px] border-slate-700 px-3 py-1.5 rounded-lg backdrop-blur-sm shadow-md">
-                  <img src={ASSETS.eye} alt="eye" className="w-5 h-5 sm:w-6 sm:h-6 object-contain drop-shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
-                  <div className="flex gap-1.5 ml-1">
-                    {[1, 2, 3].map((i) => (
-                      <div key={i} className={cn("w-2.5 h-2.5 sm:w-3 sm:h-3 border border-slate-900 transition-all duration-300", enderEyes >= i ? "bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,1)]" : "bg-slate-700")} />
-                    ))}
-                  </div>
-               </div>
-               
-               <AnimatePresence>
-                   {isBonusMode && (
-                       <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="bg-purple-600/90 border-[3px] border-purple-400 px-4 py-1.5 rounded-lg text-white font-black tracking-widest uppercase shadow-[0_0_15px_#a855f7]">
-                           Bonus: {bonusSpinsLeft}
-                       </motion.div>
-                   )}
-               </AnimatePresence>
-               
-               {isStarted && (
-                   <button onClick={() => { if(document.fullscreenElement) document.exitFullscreen(); setIsStarted(false); }} className="p-2 bg-black/60 border-[3px] border-slate-700 rounded-lg text-slate-300 hover:text-white transition-colors">
-                       <Maximize className="w-5 h-5 sm:w-6 sm:h-6 rotate-180" />
-                   </button>
-               )}
-            </div>
-
-            {/* ОСНОВНАЯ СЕТКА (Инвентарь + Блоки) */}
-            <div className="w-full flex flex-col items-center justify-center flex-1 min-h-0 gap-2 sm:gap-4">
+          {/* ИГРОВОЙ ИНТЕРФЕЙС */}
+          {isLoaded && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }} className="relative z-10 w-full flex flex-col flex-1 h-full min-h-0 pb-[80px] sm:pb-[100px]">
                 
-                {/* ИНВЕНТАРЬ */}
-                <div className="w-full max-w-[500px] bg-[#3c3c3c]/90 p-1.5 sm:p-2 border-[4px] border-[#222] shadow-[inset_0_0_10px_rgba(0,0,0,0.8)] shrink-0">
-                  <div className="grid grid-cols-5 gap-1 relative z-10">
-                    {[0, 1, 2].map((r) => (
-                      [0, 1, 2, 3, 4].map((c) => {
-                        const item = inventory[c][r];
-                        return (
-                          <div key={`inv-${c}-${r}`} className={cn("aspect-square bg-[#8B8B8B] border-t-[3px] border-l-[3px] border-t-[#AFAFAF] border-l-[#AFAFAF] border-b-[3px] border-r-[3px] border-b-[#505050] border-r-[#505050] flex items-center justify-center relative transition-all duration-300", item.glow ? "shadow-[0_0_15px_#facc15] z-10 scale-110" : "")}>
-                            <AnimatePresence mode="popLayout">
-                              {item.type !== 'empty' && (
-                                <motion.div 
-                                    initial={{ scale: 0 }} animate={{ scale: 1, y: item.striking ? 20 : 0, rotate: item.striking ? 25 : 0 }} exit={{ scale: 0, opacity: 0 }} 
-                                    transition={{ type: "spring", stiffness: 300, damping: 15 }}
-                                    className="relative z-10 w-full h-full flex items-center justify-center p-1"
-                                >
-                                  {item.type === 'pickaxe' && <img src={ASSETS.pickaxes[item.tier as keyof typeof ASSETS.pickaxes]} className="w-[80%] h-[80%] object-contain drop-shadow-md" style={{ imageRendering: 'pixelated' }} alt="pickaxe" />}
-                                  {item.type === 'bomb' && <img src={ASSETS.bomb} className="w-[80%] h-[80%] object-contain drop-shadow-md animate-pulse" style={{ imageRendering: 'pixelated' }} alt="bomb" />}
-                                  {item.type === 'book' && <img src={ASSETS.book} className="w-[80%] h-[80%] object-contain drop-shadow-md" style={{ imageRendering: 'pixelated' }} alt="book" />}
-                                  {item.type === 'eye' && <img src={ASSETS.eye} className="w-[80%] h-[80%] object-contain drop-shadow-md" style={{ imageRendering: 'pixelated' }} alt="eye" />}
-                                  {item.type === 'pickaxe' && <span className="absolute bottom-0 right-0 bg-black/80 text-white text-[9px] sm:text-[11px] font-bold px-1 rounded-sm leading-none">{item.dur}</span>}
-                                </motion.div>
-                              )}
-                            </AnimatePresence>
-                          </div>
-                        );
-                      })
-                    ))}
-                  </div>
-                </div>
-
-                {/* БЛОКИ */}
-                <div className="w-full max-w-[500px] shrink-1 min-h-0">
-                  <div className="grid grid-cols-5 gap-0.5 sm:gap-1 h-full">
-                    {[0, 1, 2, 3, 4].map((r) => (
-                      [0, 1, 2, 3, 4].map((c) => {
-                        const block = blocks[c][r];
-                        return (
-                          <div key={`block-${c}-${r}`} className="aspect-square relative flex items-center justify-center transition-all duration-300">
-                            <AnimatePresence>
-                              {!block.destroyed && !block.shattering && (
-                                <motion.div exit={{ opacity: 0 }} className={cn("absolute inset-0 shadow-md transition-all", block.highlight ? "brightness-150 scale-105" : "")}>
-                                   <img src={ASSETS.blocks[block.type as keyof typeof ASSETS.blocks]} className="w-full h-full object-cover" style={{ imageRendering: 'pixelated' }} alt={block.type} />
-                                </motion.div>
-                              )}
-                              {block.shattering && (
-                                  <motion.div initial={{ scale: 1 }} animate={{ scale: 1.5, opacity: 0 }} transition={{ duration: 0.3 }} className="absolute inset-0 flex flex-wrap">
-                                      <div className="w-1/2 h-1/2 bg-white/50" /><div className="w-1/2 h-1/2 bg-black/30" />
-                                      <div className="w-1/2 h-1/2 bg-black/50" /><div className="w-1/2 h-1/2 bg-white/30" />
-                                  </motion.div>
-                              )}
-                            </AnimatePresence>
-                            {block.destroyed && !block.shattering && <div className="absolute inset-0 bg-black/40 shadow-inner rounded-sm" />}
-                          </div>
-                        );
-                      })
-                    ))}
-                  </div>
-                </div>
-
-                {/* СУНДУКИ */}
-                <div className="w-full max-w-[500px] border-t-4 border-dashed border-slate-600/50 pt-2 shrink-0">
-                  <div className="grid grid-cols-5 gap-0.5 sm:gap-1">
-                    {chests.map((chest, i) => (
-                      <div key={`chest-${i}`} className="aspect-square flex items-center justify-center relative transition-all duration-500">
-                        <AnimatePresence mode="popLayout">
-                          {chest.open ? (
-                            <motion.div key="opened" initial={{ scale: 0 }} animate={{ scale: 1.2 }} className="absolute inset-0 flex flex-col items-center justify-center z-20">
-                               <img src={ASSETS.chests.opened} alt="opened" className="absolute inset-0 w-full h-full object-contain drop-shadow-[0_0_15px_rgba(251,191,36,0.8)]" style={{ imageRendering: 'pixelated' }} />
-                               <div className="relative z-10 text-center flex flex-col -mt-4 bg-black/60 px-1 sm:px-2 rounded border border-yellow-500/50">
-                                  <span className="text-[10px] sm:text-[12px] font-black text-yellow-400 drop-shadow-md">x{chest.mult}</span>
-                               </div>
-                            </motion.div>
-                          ) : (
-                            <motion.div key="closed" initial={{ scale: 1 }} exit={{ scale: 0, opacity: 0 }} className="absolute inset-0 p-1 bg-black/50 rounded shadow-inner border border-black/80">
-                              <img src={ASSETS.chests.closed} alt="closed" className="w-full h-full object-contain opacity-90 hover:opacity-100 transition-opacity" style={{ imageRendering: 'pixelated' }} />
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
+                {/* ИНДИКАТОРЫ И ВЕРХНЯЯ СТРОКА */}
+                <div className="w-full flex justify-between items-center p-2 sm:p-4 shrink-0">
+                   <div className="flex items-center gap-2 bg-black/60 border-[3px] border-slate-700 px-3 py-1 rounded-lg backdrop-blur-sm shadow-md">
+                      <img src={ASSETS.eye} alt="eye" className="w-5 h-5 object-contain drop-shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+                      <div className="flex gap-1 ml-1">
+                        {[1, 2, 3].map((i) => (
+                          <div key={i} className={cn("w-2.5 h-2.5 border border-slate-900 transition-all duration-300", enderEyes >= i ? "bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,1)]" : "bg-slate-700")} />
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                   </div>
+                   
+                   <div className="flex items-center gap-2">
+                       <AnimatePresence>
+                           {isBonusMode && (
+                               <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="bg-purple-600/90 border-[3px] border-purple-400 px-3 py-1 rounded-lg text-white font-black tracking-widest uppercase shadow-[0_0_12px_#a855f7] text-xs">
+                                   Bonus: {bonusSpinsLeft}
+                               </motion.div>
+                           )}
+                       </AnimatePresence>
+                       
+                       {/* Кнопка Развернуть/Свернуть */}
+                       <button onClick={toggleFullscreen} className="p-1.5 bg-black/60 border-[3px] border-slate-700 rounded-lg text-slate-300 hover:text-white transition-colors active:scale-95">
+                           {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
+                       </button>
+                   </div>
                 </div>
-            </div>
-            
-            {/* ЛЕТЯЩИЙ ВЫИГРЫШ */}
-            <AnimatePresence>
-                {totalWin > 0 && !loading && (
-                    <motion.div initial={{ opacity: 0, y: 50, scale: 0.5 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0 }} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-black/80 border-[4px] border-emerald-500 px-6 py-4 shadow-[0_0_30px_rgba(16,185,129,0.4)]">
-                        <span className="text-4xl sm:text-6xl font-black text-emerald-400 drop-shadow-[4px_4px_0_#000]">{formatBalance(totalWin)} CAT</span>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-        </div>
 
-        {/* МИНЕКРАФТ ПАНЕЛЬ УПРАВЛЕНИЯ */}
-        <div className="absolute bottom-0 left-0 w-full bg-[#c6c6c6] border-t-[6px] border-t-[#ffffff] shadow-[inset_0_-6px_0_#555555] p-2 sm:p-4 z-20 flex flex-wrap sm:flex-nowrap items-center justify-center gap-2 sm:gap-6">
-            
-            <div className="flex items-center gap-1 sm:gap-2 bg-[#8b8b8b] border-[4px] border-t-[#555] border-l-[#555] border-b-[#fff] border-r-[#fff] p-1.5 sm:p-2 w-full sm:w-auto justify-between sm:justify-start">
-               <span className="text-[#333] font-bold text-xs sm:text-sm px-1 sm:px-2">BET:</span>
-               <input 
-                  type="text" 
-                  value={betInput} 
-                  disabled={loading || autoPlay || isBonusMode}
-                  onChange={(e) => { const val = e.target.value.replace(',', '.'); if (val === '' || /^\d*\.?\d{0,2}$/.test(val)) setBetInput(val); }}
-                  className="w-16 sm:w-24 bg-[#c6c6c6] text-black font-bold text-center outline-none border-[3px] sm:border-[4px] border-t-[#555] border-l-[#555] border-b-[#fff] border-r-[#fff] p-1 text-sm sm:text-base"
-               />
-               <div className="flex sm:flex-col gap-1">
-                  <button onClick={handleDoubleBet} disabled={loading || autoPlay || isBonusMode} className="bg-[#c6c6c6] border-[3px] border-t-[#fff] border-l-[#fff] border-b-[#555] border-r-[#555] px-2 text-[10px] active:border-t-[#555] active:border-l-[#555] active:border-b-[#fff] active:border-r-[#fff]">x2</button>
-                  <button onClick={handleHalfBet} disabled={loading || autoPlay || isBonusMode} className="bg-[#c6c6c6] border-[3px] border-t-[#fff] border-l-[#fff] border-b-[#555] border-r-[#555] px-2 text-[10px] active:border-t-[#555] active:border-l-[#555] active:border-b-[#fff] active:border-r-[#fff]">/2</button>
-               </div>
-            </div>
+                {/* РЕЗИНОВАЯ СЕТКА ИГРЫ (Идеально подстраивается под высоту экрана) */}
+                <div className="w-full max-w-[450px] mx-auto flex flex-col flex-1 min-h-0 px-2 gap-1.5 sm:gap-2 justify-center pb-2">
+                    
+                    {/* ИНВЕНТАРЬ (3 строки) */}
+                    <div className="w-full flex-[3] bg-[#3c3c3c]/90 p-1.5 border-[4px] border-[#222] shadow-[inset_0_0_10px_rgba(0,0,0,0.8)] flex items-center justify-center">
+                      <div className="grid grid-cols-5 grid-rows-3 gap-0.5 sm:gap-1 w-full h-full">
+                        {[0, 1, 2].map((r) => (
+                          [0, 1, 2, 3, 4].map((c) => {
+                            const item = inventory[c][r];
+                            return (
+                              <div key={`inv-${c}-${r}`} className={cn("bg-[#8B8B8B] border-t-[2px] border-l-[2px] border-t-[#AFAFAF] border-l-[#AFAFAF] border-b-[2px] border-r-[2px] border-b-[#505050] border-r-[#505050] flex items-center justify-center relative transition-all duration-300", item.glow ? "shadow-[0_0_12px_#facc15] z-10 scale-105" : "")}>
+                                <AnimatePresence mode="popLayout">
+                                  {item.type !== 'empty' && (
+                                    <motion.div 
+                                        initial={{ scale: 0 }} animate={{ scale: 1, y: item.striking ? 10 : 0, rotate: item.striking ? 20 : 0 }} exit={{ scale: 0, opacity: 0 }} 
+                                        transition={{ type: "spring", stiffness: 300, damping: 15 }}
+                                        className="relative w-full h-full flex items-center justify-center p-0.5"
+                                    >
+                                      {item.type === 'pickaxe' && <img src={ASSETS.pickaxes[item.tier as keyof typeof ASSETS.pickaxes]} className="w-full h-full object-contain" style={{ imageRendering: 'pixelated' }} alt="pickaxe" />}
+                                      {item.type === 'bomb' && <img src={ASSETS.bomb} className="w-full h-full object-contain animate-pulse" style={{ imageRendering: 'pixelated' }} alt="bomb" />}
+                                      {item.type === 'book' && <img src={ASSETS.book} className="w-full h-full object-contain" style={{ imageRendering: 'pixelated' }} alt="book" />}
+                                      {item.type === 'eye' && <img src={ASSETS.eye} className="w-full h-full object-contain" style={{ imageRendering: 'pixelated' }} alt="eye" />}
+                                      {item.type === 'pickaxe' && <span className="absolute bottom-0 right-0 bg-black/80 text-white text-[8px] font-bold px-1 rounded-sm leading-none">{item.dur}</span>}
+                                    </motion.div>
+                                  )}
+                                </AnimatePresence>
+                              </div>
+                            );
+                          })
+                        ))}
+                      </div>
+                    </div>
 
-            <button 
-               onClick={handlePlayClick}
-               disabled={(loading && !autoPlay) || isBonusMode}
-               className={cn(
-                   "flex-1 sm:flex-none px-4 sm:px-8 py-2 sm:py-3 text-white font-bold text-lg sm:text-xl border-[4px] sm:border-[6px] active:border-t-[#555] active:border-l-[#555] active:border-b-[#fff] active:border-r-[#fff] uppercase tracking-widest",
-                   autoPlay ? "bg-rose-600 border-t-[#f43f5e] border-l-[#f43f5e] border-b-[#881337] border-r-[#881337]" : "bg-emerald-600 border-t-[#34d399] border-l-[#34d399] border-b-[#064e3b] border-r-[#064e3b]",
-                   (loading && !autoPlay) || isBonusMode ? "opacity-50" : ""
-               )}
-            >
-               {autoPlay ? 'STOP' : 'SPIN'}
-            </button>
+                    {/* БЛОКИ (5 строк) */}
+                    <div className="w-full flex-[5] flex items-center justify-center min-h-0">
+                      <div className="grid grid-cols-5 grid-rows-5 gap-0.5 sm:gap-1 w-full h-full">
+                        {[0, 1, 2, 3, 4].map((r) => (
+                          [0, 1, 2, 3, 4].map((c) => {
+                            const block = blocks[c][r];
+                            return (
+                              <div key={`block-${c}-${r}`} className="relative flex items-center justify-center transition-all duration-300">
+                                <AnimatePresence>
+                                  {!block.destroyed && !block.shattering && (
+                                    <motion.div exit={{ opacity: 0 }} className={cn("absolute inset-0 transition-all", block.highlight ? "brightness-125 scale-105 z-10 shadow-lg" : "")}>
+                                       <img src={ASSETS.blocks[block.type as keyof typeof ASSETS.blocks]} className="w-full h-full object-cover rounded-sm" style={{ imageRendering: 'pixelated' }} alt={block.type} />
+                                    </motion.div>
+                                  )}
+                                  {block.shattering && (
+                                      <motion.div initial={{ scale: 1 }} animate={{ scale: 1.5, opacity: 0 }} transition={{ duration: 0.3 }} className="absolute inset-0 flex flex-wrap">
+                                          <div className="w-1/2 h-1/2 bg-white/40" /><div className="w-1/2 h-1/2 bg-black/20" />
+                                          <div className="w-1/2 h-1/2 bg-black/40" /><div className="w-1/2 h-1/2 bg-white/20" />
+                                      </motion.div>
+                                  )}
+                                </AnimatePresence>
+                                {block.destroyed && !block.shattering && <div className="absolute inset-0 bg-black/40 shadow-[inset_0_2px_4px_rgba(0,0,0,0.6)] rounded-sm" />}
+                              </div>
+                            );
+                          })
+                        ))}
+                      </div>
+                    </div>
 
-            <div className="flex gap-2 w-full sm:w-auto">
-                <button 
-                   onClick={handleAutoPlayClick}
-                   disabled={isBonusMode}
-                   className={cn(
-                      "flex-1 sm:flex-none px-2 sm:px-4 py-2 sm:py-3 bg-[#c6c6c6] text-[#333] font-bold text-[10px] sm:text-xs border-[3px] sm:border-[4px] border-t-[#fff] border-l-[#fff] border-b-[#555] border-r-[#555] active:border-t-[#555] active:border-l-[#555] active:border-b-[#fff] active:border-r-[#fff] flex items-center justify-center gap-1 sm:gap-2",
-                      autoPlay ? "border-t-[#555] border-l-[#555] border-b-[#fff] border-r-[#fff] bg-[#999]" : ""
-                   )}
-                >
-                   <RotateCcw className={cn("w-3 h-3 sm:w-4 sm:h-4", autoPlay ? "animate-spin" : "")} /> AUTO
-                </button>
+                    {/* СУНДУКИ (1 строка) */}
+                    <div className="w-full flex-[1] border-t-2 border-dashed border-slate-600/40 pt-1.5 flex items-center justify-center">
+                      <div className="grid grid-cols-5 grid-rows-1 gap-0.5 sm:gap-1 w-full h-full">
+                        {chests.map((chest, i) => (
+                          <div key={`chest-${i}`} className="relative flex items-center justify-center transition-all duration-500">
+                            <AnimatePresence mode="popLayout">
+                              {chest.open ? (
+                                <motion.div key="opened" initial={{ scale: 0 }} animate={{ scale: 1.15 }} className="absolute inset-0 flex flex-col items-center justify-center z-20">
+                                   <img src={ASSETS.chests.opened} alt="opened" className="absolute inset-0 w-full h-full object-contain drop-shadow-[0_0_12px_rgba(251,191,36,0.7)]" style={{ imageRendering: 'pixelated' }} />
+                                   <div className="relative z-10 text-center flex flex-col -mt-2 bg-black/70 px-1 rounded border border-yellow-500/40">
+                                      <span className="text-[9px] font-black text-yellow-400">x{chest.mult}</span>
+                                   </div>
+                                </motion.div>
+                              ) : (
+                                <motion.div key="closed" initial={{ scale: 1 }} exit={{ scale: 0, opacity: 0 }} className="absolute inset-0 p-0.5 bg-black/50 rounded shadow-[inset_0_2px_4px_rgba(0,0,0,0.6)] border border-black/80">
+                                  <img src={ASSETS.chests.closed} alt="closed" className="w-full h-full object-contain opacity-90" style={{ imageRendering: 'pixelated' }} />
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                </div>
+                
+                {/* ЛЕТЯЩИЙ ВЫИГРЫШ */}
+                <AnimatePresence>
+                    {totalWin > 0 && !loading && (
+                        <motion.div initial={{ opacity: 0, y: 30, scale: 0.6 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0 }} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 bg-black/80 border-[3px] border-emerald-500 px-5 py-3 shadow-xl">
+                            <span className="text-3xl sm:text-5xl font-black text-emerald-400 drop-shadow-[3px_3px_0_#000]">{formatBalance(totalWin)} CAT</span>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
 
-                <button 
-                   onClick={buyBonus}
-                   disabled={loading || autoPlay || isBonusMode || bet * 100 > user.balance}
-                   className="flex-1 sm:flex-none px-2 sm:px-4 py-2 sm:py-3 bg-purple-600 text-white font-bold text-[10px] sm:text-xs border-[3px] sm:border-[4px] border-t-purple-400 border-l-purple-400 border-b-purple-900 border-r-purple-900 active:border-t-purple-900 active:border-l-purple-900 active:border-b-purple-400 active:border-r-purple-400 flex items-center justify-center gap-1 sm:gap-2 disabled:opacity-50"
-                >
-                   <Diamond className="w-3 h-3 sm:w-4 sm:h-4 fill-current" /> BUY ({(bet * 100).toFixed(0)})
-                </button>
-            </div>
+            </motion.div>
+          )}
 
-        </div>
+          {/* ПАНЕЛЬ УПРАВЛЕНИЯ MINECRAFT (Абсолют к низу контейнера) */}
+          <div className="absolute bottom-0 left-0 w-full h-[80px] sm:h-[100px] bg-[#c6c6c6] border-t-[4px] sm:border-t-[6px] border-t-[#ffffff] shadow-[inset_0_-6px_0_#555555] p-2 sm:p-4 z-20 flex flex-nowrap items-center justify-between sm:justify-center gap-1 sm:gap-4 overflow-x-auto custom-scrollbar">
+              
+              <div className="flex items-center gap-1 sm:gap-2 bg-[#8b8b8b] border-[3px] sm:border-[4px] border-t-[#555] border-l-[#555] border-b-[#fff] border-r-[#fff] p-1 shrink-0">
+                 <span className="text-[#333] font-bold text-[10px] sm:text-sm px-1">BET:</span>
+                 <input 
+                    type="text" 
+                    value={betInput} 
+                    disabled={loading || autoPlay || isBonusMode}
+                    onChange={(e) => { const val = e.target.value.replace(',', '.'); if (val === '' || /^\d*\.?\d{0,2}$/.test(val)) setBetInput(val); }}
+                    className="w-12 sm:w-20 bg-[#c6c6c6] text-black font-bold text-center outline-none border-[3px] border-t-[#555] border-l-[#555] border-b-[#fff] border-r-[#fff] p-0.5 text-xs sm:text-sm"
+                 />
+                 <div className="flex flex-col gap-0.5">
+                    <button onClick={handleDoubleBet} disabled={loading || autoPlay || isBonusMode} className="bg-[#c6c6c6] border-[2px] border-t-[#fff] border-l-[#fff] border-b-[#555] border-r-[#555] px-1 text-[8px] sm:text-[9px] active:border-t-[#555] font-black leading-none py-0.5">x2</button>
+                    <button onClick={handleHalfBet} disabled={loading || autoPlay || isBonusMode} className="bg-[#c6c6c6] border-[2px] border-t-[#fff] border-l-[#fff] border-b-[#555] border-r-[#555] px-1 text-[8px] sm:text-[9px] active:border-t-[#555] font-black leading-none py-0.5">/2</button>
+                 </div>
+              </div>
+
+              <button 
+                 onClick={handlePlayClick}
+                 disabled={(loading && !autoPlay) || isBonusMode}
+                 className={cn(
+                     "shrink-0 px-4 sm:px-8 py-2 sm:py-3 text-white font-black text-sm sm:text-lg border-[4px] sm:border-[5px] active:border-t-[#555] active:border-l-[#555] uppercase tracking-widest",
+                     autoPlay ? "bg-rose-600 border-t-[#f43f5e] border-l-[#f43f5e] border-b-[#881337] border-r-[#881337]" : "bg-emerald-600 border-t-[#34d399] border-l-[#34d399] border-b-[#064e3b] border-r-[#064e3b]",
+                     (loading && !autoPlay) || isBonusMode ? "opacity-50" : ""
+                 )}
+              >
+                 {autoPlay ? 'STOP' : 'SPIN'}
+              </button>
+
+              <div className="flex gap-1 shrink-0">
+                  <button 
+                     onClick={handleAutoPlayClick}
+                     disabled={isBonusMode}
+                     className={cn(
+                        "px-2 sm:px-3 py-1.5 sm:py-2 bg-[#c6c6c6] text-[#333] font-bold text-[9px] sm:text-xs border-[3px] border-t-[#fff] border-l-[#fff] border-b-[#555] border-r-[#555] flex items-center justify-center gap-1",
+                        autoPlay ? "border-t-[#555] border-l-[#555] border-b-[#fff] border-r-[#fff] bg-[#999]" : ""
+                     )}
+                  >
+                     <RotateCcw className={cn("w-3 h-3", autoPlay ? "animate-spin" : "")} /> AUTO
+                  </button>
+
+                  <button 
+                     onClick={buyBonus}
+                     disabled={loading || autoPlay || isBonusMode || bet * 100 > user.balance}
+                     className="px-2 sm:px-3 py-1.5 sm:py-2 bg-purple-600 text-white font-bold text-[9px] sm:text-xs border-[3px] border-t-purple-400 border-l-purple-400 border-b-purple-900 border-r-purple-900 flex items-center justify-center gap-1 disabled:opacity-50"
+                  >
+                     <Diamond className="w-3 h-3 fill-current" /> BUY ({(bet * 100).toFixed(0)})
+                  </button>
+              </div>
+
+          </div>
+      </div>
     </div>
   );
 }
