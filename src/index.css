@@ -72,3 +72,74 @@
 .bg-clouds {
   animation: cloudMove 40s linear infinite;
 }
+/* Стили для контейнера горизонтальной ленты */
+.jackpot-tape-container {
+  position: relative;
+  width: 100%;
+  max-width: 800px;
+  height: 120px;
+  margin: 20px auto;
+  overflow: hidden;
+  background-color: #1a1b1f;
+  border: 2px solid #2d3139;
+  border-radius: 12px;
+}
+
+/* Указатель по центру, который определяет выигравший элемент */
+.jackpot-tape-pointer {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 100%;
+  background-color: #ff3b30;
+  z-index: 10;
+  box-shadow: 0 0 10px #ff3b30;
+}
+
+/* Сама движущаяся линия из блоков */
+.jackpot-tape-track {
+  display: flex;
+  height: 100%;
+  align-items: center;
+}
+
+/* Отдельный элемент на ленте */
+.jackpot-tape-item {
+  flex-shrink: 0;
+  width: 100px; /* Фиксированная ширина ячейки */
+  height: 100px;
+  margin: 0 5px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: bold;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Стилизация цветов элементов в соответствии с типами */
+.tape-item-black { background: #24252c; border: 2px solid #3a3f50; }
+.tape-item-blue { background: #1d72b8; border: 2px solid #3399ff; }
+.tape-item-pink { background: #e0245e; border: 2px solid #ff4b82; }
+.tape-item-orange { background: #ff9500; border: 2px solid #ffcc00; }
+
+.tape-avatar-placeholder {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.4);
+  background-color: #444;
+  background-size: cover;
+  background-position: center;
+  margin-bottom: 4px;
+}
+
+.tape-mult-text {
+  font-size: 12px;
+  text-shadow: 1px 1px 2px #000;
+}

@@ -100,3 +100,31 @@ export interface Achievement {
   completed: boolean;
   rewarded: boolean;
 }
+// Добавить в src/types.ts (или в конец файла)
+export interface JackpotPlayer {
+  uid: string;
+  nickname: string;
+  avatar: string;
+  betAmount: number;
+  ticketsStart: number;
+  ticketsEnd: number;
+  color: string;
+}
+
+export interface JackpotRoom {
+  id: string; // 'small' | 'medium' | 'high' | 'unlimited'
+  name: string;
+  minBet: number;
+  maxBet: number;
+  status: 'waiting' | 'countdown' | 'rolling' | 'finished';
+  players: JackpotPlayer[];
+  totalPool: number;
+  totalTickets: number;
+  countdownStartedAt?: number; // timestamp
+  winnerUid?: string;
+  winnerNickname?: string;
+  winnerAvatar?: string;
+  winningTicket?: number;
+  winAmount?: number;
+  lastWinnerTime?: number;
+}

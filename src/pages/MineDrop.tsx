@@ -231,7 +231,7 @@ export default function MineDrop({ user }: MineDropProps) {
           if (!currentBlocks[c][r].destroyed) {
             currentBlocks[c][r].shattering = true;
             setBlocks([...currentBlocks]);
-            await delay(300); // Немного увеличил для красивой анимации взрыва
+            await delay(300);
             currentBlocks[c][r].shattering = false;
             currentBlocks[c][r].destroyed = true;
             currentWin += currentBlocks[c][r].value * bet;
@@ -291,7 +291,7 @@ export default function MineDrop({ user }: MineDropProps) {
             }
 
             if (struckThisTurn) {
-                await delay(300); // Даем время на проигрыш анимации потрескивания блока
+                await delay(300);
                 for (let c = 0; c < 5; c++) {
                     let maxMult = 1;
                     currentInv[c].forEach((item: InvItem) => {
@@ -382,8 +382,6 @@ export default function MineDrop({ user }: MineDropProps) {
 
   return (
     <div className="w-full flex flex-col items-center justify-center relative">
-      
-      {/* Стили для анимации облаков */}
       <style>{`
         @keyframes slideClouds {
           from { background-position: 0 0; }
@@ -394,7 +392,6 @@ export default function MineDrop({ user }: MineDropProps) {
         }
       `}</style>
 
-      {/* Форсированное кэширование текстур в видеопамять */}
       <div className="absolute opacity-0 pointer-events-none w-0 h-0 overflow-hidden">
         {ALL_IMAGE_URLS.map(url => <img key={url} src={url} alt="preload" />)}
       </div>
@@ -408,13 +405,10 @@ export default function MineDrop({ user }: MineDropProps) {
                : "w-full max-w-[800px] h-[calc(100vh-140px)] min-h-[600px] rounded-[2rem] sm:rounded-[3rem] border-[4px] sm:border-[8px] border-slate-900 shadow-2xl mx-auto"
         )}
       >
-          {/* ФОН ИГРЫ */}
           <div className="absolute inset-0 z-0 bg-cover bg-bottom opacity-80" style={{ backgroundImage: `url(${ASSETS.bg})`, imageRendering: 'pixelated' }} />
-          {/* АНИМАЦИЯ ЛЕТЯЩИХ ОБЛАКОВ */}
           <div className="absolute inset-0 z-0 opacity-40 animate-clouds" style={{ backgroundImage: `url(${ASSETS.clouds})`, backgroundSize: 'cover', imageRendering: 'pixelated' }} />
           <div className="absolute inset-0 bg-black/40 z-0" />
 
-          {/* ПРЕЛОАДЕР */}
           <AnimatePresence>
             {!isLoaded && (
                 <motion.div exit={{ opacity: 0 }} className="absolute inset-0 z-[40] bg-[#78A7FF] flex flex-col items-center justify-center">
@@ -433,11 +427,8 @@ export default function MineDrop({ user }: MineDropProps) {
             )}
           </AnimatePresence>
 
-          {/* ИГРОВОЙ ИНТЕРФЕЙС */}
           {isLoaded && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }} className="relative z-10 w-full flex flex-col flex-1 h-full min-h-0 pb-[80px] sm:pb-[100px]">
-                
-                {/* ИНДИКАТОРЫ И ВЕРХНЯЯ СТРОКА */}
                 <div className="w-full flex justify-between items-center p-2 sm:p-4 shrink-0">
                    <div className="flex items-center gap-2 bg-black/60 border-[3px] border-slate-700 px-3 py-1 rounded-lg backdrop-blur-sm shadow-md">
                       <img src={ASSETS.eye} alt="eye" className="w-5 h-5 object-contain drop-shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
@@ -463,10 +454,7 @@ export default function MineDrop({ user }: MineDropProps) {
                    </div>
                 </div>
 
-                {/* РЕЗИНОВАЯ СЕТКА ИГРЫ */}
                 <div className="w-full max-w-[450px] mx-auto flex flex-col flex-1 min-h-0 px-2 gap-1.5 sm:gap-2 justify-center pb-2">
-                    
-                    {/* ИНВЕНТАРЬ (3 строки) */}
                     <div className="w-full flex-[3] bg-[#3c3c3c]/90 p-1.5 border-[4px] border-[#222] shadow-[inset_0_0_10px_rgba(0,0,0,0.8)] flex items-center justify-center">
                       <div className="grid grid-cols-5 grid-rows-3 gap-0.5 sm:gap-1 w-full h-full">
                         {[0, 1, 2].map((r) => (
@@ -478,7 +466,6 @@ export default function MineDrop({ user }: MineDropProps) {
                                   {item.type !== 'empty' && (
                                     <motion.div 
                                         initial={{ scale: 0 }} 
-                                        // Анимация подпрыгивания и удара кирки
                                         animate={item.striking ? { 
                                           y: [0, -25, 15, 0], 
                                           rotate: [0, -30, 45, 0],
@@ -503,7 +490,6 @@ export default function MineDrop({ user }: MineDropProps) {
                       </div>
                     </div>
 
-                    {/* БЛОКИ (5 строк) */}
                     <div className="w-full flex-[5] flex items-center justify-center min-h-0">
                       <div className="grid grid-cols-5 grid-rows-5 gap-0.5 sm:gap-1 w-full h-full">
                         {[0, 1, 2, 3, 4].map((r) => (
@@ -518,7 +504,6 @@ export default function MineDrop({ user }: MineDropProps) {
                                     </motion.div>
                                   )}
                                   
-                                  {/* Анимация потрескивания/разрушения */}
                                   {block.shattering && (
                                       <motion.div 
                                         initial={{ x: 0, y: 0, scale: 1 }} 
@@ -531,9 +516,7 @@ export default function MineDrop({ user }: MineDropProps) {
                                         transition={{ duration: 0.3 }} 
                                         className="absolute inset-0 z-20 overflow-hidden rounded-sm"
                                       >
-                                          {/* Сам блок со вспышкой */}
                                           <img src={ASSETS.blocks[block.type as keyof typeof ASSETS.blocks]} className="w-full h-full object-cover brightness-150 contrast-125" style={{ imageRendering: 'pixelated' }} alt={block.type} />
-                                          {/* Эффект трещин (градиенты поверх блока) */}
                                           <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_45%,rgba(255,255,255,0.8)_50%,transparent_55%),linear-gradient(-45deg,transparent_45%,rgba(255,255,255,0.8)_50%,transparent_55%)] mix-blend-overlay" />
                                       </motion.div>
                                   )}
@@ -546,7 +529,6 @@ export default function MineDrop({ user }: MineDropProps) {
                       </div>
                     </div>
 
-                    {/* СУНДУКИ (1 строка) */}
                     <div className="w-full flex-[1] border-t-2 border-dashed border-slate-600/40 pt-1.5 flex items-center justify-center">
                       <div className="grid grid-cols-5 grid-rows-1 gap-0.5 sm:gap-1 w-full h-full">
                         {chests.map((chest, i) => (
@@ -571,7 +553,6 @@ export default function MineDrop({ user }: MineDropProps) {
                     </div>
                 </div>
                 
-                {/* ЛЕТЯЩИЙ ВЫИГРЫШ */}
                 <AnimatePresence>
                     {totalWin > 0 && !loading && (
                         <motion.div initial={{ opacity: 0, y: 30, scale: 0.6 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0 }} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 bg-black/80 border-[3px] border-emerald-500 px-5 py-3 shadow-xl">
@@ -583,9 +564,7 @@ export default function MineDrop({ user }: MineDropProps) {
             </motion.div>
           )}
 
-          {/* ПАНЕЛЬ УПРАВЛЕНИЯ MINECRAFT */}
           <div className="absolute bottom-0 left-0 w-full h-[80px] sm:h-[100px] bg-[#c6c6c6] border-t-[4px] sm:border-t-[6px] border-t-[#ffffff] shadow-[inset_0_-6px_0_#555555] p-2 sm:p-4 z-20 flex flex-nowrap items-center justify-between sm:justify-center gap-1 sm:gap-4 overflow-x-auto custom-scrollbar">
-              
               <div className="flex items-center gap-1 sm:gap-2 bg-[#8b8b8b] border-[3px] sm:border-[4px] border-t-[#555] border-l-[#555] border-b-[#fff] border-r-[#fff] p-1 shrink-0">
                  <span className="text-[#333] font-bold text-[10px] sm:text-sm px-1">BET:</span>
                  <input 

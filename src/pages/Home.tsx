@@ -24,6 +24,8 @@ export default function Home({ user, onLogin }: HomeProps) {
     { id: 'mines', name: 'Mines', image: '/assets/mines_cat_original.webp', path: '/mines', config: { pc: { x: 0, y: 0, scale: 2 }, mobile: { x: -7, y: 10, scale: 2.7 } } },
     { id: 'keno', name: 'Keno', image: '/assets/keno_cat_original.webp', path: '/keno', config: { pc: { x: 0, y: 0, scale: 2.2 }, mobile: { x: 0, y: 16, scale: 2.6 } } },
     { id: 'wheelx', name: 'WheelX', image: '/assets/wheel_cat_original.webp', path: '/wheelx', config: { pc: { x: 0, y: 5, scale: 1.4 }, mobile: { x: 0, y: 10, scale: 1.6 } } },
+    // НОВЫЙ ИГРОВОЙ РЕЖИМ JACKPOT
+    { id: 'jackpot', name: 'Jackpot', image: '/assets/jackpot_cat_original.webp', path: '/jackpot', config: { pc: { x: 0, y: 2, scale: 1.6 }, mobile: { x: 0, y: 8, scale: 1.9 } } },
   ];
 
   return (

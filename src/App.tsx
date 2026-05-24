@@ -14,6 +14,7 @@ import Mines from './pages/Mines';
 import Keno from './pages/Keno';
 import WheelX from './pages/WheelX';
 import MineDrop from './pages/MineDrop';
+import Jackpot from './pages/Jackpot'; // ИМПОРТ НОВОГО РЕЖИМА
 import FAQ from './pages/FAQ';
 import Bonuses from './pages/Bonuses';
 import Level from './pages/Level';
@@ -254,6 +255,8 @@ export default function App() {
           <Route path="/keno" element={<ProtectedRoute user={user} onOpenAuth={handleOpenAuth}><Keno user={user!} /></ProtectedRoute>} />
           <Route path="/wheelx" element={<ProtectedRoute user={user} onOpenAuth={handleOpenAuth}><WheelX user={user!} /></ProtectedRoute>} />
           <Route path="/minedrop" element={<ProtectedRoute user={user} onOpenAuth={handleOpenAuth}><MineDrop user={user!} /></ProtectedRoute>} />
+          {/* ДОБАВЛЕН РОУТ ДЛЯ JACKPOT */}
+          <Route path="/jackpot" element={<ProtectedRoute user={user} onOpenAuth={handleOpenAuth}><Jackpot user={user!} /></ProtectedRoute>} />
           <Route path="/bonuses" element={<ProtectedRoute user={user} onOpenAuth={handleOpenAuth}><Bonuses user={user!} /></ProtectedRoute>} />
           <Route path="/level" element={<ProtectedRoute user={user} onOpenAuth={handleOpenAuth}><Level user={user!} /></ProtectedRoute>} />
           <Route path="/achievements" element={<ProtectedRoute user={user} onOpenAuth={handleOpenAuth}><Achievements user={user!} /></ProtectedRoute>} />
