@@ -35,7 +35,6 @@ const CENTER_CONFIG_PC = { timerScale: 1, timerX: 0, timerY: -25, textScale: 1, 
 const CENTER_CONFIG_MOBILE = { timerScale: 1, timerX: 0, timerY: -15, textScale: 0.85, textX: 0, textY: -15 };
 const LOGO_COLOR_COOL = "#feb1d1";
 
-// НОВАЯ ПОСЛЕДОВАТЕЛЬНОСТЬ ИЗ 32 ЭЛЕМЕНТОВ
 const WHEEL_PATTERN = [
   { type: 'pink', mult: 5, color: 'url(#gradPink)' }, { type: 'orange', mult: 30, color: 'url(#gradOrange)' },
   { type: 'pink', mult: 5, color: 'url(#gradPink)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
@@ -207,7 +206,7 @@ export default function WheelX({ user }: WheelXProps) {
             <span className={cn("text-2xl sm:text-4xl font-black leading-none", titleColor)}>{mult}x</span>
             <div className="text-slate-400 text-[10px] sm:text-xs font-bold flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-md border border-slate-100"><Users className="w-3 h-3 sm:w-3.5 sm:h-3.5" />{playersList.length}</div>
         </div>
-        <button disabled={gameState !== 'betting'} onClick={() => placeBet(type)} className={cn("w-full py-2.5 sm:py-3.5 rounded-xl font-black text-xs sm:text-sm text-white tracking-wider transition-all disabled:opacity-50 hover:-translate-y-0.5 active:scale-95 shadow-sm", btnClass)}>
+        <button disabled={gameState !== 'betting'} onClick={() => placeBet(type)} className={cn("w-full py-2.5 sm:py-3.5 rounded-xl flex items-center justify-center disabled:opacity-50", btnClass)}>
           ПОСТАВИТЬ
         </button>
         <div className="flex justify-between items-center px-2 bg-slate-50 rounded-lg py-1.5 border border-slate-100">
@@ -240,7 +239,6 @@ export default function WheelX({ user }: WheelXProps) {
         )}
       </AnimatePresence>
 
-      {/* НОВЫЙ ХЕДЕР ДЛЯ WHEELX */}
       <header className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 lg:gap-6 shrink-0 pt-4 sm:pt-0 px-4 sm:px-0 mb-6">
         <div className="flex items-center gap-4 lg:gap-6">
           <div className="w-12 h-12 lg:w-16 lg:h-16 bg-brand-500 rounded-[1.2rem] lg:rounded-3xl flex items-center justify-center shadow-lg shadow-brand-200 shrink-0">
@@ -254,7 +252,6 @@ export default function WheelX({ user }: WheelXProps) {
       </header>
 
       <div className="bg-white rounded-[2rem] sm:rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/50 pt-8 sm:pt-12 relative overflow-visible flex flex-col">
-        {/* КОЛЕСО */}
         <div className="relative w-full max-w-[800px] mx-auto h-[220px] sm:h-[350px] flex justify-center" style={{ clipPath: 'polygon(-50% -200%, 150% -200%, 150% 100%, -50% 100%)' }}>
           <div className="absolute top-0 left-1/2 -translate-x-1/2 z-[45] pointer-events-none">
               <motion.div className="bg-white" style={{ width: activeMaskConfig.width, height: activeMaskConfig.height, x: activeMaskConfig.x, y: activeMaskConfig.y }} />
@@ -342,10 +339,10 @@ export default function WheelX({ user }: WheelXProps) {
       </div>
 
       <div className={cn("grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mt-4 sm:mt-6", gameState !== 'betting' && "opacity-50 pointer-events-none")}>
-          <BetCard type="black" mult={2} titleColor="text-slate-800" btnClass="bg-slate-800 hover:bg-slate-700" />
-          <BetCard type="blue" mult={3} titleColor="text-blue-500" btnClass="bg-blue-500 hover:bg-blue-600" />
-          <BetCard type="pink" mult={5} titleColor="text-pink-500" btnClass="bg-pink-500 hover:bg-pink-600" />
-          <BetCard type="orange" mult={30} titleColor="text-orange-500" btnClass="bg-orange-500 hover:bg-orange-600 shadow-orange-500/30" />
+          <BetCard type="black" mult={2} titleColor="text-slate-800" btnClass="bg-gradient-to-b from-slate-700 to-slate-800 shadow-lg shadow-slate-700/30 text-white font-black uppercase tracking-widest transition-all active:scale-95" />
+          <BetCard type="blue" mult={3} titleColor="text-blue-500" btnClass="bg-gradient-to-b from-blue-500 to-blue-600 shadow-lg shadow-blue-500/30 text-white font-black uppercase tracking-widest transition-all active:scale-95" />
+          <BetCard type="pink" mult={5} titleColor="text-pink-500" btnClass="bg-gradient-to-b from-pink-500 to-pink-600 shadow-lg shadow-pink-500/30 text-white font-black uppercase tracking-widest transition-all active:scale-95" />
+          <BetCard type="orange" mult={30} titleColor="text-orange-500" btnClass="bg-gradient-to-b from-orange-500 to-orange-600 shadow-lg shadow-orange-500/30 text-white font-black uppercase tracking-widest transition-all active:scale-95" />
       </div>
 
       <div className="mt-8 w-full max-w-sm mx-auto">

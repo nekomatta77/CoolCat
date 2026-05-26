@@ -19,7 +19,6 @@ const ROOMS_CONFIG = [
 
 export default function Jackpot({ user }: JackpotProps) {
   const [activeRoomId, setActiveRoomId] = useState('small');
-  // Изменен режим по умолчанию на 'tape'
   const [viewMode, setViewMode] = useState<'wheel' | 'tape'>('tape');
   const [room, setRoom] = useState<any>({
     gameState: 'waiting', timeLeft: 20, players: [], totalPool: 0, totalTickets: 0, winner: null, history: []
@@ -33,6 +32,8 @@ export default function Jackpot({ user }: JackpotProps) {
   const [showWinnerOverlay, setShowWinnerOverlay] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const [localWinner, setLocalWinner] = useState<any>(null);
+  
+  const [isBetting, setIsBetting] = useState(false);
 
   const activeConfig = ROOMS_CONFIG.find(r => r.id === activeRoomId)!;
 
@@ -65,6 +66,7 @@ export default function Jackpot({ user }: JackpotProps) {
     socket.on('jackpotError', (msg) => {
       setErrorMessage(msg);
       setTimeout(() => setErrorMessage(null), 4000);
+      setIsBetting(false); 
     });
 
     socket.on('jackpotSpin', ({ winner, totalTickets, winningTicket, spinOffset, players }) => {
@@ -73,19 +75,15 @@ export default function Jackpot({ user }: JackpotProps) {
       setLocalWinner({ ...winner, winningTicket });
       setIsAnimating(true);
       
-      // === КОЛЕСО ===
       const startPercentage = (winner.ticketsStart - 1) / totalTickets;
       const endPercentage = winner.ticketsEnd / totalTickets;
       const targetPercentage = startPercentage + ((endPercentage - startPercentage) * spinOffset);
-      
       const finalWheelRotation = (360 * 8) + (targetPercentage * 360);
       setWheelRotation(finalWheelRotation);
 
-      // === ЛЕНТА ===
-      // Умный расчет размеров: проверяем, мобилка ли это, чтобы сдвиг был точным
       const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
-      const itemWidth = isMobile ? 80 : 100; // На телефонах карточка 80px, на ПК 100px
-      const gap = isMobile ? 8 : 12; // gap-2 (8px) на мобильных, gap-3 (12px) на ПК
+      const itemWidth = isMobile ? 80 : 100;
+      const gap = isMobile ? 8 : 12;
       const totalItemWidth = itemWidth + gap;
 
       let calculatedTrack: any[] = [];
@@ -104,7 +102,6 @@ export default function Jackpot({ user }: JackpotProps) {
 
       const cardInnerOffset = (spinOffset - 0.5) * (itemWidth - 10);
       const distanceToWinnerCenter = (winningIndex * totalItemWidth) + (itemWidth / 2);
-      
       const containerWidth = typeof window !== 'undefined' && window.innerWidth < 560 ? window.innerWidth - 32 : 560;
       const finalTapeTranslation = -distanceToWinnerCenter + (containerWidth / 2) - cardInnerOffset;
       
@@ -119,10 +116,29 @@ export default function Jackpot({ user }: JackpotProps) {
     };
   }, [activeRoomId]);
 
+  const currentPlayer = room.players?.find((p: any) => p.uid === user.uid);
+  const currentTotalBet = currentPlayer ? currentPlayer.betAmount : 0;
+  const isBetOverLimit = activeRoomId !== 'unlimited' && (currentTotalBet + parseFloat(betInput || '0') > activeConfig.maxBet);
+
   const handlePlaceBet = () => {
+    if (isBetting) return; 
+
     const amount = parseFloat(betInput);
-    if (isNaN(amount) || amount < activeConfig.minBet || amount > activeConfig.maxBet) return;
+    if (isNaN(amount) || amount <= 0) return;
+
+    if (amount < activeConfig.minBet) {
+      setErrorMessage(`Минимальная ставка ${activeConfig.minBet} CAT`);
+      setTimeout(() => setErrorMessage(null), 3000);
+      return;
+    }
     
+    if (activeRoomId !== 'unlimited' && (currentTotalBet + amount > activeConfig.maxBet)) {
+      setErrorMessage(`Лимит ${activeConfig.maxBet} CAT. Ваша текущая ставка: ${currentTotalBet} CAT`);
+      setTimeout(() => setErrorMessage(null), 4000);
+      return;
+    }
+    
+    setIsBetting(true);
     socket.emit('placeJackpotBet', {
       userId: user.uid,
       nickname: user.nickname,
@@ -130,6 +146,10 @@ export default function Jackpot({ user }: JackpotProps) {
       amount,
       roomId: activeRoomId
     });
+
+    setTimeout(() => {
+      setIsBetting(false);
+    }, 500);
   };
 
   const getConicGradient = () => {
@@ -152,7 +172,6 @@ export default function Jackpot({ user }: JackpotProps) {
 
   return (
     <div className="space-y-3 sm:space-y-8 pb-12 font-mono">
-      {/* Навигация комнат - ультракомпактная на мобильных */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-1.5 sm:gap-3">
         {ROOMS_CONFIG.map((roomTab) => {
           const isActive = roomTab.id === activeRoomId;
@@ -168,7 +187,10 @@ export default function Jackpot({ user }: JackpotProps) {
               )}
             >
               <div className={cn("absolute inset-0 bg-gradient-to-br opacity-5 group-hover:opacity-10 transition-opacity", roomTab.gradient)} />
-              <h3 className="font-black text-[10px] sm:text-base tracking-tight mb-0.5 sm:mb-1">{roomTab.name}</h3>
+              {/* Эстетичные названия комнат */}
+              <h3 className="font-black text-[10px] sm:text-[13px] uppercase tracking-widest mb-0.5 sm:mb-1 drop-shadow-sm">
+                {roomTab.name}
+              </h3>
               <p className="text-[8px] sm:text-xs font-bold text-slate-400 truncate">
                 {roomTab.minBet}-{roomTab.maxBet} CAT
               </p>
@@ -182,15 +204,13 @@ export default function Jackpot({ user }: JackpotProps) {
 
       <AnimatePresence>
         {errorMessage && (
-          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="p-2 sm:p-4 bg-rose-50 border border-rose-100 rounded-xl sm:rounded-2xl text-rose-600 text-[10px] sm:text-xs font-bold text-center">
+          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="p-2 sm:p-4 bg-rose-50 border border-rose-100 rounded-xl sm:rounded-2xl text-rose-600 text-[10px] sm:text-xs font-bold text-center shadow-sm">
             ⚠ {errorMessage}
           </motion.div>
         )}
       </AnimatePresence>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-6 items-start">
-        
-        {/* Управление и участники */}
         <div className="lg:col-span-1 space-y-3 sm:space-y-6">
           <div className="bg-white border border-slate-100 rounded-[1.5rem] sm:rounded-[2.5rem] p-3 sm:p-6 shadow-xl shadow-slate-200/40">
             <div className="flex items-center justify-between mb-3 sm:mb-4">
@@ -213,14 +233,14 @@ export default function Jackpot({ user }: JackpotProps) {
               </div>
             </div>
 
-            <div className="space-y-2 sm:space-y-4">
+            <div className="space-y-3 sm:space-y-5">
               <div className="bg-slate-50 border border-slate-100 p-2 sm:p-3 rounded-xl sm:rounded-2xl flex items-center justify-between transition-all focus-within:border-brand-300 focus-within:ring-2 focus-within:ring-brand-100">
                 <span className="text-[9px] sm:text-xs font-black text-slate-400 uppercase pl-1">CAT</span>
                 <input
                   type="number"
                   value={betInput}
                   onChange={(e) => setBetInput(e.target.value)}
-                  disabled={room.gameState === 'rolling' || room.gameState === 'finished'}
+                  disabled={room.gameState === 'rolling' || room.gameState === 'finished' || isBetting}
                   className="bg-transparent text-right font-black text-slate-900 outline-none w-20 sm:w-32 text-xs sm:text-base"
                 />
               </div>
@@ -230,7 +250,7 @@ export default function Jackpot({ user }: JackpotProps) {
                   <button
                     key={v}
                     onClick={() => setBetInput(v.toString())}
-                    disabled={room.gameState === 'rolling' || room.gameState === 'finished'}
+                    disabled={room.gameState === 'rolling' || room.gameState === 'finished' || isBetting}
                     className="py-1.5 sm:py-2 bg-slate-50 hover:bg-slate-100 border border-slate-100 rounded-lg sm:rounded-xl text-[9px] sm:text-[10px] font-black text-slate-600 transition-all active:scale-95"
                   >
                     +{v}
@@ -238,16 +258,17 @@ export default function Jackpot({ user }: JackpotProps) {
                 ))}
               </div>
 
+              {/* Эстетичная кнопка Внести */}
               <button
                 onClick={handlePlaceBet}
-                disabled={room.gameState === 'rolling' || room.gameState === 'finished' || user.balance < parseFloat(betInput)}
+                disabled={room.gameState === 'rolling' || room.gameState === 'finished' || user.balance < parseFloat(betInput) || isBetOverLimit || isBetting}
                 className={cn(
-                  "w-full py-2.5 sm:py-4 bg-gradient-to-r text-white font-black rounded-xl sm:rounded-2xl shadow-lg uppercase tracking-widest transition-transform active:scale-95 text-[9px] sm:text-xs flex items-center justify-center gap-1.5 sm:gap-2 mt-1",
+                  "w-full py-3.5 sm:py-5 bg-gradient-to-r text-white font-black rounded-xl sm:rounded-2xl shadow-xl hover:shadow-2xl hover:-translate-y-0.5 uppercase tracking-[0.2em] transition-all active:scale-95 text-xs sm:text-sm lg:text-base flex items-center justify-center gap-2 mt-2",
                   activeConfig.gradient,
-                  (room.gameState === 'rolling' || room.gameState === 'finished') && "opacity-50 pointer-events-none"
+                  (room.gameState === 'rolling' || room.gameState === 'finished' || isBetOverLimit || isBetting) && "opacity-50 pointer-events-none hover:transform-none hover:shadow-xl"
                 )}
               >
-                <Play className="w-3 sm:w-4 h-3 sm:h-4 fill-current" /> Внести
+                <Play className="w-4 sm:w-5 h-4 sm:h-5 fill-current" /> Внести
               </button>
             </div>
           </div>
@@ -299,7 +320,6 @@ export default function Jackpot({ user }: JackpotProps) {
           </div>
         </div>
 
-        {/* Интерактивная Рулетка */}
         <div className="lg:col-span-2 space-y-3 sm:space-y-6">
           <div className="bg-slate-900 rounded-[1.5rem] sm:rounded-[2.5rem] p-3 sm:p-8 text-white relative overflow-hidden flex flex-col items-center justify-center min-h-[260px] sm:min-h-[440px] border border-slate-800 shadow-2xl">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-slate-800/40 via-transparent to-transparent -z-10" />
@@ -314,7 +334,6 @@ export default function Jackpot({ user }: JackpotProps) {
               </span>
             </div>
 
-            {/* КЛАССИЧЕСКОЕ КОЛЕСО */}
             {viewMode === 'wheel' && (
               <div className="relative w-44 h-44 sm:w-64 sm:h-64 lg:w-72 lg:h-72 rounded-full border-[4px] sm:border-[6px] border-slate-800 flex items-center justify-center shadow-2xl overflow-hidden mt-6 sm:mt-6 bg-slate-950">
                 <div className="absolute top-0 z-30 w-0 h-0 border-l-[8px] sm:border-l-[14px] border-l-transparent border-r-[8px] sm:border-r-[14px] border-r-transparent border-t-[14px] sm:border-t-[24px] border-t-rose-500 drop-shadow-[0_4px_4px_rgba(0,0,0,0.5)]" />
@@ -333,7 +352,6 @@ export default function Jackpot({ user }: JackpotProps) {
               </div>
             )}
 
-            {/* ГОРИЗОНТАЛЬНАЯ ЛЕНТА */}
             {viewMode === 'tape' && (
               <div 
                 className="w-full max-w-[560px] h-[100px] sm:h-[150px] bg-slate-950/60 border border-slate-800/80 rounded-[1.25rem] sm:rounded-3xl mt-10 sm:mt-12 relative overflow-hidden flex items-center shadow-inner"

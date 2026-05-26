@@ -1,9 +1,9 @@
 // src/pages/Mines.tsx
 import { useState, useRef, useEffect } from 'react';
 import { UserProfile } from '../types';
-import { doc, updateDoc, addDoc, collection, getDocs, query, where, increment } from 'firebase/firestore';
+import { doc, updateDoc, addDoc, collection, getDocs, query, where, increment, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Grid3X3, Gem, Trophy, Coins, ShieldCheck, Play, Bomb } from 'lucide-react';
+import { Grid3X3, Gem, Trophy, Coins, ShieldCheck, Play, Bomb, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 
@@ -22,14 +22,6 @@ interface MutableAchievement {
 }
 
 export default function Mines({ user }: MinesProps) {
-  // --- ДОБАВЛЕНО: Отслеживаем жизненный цикл компонента для отлова бага ---
-  useEffect(() => {
-    console.log('🟢 Компонент Mines был СОЗДАН (Mounted)');
-    return () => {
-      console.log('🔴 Компонент Mines был УНИЧТОЖЕН (Unmounted) - если это произошло после ставки, значит проблема в роутере App.tsx!');
-    };
-  }, []);
-
   const [betInput, setBetInput] = useState('10');
   const bet = parseFloat(betInput.replace(',', '.')) || 0;
 
@@ -40,6 +32,7 @@ export default function Mines({ user }: MinesProps) {
   const [revealed, setRevealed] = useState<boolean[]>(Array(25).fill(false));
   const [multiplier, setMultiplier] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(true); // Флаг восстановления игры
   const [unlockedAch, setUnlockedAch] = useState<string | null>(null);
 
   const isProcessing = useRef(false);
@@ -54,14 +47,44 @@ export default function Mines({ user }: MinesProps) {
     return mult;
   };
 
+  // ВОССТАНОВЛЕНИЕ ИГРЫ ПРИ ЗАГРУЗКЕ
   useEffect(() => {
-    if (ribbonRef.current) {
+    const restoreActiveGame = async () => {
+      try {
+        const userDocRef = doc(db, 'users', user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        
+        if (userDocSnap.exists()) {
+          const userData = userDocSnap.data();
+          if (userData.activeMinesGame && userData.activeMinesGame.status === 'playing') {
+            setGrid(userData.activeMinesGame.grid);
+            setRevealed(userData.activeMinesGame.revealed);
+            setMultiplier(userData.activeMinesGame.multiplier);
+            setBetInput(userData.activeMinesGame.bet.toString());
+            setMinesCount(userData.activeMinesGame.minesCount);
+            setMineInputValue(userData.activeMinesGame.minesCount.toString());
+            setGameState('playing');
+            console.log('✅ Найдена незаконченная игра, восстанавливаем!');
+          }
+        }
+      } catch (error) {
+        console.error('Ошибка при восстановлении игры:', error);
+      } finally {
+        setIsRestoring(false);
+      }
+    };
+    
+    restoreActiveGame();
+  }, [user.uid]);
+
+  useEffect(() => {
+    if (ribbonRef.current && !isRestoring) {
       const target = ribbonRef.current.querySelector('.is-current') || ribbonRef.current.querySelector('.is-next');
       if (target) {
         target.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
       }
     }
-  }, [revealed.filter(r => r).length, gameState, minesCount]);
+  }, [revealed.filter(r => r).length, gameState, minesCount, isRestoring]);
 
   const handleMinesInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setMineInputValue(e.target.value);
@@ -101,27 +124,11 @@ export default function Mines({ user }: MinesProps) {
     setBetInput(Number(next.toFixed(2)).toString());
   };
 
-  // --- ИЗМЕНЕНО: Более безопасный и логируемый старт игры ---
   const startGame = async () => {
-    console.log('▶️ Попытка старта игры. Ставка:', bet, 'Баланс:', user.balance);
-    if (!user?.uid) {
-      console.error('❌ Ошибка: Не найден ID пользователя');
-      return;
-    }
-    if (bet > user.balance || bet < 1 || isProcessing.current) {
-      console.log('⚠️ Отмена старта: нехватка баланса или процесс уже идет.');
-      return;
-    }
-    
+    if (!user?.uid || bet > user.balance || bet < 1 || isProcessing.current) return;
     isProcessing.current = true;
 
     try {
-      console.log('💸 Списываем баланс в Firebase...');
-      await updateDoc(doc(db, 'users', user.uid), {
-        balance: increment(-bet)
-      });
-      console.log('✅ Баланс успешно списан!');
-
       const newGrid = Array(25).fill(false);
       let placed = 0;
       while (placed < minesCount) {
@@ -132,41 +139,61 @@ export default function Mines({ user }: MinesProps) {
         }
       }
       
-      console.log('🎲 Сетка сгенерирована, меняем состояние на playing...');
+      const newGameData = {
+        grid: newGrid,
+        revealed: Array(25).fill(false),
+        multiplier: 1,
+        bet,
+        minesCount,
+        status: 'playing'
+      };
+
+      // Списываем баланс и одновременно сохраняем прогресс игры в базу!
+      await updateDoc(doc(db, 'users', user.uid), {
+        balance: increment(-bet),
+        activeMinesGame: newGameData
+      });
+
       setGrid(newGrid);
       setRevealed(Array(25).fill(false));
       setMultiplier(1);
       setGameState('playing');
-      console.log('🚀 Игра официально началась (локальное состояние обновлено)!');
 
     } catch (error) {
-      console.error('❌ Критическая ошибка при старте игры:', error);
+      console.error('Ошибка при старте игры:', error);
     } finally {
       isProcessing.current = false;
     }
   };
 
-  const handleTileClick = async (idx: number) => {
+  const handleTileClick = (idx: number) => {
     if (gameState !== 'playing' || revealed[idx] || isProcessing.current) return;
+    isProcessing.current = true;
 
+    // Мгновенное оптимистичное обновление UI
     const newRevealed = [...revealed];
     newRevealed[idx] = true;
     setRevealed(newRevealed);
 
     if (grid[idx]) {
       setGameState('lost');
-      await addDoc(collection(db, 'gameSessions'), {
-        userId: user.uid,
-        gameType: 'mines',
-        bet,
-        multiplier: 0,
-        payout: 0,
-        timestamp: new Date().toISOString()
-      });
+      // В фоне обновляем базу
+      Promise.all([
+        updateDoc(doc(db, 'users', user.uid), { activeMinesGame: null }), // Очищаем сохраненную игру
+        addDoc(collection(db, 'gameSessions'), {
+          userId: user.uid, gameType: 'mines', bet, multiplier: 0, payout: 0, timestamp: new Date().toISOString()
+        })
+      ]).finally(() => isProcessing.current = false);
     } else {
       const revealedCount = newRevealed.filter((r, i) => r && !grid[i]).length;
       const newMult = calculateMultiplierPure(revealedCount, minesCount);
       setMultiplier(newMult);
+      
+      // Фоновое сохранение шага
+      updateDoc(doc(db, 'users', user.uid), {
+        'activeMinesGame.revealed': newRevealed,
+        'activeMinesGame.multiplier': newMult
+      }).finally(() => isProcessing.current = false);
     }
   };
 
@@ -227,7 +254,11 @@ export default function Mines({ user }: MinesProps) {
       if (minesCount === 3 && revealedCount === 22 && bet >= 5) processAch('mines_infinity2', 1, a => { a.progress = 1; return a; }, 'Бесконечность не предел II');
 
       await Promise.all([
-        updateDoc(doc(db, 'users', user.uid), { balance: increment(payout), xp: increment(bet / 10) }),
+        updateDoc(doc(db, 'users', user.uid), { 
+          balance: increment(payout), 
+          xp: increment(bet / 10),
+          activeMinesGame: null // Очищаем игру после победы
+        }),
         addDoc(collection(db, 'gameSessions'), { userId: user.uid, gameType: 'mines', bet, multiplier, payout, timestamp: new Date().toISOString() }),
         ...updates.map(ach => updateDoc(doc(db, 'achievements', ach.id as string), { progress: ach.progress, completed: ach.completed })),
         ...newAchsToCreate.map(ach => { const { id, ...data } = ach; return addDoc(collection(db, 'achievements'), data); })
@@ -249,6 +280,15 @@ export default function Mines({ user }: MinesProps) {
   const revealedCount = revealed.filter((r, i) => r && !grid[i]).length;
   const maxSafe = 25 - minesCount;
   const multipliersList = Array.from({length: maxSafe}, (_, i) => calculateMultiplierPure(i + 1, minesCount));
+
+  if (isRestoring) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+        <Loader2 className="w-12 h-12 text-brand-500 animate-spin mb-4" />
+        <p className="text-slate-500 font-black tracking-widest uppercase text-sm">Проверка игр...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-6xl mx-auto space-y-4 sm:space-y-8 pb-0 sm:pb-12 relative min-h-[calc(100vh-120px)] flex flex-col">
@@ -445,7 +485,7 @@ export default function Mines({ user }: MinesProps) {
                   <button
                     onClick={cashout}
                     disabled={loading || revealed.filter((r, i) => r && !grid[i]).length === 0}
-                    className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white font-black rounded-[1.2rem] sm:rounded-[1.5rem] transition-all shadow-xl shadow-emerald-200 uppercase tracking-widest text-sm sm:text-base flex items-center justify-center gap-2 py-3.5 sm:py-5 active:scale-[0.98]"
+                    className="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 disabled:opacity-50 text-white font-black rounded-[1.2rem] sm:rounded-[1.5rem] transition-all shadow-lg shadow-emerald-500/30 uppercase tracking-widest text-sm sm:text-base flex items-center justify-center gap-2 py-3.5 sm:py-5 active:scale-95"
                   >
                     {loading ? <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <>Забрать <span className="opacity-90 ml-1">{(bet * multiplier).toFixed(2)} CAT</span></>}
                   </button>
@@ -483,8 +523,8 @@ export default function Mines({ user }: MinesProps) {
 
                   <button
                     onClick={startGame}
-                    disabled={bet > user.balance || bet < 1}
-                    className="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-black rounded-[1.2rem] sm:rounded-[1.5rem] transition-all shadow-xl shadow-brand-200 uppercase tracking-[0.2em] text-sm sm:text-base flex items-center justify-center gap-3 py-3.5 sm:py-5 active:scale-[0.98]"
+                    disabled={bet > user.balance || bet < 1 || isProcessing.current}
+                    className="w-full bg-gradient-to-r from-brand-500 to-brand-600 disabled:opacity-50 text-white font-black rounded-[1.2rem] sm:rounded-[1.5rem] transition-all shadow-lg shadow-brand-500/30 uppercase tracking-[0.2em] text-sm sm:text-base flex items-center justify-center gap-3 py-3.5 sm:py-5 active:scale-95"
                   >
                     {gameState === 'idle' ? 'Начать игру' : 'Играть снова'} <Play className="w-5 h-5 fill-current" />
                   </button>
@@ -492,7 +532,6 @@ export default function Mines({ user }: MinesProps) {
               )}
             </AnimatePresence>
             
-            {/* Provably Fair для мобилок под кнопками */}
             <div className="mt-4 w-full block lg:hidden">
               <div className="flex items-center justify-between bg-slate-50 border border-slate-100 p-4 rounded-[1.5rem] shadow-sm hover:shadow-md transition-all group">
                  <div className="flex items-center gap-3">

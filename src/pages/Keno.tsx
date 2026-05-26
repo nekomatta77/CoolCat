@@ -284,7 +284,6 @@ export default function Keno({ user }: KenoProps) {
         <div className="order-1 lg:order-2 lg:col-span-8 bg-white sm:rounded-[3rem] sm:border border-slate-100 sm:shadow-xl sm:shadow-slate-200/50 p-4 sm:p-6 lg:p-10 flex flex-col items-center relative overflow-hidden h-fit">
           
           <AnimatePresence>
-            {/* ИСПРАВЛЕНИЕ: Показываем карточку ТОЛЬКО если выигрыш > 0 */}
             {showResultModal && gameState === 'finished' && payout > 0 && (
               <motion.div
                 initial={fastMode ? false : { opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: fastMode ? 0 : 0.2 }}
@@ -413,7 +412,6 @@ export default function Keno({ user }: KenoProps) {
             })}
           </div>
 
-          {/* Provably Fair */}
           <div className="mt-8 w-full max-w-sm hidden lg:block">
             <div className="flex items-center justify-between bg-slate-50 border border-slate-100 p-4 rounded-[1.5rem] shadow-sm hover:shadow-md transition-all group">
                <div className="flex items-center gap-3">
@@ -514,7 +512,7 @@ export default function Keno({ user }: KenoProps) {
             <button
               onClick={handlePlay}
               disabled={loading || bet > user.balance || bet < 1 || selected.length === 0 || gameState === 'drawing'}
-              className="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-black rounded-[1.2rem] sm:rounded-[1.5rem] transition-all shadow-xl shadow-brand-200 uppercase tracking-widest text-sm sm:text-base flex items-center justify-center gap-2 py-3.5 sm:py-5 active:scale-[0.98]"
+              className="w-full bg-gradient-to-r from-purple-500 to-purple-600 shadow-lg shadow-purple-500/30 disabled:opacity-50 text-white font-black rounded-[1.2rem] sm:rounded-[1.5rem] transition-all uppercase tracking-widest text-sm sm:text-base flex items-center justify-center gap-2 py-3.5 sm:py-5 active:scale-95"
             >
               {gameState === 'drawing' ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
