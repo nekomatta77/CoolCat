@@ -33,14 +33,13 @@ export default function Jackpot({ user }: JackpotProps) {
   const [showWinnerOverlay, setShowWinnerOverlay] = useState(false);
   
   const [isAnimating, setIsAnimating] = useState(false);
-  const isAnimatingRef = useRef(false); // Ref предотвращает пересоздание сокетов во время анимации
+  const isAnimatingRef = useRef(false);
 
   const [localWinner, setLocalWinner] = useState<any>(null);
   const [isBetting, setIsBetting] = useState(false);
 
   const activeConfig = ROOMS_CONFIG.find(r => r.id === activeRoomId)!;
 
-  // Синхронизируем Ref со State
   useEffect(() => {
     isAnimatingRef.current = isAnimating;
   }, [isAnimating]);
@@ -63,7 +62,6 @@ export default function Jackpot({ user }: JackpotProps) {
       } 
       else if (updatedRoom.gameState === 'rolling') {
         if (!isAnimatingRef.current && updatedRoom.winner) {
-           // Сценарий: игрок вернулся в свернутую игру, которая уже крутится
            setLocalWinner(updatedRoom.winner);
            setIsAnimating(true);
            
@@ -110,20 +108,17 @@ export default function Jackpot({ user }: JackpotProps) {
       setLocalWinner({ ...winner, winningTicket });
       setIsAnimating(true);
       
-      // Расчет колеса (Wheel)
       const startPercentage = (winner.ticketsStart - 1) / totalTickets;
       const endPercentage = winner.ticketsEnd / totalTickets;
       const targetPercentage = startPercentage + ((endPercentage - startPercentage) * spinOffset);
       const finalWheelRotation = (360 * 10) + (targetPercentage * 360);
       setWheelRotation(finalWheelRotation);
 
-      // Расчет ленты (Tape)
       const isMobile = window.innerWidth < 640;
       const itemWidth = isMobile ? 96 : 120;
       const gap = isMobile ? 12 : 16;
       const totalItemWidth = itemWidth + gap;
 
-      // Используем 80 элементов для идеальной читаемой скорости
       let calculatedTrack: any[] = [];
       const basePlayers = players || [];
       if (basePlayers.length > 0) {
@@ -134,7 +129,7 @@ export default function Jackpot({ user }: JackpotProps) {
         calculatedTrack = Array(80).fill(winner);
       }
       
-      const winningIndex = 70; // 70-й элемент из 80 — точка остановки
+      const winningIndex = 70; 
       calculatedTrack[winningIndex] = winner;
       setExtendedTapePlayers(calculatedTrack);
 
@@ -155,7 +150,7 @@ export default function Jackpot({ user }: JackpotProps) {
       socket.off('jackpotError');
       socket.off('jackpotSpin');
     };
-  }, [activeRoomId]); // УБРАЛИ isAnimating из зависимостей! Это уберет дергания.
+  }, [activeRoomId]);
 
   const currentPlayer = room.players?.find((p: any) => p.uid === user.uid);
   const currentTotalBet = currentPlayer ? currentPlayer.betAmount : 0;
@@ -319,9 +314,7 @@ export default function Jackpot({ user }: JackpotProps) {
                      <div className="absolute -bottom-1 -right-1 w-3 sm:w-4 h-3 sm:h-4 rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: playerColorToHex(hist.color) }} />
                   </div>
                   <div className="flex flex-col overflow-hidden">
-                    {/* Эстетичный шрифт для ника */}
                     <span className="text-xs sm:text-sm font-bold text-slate-800 tracking-wide truncate mb-0.5">{hist.nickname || hist.winner}</span>
-                    {/* Сочный шрифт для выигрыша */}
                     <span className="text-sm sm:text-base font-extrabold text-emerald-500 drop-shadow-sm leading-none">+{hist.winAmount?.toFixed(0)} CAT</span>
                     <span className="text-[10px] sm:text-[11px] font-medium text-slate-400 mt-1">Шанс: <span className="font-bold" style={{ color: playerColorToHex(hist.color) }}>{hist.chance}%</span></span>
                   </div>
@@ -348,7 +341,51 @@ export default function Jackpot({ user }: JackpotProps) {
       {/* ГЛАВНАЯ СЕТКА С ПРАВИЛЬНЫМ ПОРЯДКОМ ДЛЯ ПК И МОБИЛЬНЫХ */}
       <div className="flex flex-col lg:grid lg:grid-cols-3 gap-4 sm:gap-6 items-start">
         
-        {/* 1. БЛОК РУЛЕТКИ (Mobile: Order 1 | Desktop: Order 2, Col 2-3) */}
+        {/* 1. БЛОК СО СТАВКОЙ (Mobile: Order 2 | Desktop: Order 1, Col 1) */}
+        <div className="order-2 lg:order-1 lg:col-span-1 w-full space-y-4 sm:space-y-6">
+          <div className="bg-white border border-slate-100 rounded-[2rem] sm:rounded-[2.5rem] p-4 sm:p-6 shadow-xl shadow-slate-200/40">
+            <div className="flex items-center justify-between mb-4 sm:mb-5">
+              <h2 className="text-sm sm:text-lg font-black text-slate-900 tracking-wider flex items-center gap-2">
+                <Coins className="w-4 sm:w-6 h-4 sm:h-6 text-brand-500" /> Ставка
+              </h2>
+              <div className="flex bg-slate-100 p-1 rounded-xl gap-1 shadow-inner">
+                <button onClick={() => setViewMode('tape')} className={cn("p-2 rounded-lg transition-colors", viewMode === 'tape' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600")}><LayoutGrid className="w-4 sm:w-5 h-4 sm:h-5" /></button>
+                <button onClick={() => setViewMode('wheel')} className={cn("p-2 rounded-lg transition-colors", viewMode === 'wheel' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600")}><RotateCw className="w-4 sm:w-5 h-4 sm:h-5" /></button>
+              </div>
+            </div>
+
+            <div className="space-y-4 sm:space-y-5">
+              <div className="bg-slate-50 border border-slate-100 p-3 sm:p-4 rounded-2xl flex items-center justify-between transition-all focus-within:border-brand-300 focus-within:ring-2 focus-within:ring-brand-100">
+                <span className="text-xs sm:text-sm font-black text-slate-400 uppercase tracking-widest pl-1">CAT</span>
+                <input
+                  type="number" value={betInput} onChange={(e) => setBetInput(e.target.value)}
+                  disabled={room.gameState === 'rolling' || room.gameState === 'finished' || isBetting}
+                  className="bg-transparent text-right font-black text-slate-900 outline-none w-24 sm:w-32 text-base sm:text-xl"
+                />
+              </div>
+
+              <div className="grid grid-cols-4 gap-2">
+                {[10, 50, 100, 500].map((v) => (
+                  <button key={v} onClick={() => setBetInput(v.toString())} disabled={room.gameState === 'rolling' || room.gameState === 'finished' || isBetting} className="py-2 sm:py-3 bg-slate-50 hover:bg-slate-100 border border-slate-100 rounded-xl text-xs sm:text-sm font-black text-slate-600 transition-all active:scale-95">+{v}</button>
+                ))}
+              </div>
+
+              <button
+                onClick={handlePlaceBet}
+                disabled={room.gameState === 'rolling' || room.gameState === 'finished' || user.balance < parseFloat(betInput) || isBetOverLimit || isBetting}
+                className={cn(
+                  "w-full py-4 sm:py-5 bg-gradient-to-r text-white font-black rounded-2xl shadow-xl hover:shadow-2xl hover:-translate-y-0.5 uppercase tracking-widest transition-all active:scale-95 text-sm sm:text-lg flex items-center justify-center gap-2 mt-2",
+                  activeConfig.gradient,
+                  (room.gameState === 'rolling' || room.gameState === 'finished' || isBetOverLimit || isBetting) && "opacity-50 pointer-events-none hover:transform-none hover:shadow-xl"
+                )}
+              >
+                <Play className="w-5 sm:w-6 h-5 sm:h-6 fill-current" /> Внести
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* 2. БЛОК РУЛЕТКИ (Mobile: Order 1 | Desktop: Order 2, Col 2-3) */}
         <div className="order-1 lg:order-2 lg:col-span-2 w-full space-y-4 sm:space-y-6">
           <div className="bg-slate-900 rounded-[2rem] sm:rounded-[2.5rem] p-4 sm:p-8 text-white relative overflow-hidden flex flex-col items-center justify-center min-h-[300px] sm:min-h-[480px] border border-slate-800 shadow-2xl">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-slate-800/40 via-transparent to-transparent -z-10" />
@@ -369,7 +406,7 @@ export default function Jackpot({ user }: JackpotProps) {
                 <div className="absolute top-0 z-30 w-0 h-0 border-l-[10px] sm:border-l-[16px] border-l-transparent border-r-[10px] sm:border-r-[16px] border-r-transparent border-t-[18px] sm:border-t-[28px] border-t-rose-500 drop-shadow-[0_4px_4px_rgba(0,0,0,0.5)]" />
                 <motion.div 
                   className="w-full h-full rounded-full relative" 
-                  initial={{ rotate: 0 }} // ВАЖНО: Стартовая точка для колеса
+                  initial={{ rotate: 0 }}
                   animate={{ rotate: -wheelRotation }} 
                   transition={{ type: "tween", duration: isAnimating ? 10 : 0, ease: isAnimating ? [0.1, 0, 0.05, 1] : "linear" }} 
                   style={{ background: getConicGradient(), willChange: "transform" }}
@@ -419,7 +456,7 @@ export default function Jackpot({ user }: JackpotProps) {
                     <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[10px] sm:border-l-[14px] border-l-transparent border-r-[10px] sm:border-r-[14px] border-r-transparent border-b-[14px] sm:border-b-[20px] border-b-rose-500 z-20 drop-shadow-[0_-2px_4px_rgba(0,0,0,0.5)]" />
                     <motion.div 
                       className="flex gap-3 sm:gap-4 items-center h-full absolute left-0" 
-                      initial={{ x: 0 }} // ВАЖНО: Стартовая точка для ленты
+                      initial={{ x: 0 }} 
                       animate={{ x: tapeTranslateX }} 
                       transition={{ type: "tween", duration: isAnimating ? 10 : 0, ease: isAnimating ? [0.1, 0, 0.05, 1] : "linear" }}
                       style={{ willChange: "transform" }}
@@ -478,8 +515,8 @@ export default function Jackpot({ user }: JackpotProps) {
           </div>
         </div>
 
-        {/* 2. СПИСОК ИГРОКОВ (Mobile: Order 2 | Desktop: Order 3, Col 1) */}
-        <div className="order-2 lg:order-3 lg:col-span-1 w-full space-y-4 sm:space-y-6">
+        {/* 3. СПИСОК ИГРОКОВ (Mobile: Order 3 | Desktop: Order 3, Col 1) */}
+        <div className="order-3 lg:order-3 lg:col-span-1 w-full space-y-4 sm:space-y-6">
           <div className="bg-white border border-slate-100 rounded-[2rem] sm:rounded-[2.5rem] p-4 sm:p-6 shadow-xl shadow-slate-200/40 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="font-black text-sm sm:text-lg text-slate-900 tracking-wider flex items-center gap-2">
@@ -519,50 +556,6 @@ export default function Jackpot({ user }: JackpotProps) {
                   Сделайте ставку первым!
                 </div>
               )}
-            </div>
-          </div>
-        </div>
-
-        {/* 3. ПАНЕЛЬ СТАВКИ (Mobile: Order 3 | Desktop: Order 1, Col 1) */}
-        <div className="order-3 lg:order-1 lg:col-span-1 w-full space-y-4 sm:space-y-6">
-          <div className="bg-white border border-slate-100 rounded-[2rem] sm:rounded-[2.5rem] p-4 sm:p-6 shadow-xl shadow-slate-200/40">
-            <div className="flex items-center justify-between mb-4 sm:mb-5">
-              <h2 className="text-sm sm:text-lg font-black text-slate-900 tracking-wider flex items-center gap-2">
-                <Coins className="w-4 sm:w-6 h-4 sm:h-6 text-brand-500" /> Ставка
-              </h2>
-              <div className="flex bg-slate-100 p-1 rounded-xl gap-1 shadow-inner">
-                <button onClick={() => setViewMode('tape')} className={cn("p-2 rounded-lg transition-colors", viewMode === 'tape' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600")}><LayoutGrid className="w-4 sm:w-5 h-4 sm:h-5" /></button>
-                <button onClick={() => setViewMode('wheel')} className={cn("p-2 rounded-lg transition-colors", viewMode === 'wheel' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600")}><RotateCw className="w-4 sm:w-5 h-4 sm:h-5" /></button>
-              </div>
-            </div>
-
-            <div className="space-y-4 sm:space-y-5">
-              <div className="bg-slate-50 border border-slate-100 p-3 sm:p-4 rounded-2xl flex items-center justify-between transition-all focus-within:border-brand-300 focus-within:ring-2 focus-within:ring-brand-100">
-                <span className="text-xs sm:text-sm font-black text-slate-400 uppercase tracking-widest pl-1">CAT</span>
-                <input
-                  type="number" value={betInput} onChange={(e) => setBetInput(e.target.value)}
-                  disabled={room.gameState === 'rolling' || room.gameState === 'finished' || isBetting}
-                  className="bg-transparent text-right font-black text-slate-900 outline-none w-24 sm:w-32 text-base sm:text-xl"
-                />
-              </div>
-
-              <div className="grid grid-cols-4 gap-2">
-                {[10, 50, 100, 500].map((v) => (
-                  <button key={v} onClick={() => setBetInput(v.toString())} disabled={room.gameState === 'rolling' || room.gameState === 'finished' || isBetting} className="py-2 sm:py-3 bg-slate-50 hover:bg-slate-100 border border-slate-100 rounded-xl text-xs sm:text-sm font-black text-slate-600 transition-all active:scale-95">+{v}</button>
-                ))}
-              </div>
-
-              <button
-                onClick={handlePlaceBet}
-                disabled={room.gameState === 'rolling' || room.gameState === 'finished' || user.balance < parseFloat(betInput) || isBetOverLimit || isBetting}
-                className={cn(
-                  "w-full py-4 sm:py-5 bg-gradient-to-r text-white font-black rounded-2xl shadow-xl hover:shadow-2xl hover:-translate-y-0.5 uppercase tracking-widest transition-all active:scale-95 text-sm sm:text-lg flex items-center justify-center gap-2 mt-2",
-                  activeConfig.gradient,
-                  (room.gameState === 'rolling' || room.gameState === 'finished' || isBetOverLimit || isBetting) && "opacity-50 pointer-events-none hover:transform-none hover:shadow-xl"
-                )}
-              >
-                <Play className="w-5 sm:w-6 h-5 sm:h-6 fill-current" /> Внести
-              </button>
             </div>
           </div>
         </div>
