@@ -100,7 +100,8 @@ export interface Achievement {
   completed: boolean;
   rewarded: boolean;
 }
-// Добавить в src/types.ts (или в конец файла)
+
+// ДОБАВЛЕНЫ ПОЛЯ КАСТОМИЗАЦИИ ДЛЯ ОТОБРАЖЕНИЯ В ИГРАХ
 export interface JackpotPlayer {
   uid: string;
   nickname: string;
@@ -109,6 +110,11 @@ export interface JackpotPlayer {
   ticketsStart: number;
   ticketsEnd: number;
   color: string;
+  // Поля кастомизации из профиля
+  cardStyle?: { background: string; border: string; color?: string; pattern?: string };
+  equippedFrame?: string;
+  equippedPrefix?: string;
+  equippedBg?: string;
 }
 
 export interface JackpotRoom {

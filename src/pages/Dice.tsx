@@ -3,9 +3,10 @@ import { useState, useRef } from 'react';
 import { UserProfile } from '../types';
 import { doc, updateDoc, addDoc, collection, getDocs, query, where, increment } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Dice5, Trophy, ShieldCheck, ArrowDownCircle, ArrowUpCircle, Coins, TrendingUp, AlertCircle } from 'lucide-react';
+import { Dice5, Trophy, ShieldCheck, ArrowDownCircle, ArrowUpCircle, Coins, TrendingUp, AlertCircle, Info } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
+import ProvablyFairModal from '../components/ProvablyFairModal';
 
 interface DiceProps {
   user: UserProfile;
@@ -55,11 +56,23 @@ export default function Dice({ user }: DiceProps) {
   const [gameHash, setGameHash] = useState(generateMockHash());
   const isRolling = useRef(false);
 
-  // ИСПРАВЛЕНИЕ: Математически точный множитель (без округлений)
+  // Стейты для Provably Fair
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [verificationData, setVerificationData] = useState({
+    gameId: '---',
+    hashData: {
+      hash: gameHash,
+      salt1: 'Ожидание игры...',
+      number: '---',
+      salt2: 'Ожидание игры...',
+      amount: bet,
+      percent: activeChance.toString(),
+      result: 0
+    }
+  });
+
   const exactMultiplier = 100 / activeChance;
-  // Для красивого вывода в UI показываем до 4 знаков (например, 94.3396)
   const displayMultiplier = parseFloat(exactMultiplier.toFixed(4)).toString();
-  // Точная сумма выигрыша (например, 106 * (100 / 1.06) = 10000 ровно)
   const potentialWinAmount = bet * exactMultiplier;
 
   const handleHalfBet = () => {
@@ -112,15 +125,31 @@ export default function Dice({ user }: DiceProps) {
 
     const roll = Math.random() * 100;
     const isWin = type === 'under' ? roll <= activeChance : roll >= (100 - activeChance);
-    
-    // ИСПРАВЛЕНИЕ: Вычисляем выигрыш с точным множителем и округляем до копеек
     const payout = isWin ? Math.round(bet * exactMultiplier * 100) / 100 : 0;
 
+    const currentRollId = Date.now();
     setResult(roll);
     setWin(isWin);
-    setRollId(Date.now());
+    setRollId(currentRollId);
     
-    setGameHash(generateMockHash());
+    // Обновляем данные для модального окна перед сменой хэша
+    const oldHash = gameHash;
+    const newHash = generateMockHash();
+    
+    setVerificationData({
+      gameId: currentRollId.toString(),
+      hashData: {
+        hash: oldHash,
+        salt1: generateMockHash().substring(0, 16),
+        number: roll.toFixed(2),
+        salt2: generateMockHash().substring(0, 16),
+        amount: bet,
+        percent: activeChance.toString() + '%',
+        result: payout
+      }
+    });
+    
+    setGameHash(newHash);
 
     const prevLossStreak = (user as any).diceLossStreak || 0;
     const newWinStreak = isWin ? ((user as any).diceWinStreak || 0) + 1 : 0;
@@ -224,9 +253,19 @@ export default function Dice({ user }: DiceProps) {
            </div>
          </div>
       </div>
-      <div className="bg-slate-50 p-3 rounded-[1rem] border border-slate-100 flex items-center justify-between gap-3 shadow-inner">
+      
+      {/* Кликабельный блок с хэшем для вызова модального окна */}
+      <div 
+        onClick={() => setIsModalOpen(true)}
+        className="bg-slate-50 hover:bg-slate-100 p-3 rounded-[1rem] border border-slate-100 flex items-center justify-between gap-3 shadow-inner cursor-pointer transition-colors group/hash"
+      >
          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0">Hash:</span>
-         <span className="text-[10px] font-mono text-slate-500 truncate">{gameHash}</span>
+         <div className="flex items-center gap-2 overflow-hidden w-full justify-end">
+           <span className="text-[10px] font-mono text-slate-500 truncate">{gameHash}</span>
+           <span className="text-[9px] font-black uppercase text-brand-500 opacity-0 group-hover/hash:opacity-100 transition-opacity whitespace-nowrap hidden sm:flex items-center gap-1">
+             <Info className="w-3 h-3" /> Проверить
+           </span>
+         </div>
       </div>
     </div>
   );
@@ -234,6 +273,14 @@ export default function Dice({ user }: DiceProps) {
   return (
     <div className="max-w-6xl mx-auto lg:ml-0 lg:mr-auto space-y-6 pb-12 relative flex flex-col min-h-[calc(100vh-120px)] px-2 sm:px-0">
       
+      {/* Рендерим модальное окно */}
+      <ProvablyFairModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        gameId={verificationData.gameId} 
+        hashData={verificationData.hashData} 
+      />
+
       <AnimatePresence>
         {unlockedAch && (
           <motion.div initial={{ opacity: 0, y: -50, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -50, scale: 0.9 }} className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] bg-white px-6 py-4 rounded-3xl shadow-2xl border-2 border-brand-200 flex items-center gap-4 min-w-[300px]">
@@ -531,4 +578,4 @@ export default function Dice({ user }: DiceProps) {
       )}
     </div>
   );
-}
+} 
