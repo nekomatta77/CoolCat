@@ -5,6 +5,7 @@ import { Coins, Users, Play, Crosshair, Sparkles, Crown, AlertTriangle } from 'l
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { vpsSocket as socket } from '../lib/vpsSocket';
+import { FRAMES, BACKGROUNDS } from '../lib/customization';
 
 interface ArenaProps {
   user: UserProfile;
@@ -17,6 +18,16 @@ const ARENA_CONFIG = [
   { id: 'arena_unlimited', name: 'Cosmic Arena', minBet: 10, maxBet: 1000000, gradient: 'from-rose-500 to-orange-600', shadow: 'shadow-rose-500/20' },
 ];
 
+const SHAPES = [
+  { clipPath: 'polygon(5% 0%, 95% 5%, 100% 90%, 10% 100%, 0% 15%)', borderRadius: '0' },
+  { clipPath: 'polygon(0% 10%, 100% 0%, 90% 100%, 10% 95%)', borderRadius: '0' },
+  { clipPath: 'none', borderRadius: '30% 70% 40% 60% / 50% 40% 60% 50%' },
+  { clipPath: 'none', borderRadius: '50% 20% 10% 40%' },
+  { clipPath: 'polygon(10% 5%, 90% 0%, 100% 85%, 80% 100%, 0% 90%)', borderRadius: '0' },
+  { clipPath: 'polygon(0% 0%, 100% 10%, 90% 100%, 5% 95%)', borderRadius: '0' },
+  { clipPath: 'none', borderRadius: '10% 40% 30% 20%' }
+];
+
 export default function Arena({ user }: ArenaProps) {
   const [activeRoomId, setActiveRoomId] = useState('arena_small');
   const [room, setRoom] = useState<any>({ gameState: 'waiting', timeLeft: 20, players: [], totalPool: 0, totalTickets: 0, winner: null, history: [] });
@@ -24,61 +35,31 @@ export default function Arena({ user }: ArenaProps) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isBetting, setIsBetting] = useState(false);
 
-  // Физика и Анимация Арены
   const [isAnimating, setIsAnimating] = useState(false);
   const [localWinner, setLocalWinner] = useState<any>(null);
   const [showWinnerOverlay, setShowWinnerOverlay] = useState(false);
   
-  const [playerBlobs, setPlayerBlobs] = useState<Record<string, any>>({});
-  const playerBlobsRef = useRef<Record<string, any>>({});
-  
-  const [ballPath, setBallPath] = useState<{ left: string[], top: string[] }>({ left: ['50%'], top: ['50%'] });
+  const containerRef = useRef<HTMLDivElement>(null);
+  const playerRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const shapeMap = useRef<Record<string, any>>({});
   const isAnimatingRef = useRef(false);
+  
+  const [ballAnim, setBallAnim] = useState<{ tops: string[], lefts: string[], times: number[] }>({ tops: ['50%'], lefts: ['50%'], times: [0] });
 
   useEffect(() => {
     isAnimatingRef.current = isAnimating;
   }, [isAnimating]);
-
-  // Генерация уникальной геометрии для игрока
-  const generateBlob = (percent: number) => {
-    // Размер от 60px до 220px в зависимости от % ставки
-    const size = 60 + (percent / 100) * 160; 
-    return {
-      top: `${5 + Math.random() * 60}%`, // Разброс по Арене
-      left: `${5 + Math.random() * 70}%`,
-      rotate: `${-40 + Math.random() * 80}deg`,
-      borderRadius: `${40 + Math.random()*20}% ${40 + Math.random()*20}% ${40 + Math.random()*20}% ${40 + Math.random()*20}%`, // Эффект кривой фигуры
-      size
-    };
-  };
 
   useEffect(() => {
     socket.emit('joinRoom', activeRoomId);
 
     setShowWinnerOverlay(false);
     setIsAnimating(false);
-    setPlayerBlobs({});
-    playerBlobsRef.current = {};
     setLocalWinner(null);
+    shapeMap.current = {};
 
     socket.on('jackpotState', (updatedRoom) => {
       setRoom(updatedRoom);
-
-      // Обновляем фигуры игроков
-      if (updatedRoom.gameState === 'waiting' || updatedRoom.gameState === 'countdown') {
-        const newBlobs = { ...playerBlobsRef.current };
-        updatedRoom.players.forEach((p: any) => {
-          const percent = updatedRoom.totalPool > 0 ? (p.betAmount / updatedRoom.totalPool) * 100 : 0;
-          if (!newBlobs[p.uid]) {
-            newBlobs[p.uid] = generateBlob(percent);
-          } else {
-            // Динамически меняем размер, если игрок докинул ставку
-            newBlobs[p.uid].size = 60 + (percent / 100) * 160;
-          }
-        });
-        playerBlobsRef.current = newBlobs;
-        setPlayerBlobs(newBlobs);
-      }
 
       if (updatedRoom.gameState === 'finished') {
         if (!isAnimatingRef.current) {
@@ -90,8 +71,7 @@ export default function Arena({ user }: ArenaProps) {
         setShowWinnerOverlay(false);
         setIsAnimating(false);
         setLocalWinner(null);
-        setPlayerBlobs({});
-        playerBlobsRef.current = {};
+        shapeMap.current = {};
       }
     });
 
@@ -106,22 +86,58 @@ export default function Arena({ user }: ArenaProps) {
 
       setLocalWinner(winner);
       
-      const targetBlob = playerBlobsRef.current[winner.uid];
-      if (targetBlob) {
-        const lefts = ['50%'];
-        const tops = ['50%'];
+      if (containerRef.current) {
+        const cw = containerRef.current.clientWidth;
+        const ch = containerRef.current.clientHeight;
         
-        // Генерируем случайные точки для бешеного отскока от стен
-        for (let i = 0; i < 10; i++) {
-          lefts.push(`${Math.floor(Math.random() * 90)}%`);
-          tops.push(`${Math.floor(Math.random() * 90)}%`);
-        }
-        
-        // Последняя точка - центр фигуры победителя
-        lefts.push(`calc(${targetBlob.left} + ${targetBlob.size / 2}px - 16px)`); // 16px = радиус шарика
-        tops.push(`calc(${targetBlob.top} + ${targetBlob.size / 2}px - 16px)`);
+        const points = [{ x: 50, y: 50 }];
+        const sides = ['top', 'right', 'bottom', 'left'];
+        let currentSide = sides[Math.floor(Math.random() * sides.length)];
 
-        setBallPath({ left: lefts, top: tops });
+        for (let i = 0; i < 12; i++) {
+          let nextSide;
+          do { nextSide = sides[Math.floor(Math.random() * sides.length)]; } while (nextSide === currentSide);
+          currentSide = nextSide;
+
+          const randomPos = Math.floor(Math.random() * 80 + 10);
+          if (currentSide === 'top') points.push({ x: randomPos, y: 0 });
+          else if (currentSide === 'bottom') points.push({ x: randomPos, y: 100 });
+          else if (currentSide === 'left') points.push({ x: 0, y: randomPos });
+          else if (currentSide === 'right') points.push({ x: 100, y: randomPos });
+        }
+
+        const cb = containerRef.current.getBoundingClientRect();
+        const wb = playerRefs.current[winner.uid]?.getBoundingClientRect();
+        
+        if (cb && wb) {
+          const targetX = ((wb.left - cb.left + wb.width / 2) / cb.width) * 100;
+          const targetY = ((wb.top - cb.top + wb.height / 2) / cb.height) * 100;
+          points.push({ x: targetX, y: targetY });
+        } else {
+          points.push({ x: 50, y: 50 });
+        }
+
+        let totalDist = 0;
+        const dists = [];
+        for(let i = 1; i < points.length; i++) {
+           const dx = (points[i].x - points[i-1].x) * (cw / 100);
+           const dy = (points[i].y - points[i-1].y) * (ch / 100);
+           const d = Math.sqrt(dx * dx + dy * dy);
+           dists.push(d);
+           totalDist += d;
+        }
+
+        const times = [0];
+        let currT = 0;
+        for(let i = 0; i < dists.length; i++) {
+           currT += dists[i] / totalDist;
+           times.push(currT);
+        }
+
+        const lefts = points.map(p => `${p.x}%`);
+        const tops = points.map(p => `${p.y}%`);
+
+        setBallAnim({ tops, lefts, times });
         setIsAnimating(true);
       }
     });
@@ -134,7 +150,6 @@ export default function Arena({ user }: ArenaProps) {
     };
   }, [activeRoomId]);
 
-  // Таймер окончания анимации
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (isAnimating) {
@@ -164,6 +179,15 @@ export default function Arena({ user }: ArenaProps) {
       cardStyle: user.cardStyle, equippedFrame: user.equippedFrame, equippedBg: user.equippedBg
     });
     setTimeout(() => setIsBetting(false), 500);
+  };
+
+  const renderCustomAvatar = (player: any) => {
+    const safeAvatar = player.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=fallback';
+    return (
+      <div className="absolute inset-0 z-0 opacity-40 mix-blend-overlay flex items-center justify-center">
+        <img src={safeAvatar} className="w-full h-full object-cover" />
+      </div>
+    );
   };
 
   return (
@@ -199,7 +223,7 @@ export default function Arena({ user }: ArenaProps) {
             {/* Сетка на фоне */}
             <div className="absolute inset-0 opacity-10 bg-[linear-gradient(rgba(255,255,255,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.1)_1px,transparent_1px)] bg-[size:40px_40px]" />
 
-            <div className="absolute top-4 left-4 flex items-center gap-2 bg-slate-900/80 border border-slate-700/50 px-4 py-2 rounded-2xl backdrop-blur-sm z-20">
+            <div className="absolute top-4 left-4 flex items-center gap-2 bg-slate-900/80 border border-slate-700/50 px-4 py-2 rounded-2xl backdrop-blur-sm z-30">
               <Crosshair className="w-4 h-4 text-brand-400 animate-pulse" />
               <span className="text-xs font-black uppercase tracking-widest text-slate-200">
                 {room.gameState === 'waiting' && 'Ждем бойцов'}
@@ -208,57 +232,69 @@ export default function Arena({ user }: ArenaProps) {
               </span>
             </div>
 
-            <div className="absolute top-4 right-4 bg-slate-900/80 border border-slate-700/50 px-4 py-2 rounded-2xl backdrop-blur-sm z-20">
+            <div className="absolute top-4 right-4 bg-slate-900/80 border border-slate-700/50 px-4 py-2 rounded-2xl backdrop-blur-sm z-30">
                 <span className="text-sm font-black text-brand-400 tracking-widest">{room.totalPool.toFixed(0)} CAT</span>
             </div>
 
-            {/* ГЕНЕРАЦИЯ ФИГУР ИГРОКОВ */}
-            {room.players?.map((player: any) => {
-              const blob = playerBlobs[player.uid];
-              if (!blob) return null;
-              const percent = room.totalPool > 0 ? (player.betAmount / room.totalPool) * 100 : 0;
+            {/* ПРОСТРАНСТВО АРЕНЫ */}
+            <div ref={containerRef} className="absolute inset-0 p-2 sm:p-4 flex flex-wrap gap-1 sm:gap-2 content-stretch z-10">
+                {room.players?.map((player: any) => {
+                  if (!shapeMap.current[player.uid]) {
+                    shapeMap.current[player.uid] = SHAPES[Math.floor(Math.random() * SHAPES.length)];
+                  }
+                  const shape = shapeMap.current[player.uid];
+                  const percent = room.totalPool > 0 ? (player.betAmount / room.totalPool) * 100 : 0;
 
-              return (
-                <motion.div
-                  key={player.uid}
-                  initial={{ scale: 0, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1, rotate: blob.rotate }}
-                  transition={{ type: "spring", bounce: 0.5 }}
-                  className="absolute flex flex-col items-center justify-center overflow-hidden border-[3px] sm:border-[4px] shadow-2xl transition-all duration-500"
-                  style={{
-                    width: blob.size, height: blob.size,
-                    top: blob.top, left: blob.left,
-                    borderRadius: blob.borderRadius,
-                    borderColor: player.color,
-                    backgroundColor: player.cardStyle?.background || '#fff'
-                  }}
-                >
-                  <img src={player.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=fallback'} className="absolute inset-0 w-full h-full object-cover opacity-50 mix-blend-overlay" />
-                  <span className="relative z-10 font-black text-white text-[10px] sm:text-xs truncate w-full text-center px-1 bg-black/40 py-0.5 rounded-full">{player.nickname}</span>
-                  <span className="relative z-10 font-black text-xs sm:text-sm mt-1" style={{ color: player.color, textShadow: '0 0 8px rgba(0,0,0,0.9)' }}>
-                    {percent.toFixed(1)}%
-                  </span>
-                </motion.div>
-              );
-            })}
+                  return (
+                    <motion.div
+                      key={player.uid}
+                      // ИСПРАВЛЕНИЕ ОШИБКИ TYPESCRIPT (Добавлены фигурные скобки):
+                      ref={(el) => { playerRefs.current[player.uid] = el; }}
+                      initial={{ scale: 0, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ type: "spring", bounce: 0.4 }}
+                      className="relative flex flex-col items-center justify-center overflow-hidden transition-all duration-500 shadow-xl border-2 sm:border-[3px] border-white/10"
+                      style={{
+                        flex: `${player.betAmount} 1 10%`, 
+                        clipPath: shape.clipPath,
+                        borderRadius: shape.borderRadius,
+                        backgroundColor: player.color, 
+                        minHeight: '20%' 
+                      }}
+                    >
+                      {renderCustomAvatar(player)}
+                      
+                      <div className="relative z-20 flex flex-col items-center p-2 text-center bg-black/30 backdrop-blur-sm px-3 py-1.5 rounded-2xl border border-white/10">
+                        <span className="font-black text-white text-[9px] sm:text-xs tracking-wider truncate max-w-[80px] sm:max-w-[120px] drop-shadow-md">
+                          {player.nickname}
+                        </span>
+                        <span className="font-black text-xs sm:text-base text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.8)] mt-0.5 leading-none">
+                          {percent.toFixed(1)}%
+                        </span>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+            </div>
 
             {/* ЛЕТАЮЩИЙ СНАРЯД */}
             <AnimatePresence>
               {isAnimating && (
-                <motion.div
-                  className="absolute w-8 h-8 sm:w-10 sm:h-10 z-50 flex items-center justify-center pointer-events-none"
-                  initial={{ top: '50%', left: '50%', scale: 0 }}
-                  animate={{ top: ballPath.top, left: ballPath.left, scale: 1 }}
-                  transition={{ 
-                    duration: 15, 
-                    ease: "linear",
-                    // Задаем тайминги: первые 8 отскоков быстрые, последний рывок к победителю медленный
-                    times: [0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.35, 0.5, 0.7, 1] 
-                  }}
-                >
-                  <div className="w-full h-full rounded-full bg-white shadow-[0_0_30px_#fff,0_0_60px_#fff] flex items-center justify-center">
-                     <div className="w-4 h-4 bg-brand-500 rounded-full animate-pulse" />
-                  </div>
+                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute z-40 top-0 left-0 w-full h-full pointer-events-none">
+                  <motion.div
+                    className="absolute w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center"
+                    animate={{ top: ballAnim.tops, left: ballAnim.lefts }}
+                    style={{ translateX: '-50%', translateY: '-50%' }}
+                    transition={{ 
+                      duration: 15, 
+                      ease: "linear", 
+                      times: ballAnim.times 
+                    }}
+                  >
+                    <div className="w-full h-full rounded-full bg-white shadow-[0_0_30px_#fff,0_0_60px_#fff] flex items-center justify-center border-4 border-slate-900">
+                       <div className="w-3 h-3 bg-brand-500 rounded-full animate-pulse" />
+                    </div>
+                  </motion.div>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -266,7 +302,7 @@ export default function Arena({ user }: ArenaProps) {
             {/* ОКОШКО ПОБЕДИТЕЛЯ АРЕНЫ */}
             <AnimatePresence>
               {showWinnerOverlay && localWinner && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-center p-4 z-40">
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-center p-4 z-50">
                   <motion.div 
                     initial={{ scale: 0.5, y: 30 }} animate={{ scale: 1, y: 0 }} transition={{ type: "spring", damping: 15 }} 
                     className="relative z-10 flex flex-col items-center bg-slate-900 border border-slate-700/50 p-6 sm:p-8 rounded-[2rem] shadow-2xl min-w-[280px]"
@@ -334,7 +370,7 @@ export default function Arena({ user }: ArenaProps) {
           <div className="bg-white border border-slate-100 rounded-[2rem] p-6 shadow-xl shadow-slate-200/40">
              <div className="flex items-center justify-between mb-4">
               <h3 className="font-black text-lg text-slate-900 flex items-center gap-2">
-                <Users className="w-6 h-6 text-slate-400" /> Участники ({room.players?.length || 0})
+                <Users className="w-6 h-6 text-slate-400" /> Бойцы ({room.players?.length || 0})
               </h3>
             </div>
             <div className="space-y-2 max-h-[250px] overflow-y-auto custom-scrollbar">
