@@ -17,15 +17,15 @@ const ARENA_CONFIG = [
   { id: 'arena_unlimited', name: 'Cosmic Arena', minBet: 10, maxBet: 1000000, gradient: 'from-rose-500 to-orange-600', shadow: 'shadow-rose-500/20' },
 ];
 
-// Эстетичные, мягкие асимметричные формы (Bento Box style)
+// Грубые, рубленые фигуры (создают эффект разбитого стекла/прямых линий)
 const SHAPES = [
-  '30px 10px 30px 10px',
-  '10px 40px 10px 40px',
-  '40px 10px 10px 10px',
-  '10px 10px 40px 10px',
-  '20px 20px 20px 40px',
-  '20px',
-  '40px'
+  'polygon(2% 0%, 100% 2%, 98% 100%, 0% 98%)',
+  'polygon(0% 2%, 98% 0%, 100% 100%, 2% 98%)',
+  'polygon(0% 0%, 100% 2%, 98% 98%, 2% 100%)',
+  'polygon(2% 2%, 100% 0%, 100% 98%, 0% 100%)',
+  'polygon(0% 0%, 98% 2%, 100% 100%, 2% 98%)',
+  'polygon(4% 0%, 96% 0%, 100% 100%, 0% 100%)', // Трапеция
+  'polygon(0% 0%, 100% 4%, 96% 100%, 4% 96%)'
 ];
 
 export default function Arena({ user }: ArenaProps) {
@@ -86,18 +86,18 @@ export default function Arena({ user }: ArenaProps) {
 
       setLocalWinner(winner);
       
-      // РАСЧЕТ ИДЕАЛЬНОЙ ФИЗИКИ И ИНЕРЦИИ ШАРИКА
+      // Идеальная физика отскоков шайбы
       if (containerRef.current) {
         const cw = containerRef.current.clientWidth;
         const ch = containerRef.current.clientHeight;
         const ballRadius = 16; 
-        const margin = ballRadius + 5; 
+        const margin = ballRadius; 
         
-        const points = [{ x: cw / 2, y: ch / 2 }]; // Старт всегда из центра
+        const points = [{ x: cw / 2, y: ch / 2 }]; // Старт из центра
         const sides = ['top', 'right', 'bottom', 'left'];
         let currentSide = sides[Math.floor(Math.random() * sides.length)];
 
-        // Генерируем 10 отскоков от стенок
+        // Генерируем 10 ударов СТРОГО о стенки
         for (let i = 0; i < 10; i++) {
           let nextSide;
           do { nextSide = sides[Math.floor(Math.random() * sides.length)]; } while (nextSide === currentSide);
@@ -124,7 +124,7 @@ export default function Arena({ user }: ArenaProps) {
           points.push({ x: cw / 2, y: ch / 2 });
         }
 
-        // ВЫСЧИТЫВАЕМ ИНЕРЦИЮ (ЗАМЕДЛЕНИЕ)
+        // РАСЧЕТ РАВНОМЕРНОЙ СКОРОСТИ И ФИНАЛЬНОГО ЗАМЕДЛЕНИЯ
         let totalTimeWeight = 0;
         const dists = [];
         const timeWeights = [];
@@ -135,10 +135,9 @@ export default function Arena({ user }: ArenaProps) {
            const d = Math.sqrt(dx * dx + dy * dy);
            dists.push(d);
            
-           // Чем ближе к концу (progress -> 1), тем меньше скорость (speed -> 0.08)
-           // Это создает шикарный эффект инерции!
-           const progress = i / points.length;
-           const speed = Math.max(0.08, Math.pow(1 - progress, 1.5)); 
+           // Скорость шайбы быстрая и константная, замедляется только на последнем отрезке
+           const isLastStretch = i === points.length - 1;
+           const speed = isLastStretch ? 0.15 : 1; 
            
            const weight = d / speed;
            timeWeights.push(weight);
@@ -152,7 +151,6 @@ export default function Arena({ user }: ArenaProps) {
            times.push(currT);
         }
 
-        // Переводим пиксели обратно в % для резинового окна
         const lefts = points.map(p => `${(p.x / cw) * 100}%`);
         const tops = points.map(p => `${(p.y / ch) * 100}%`);
 
@@ -169,14 +167,13 @@ export default function Arena({ user }: ArenaProps) {
     };
   }, [activeRoomId]);
 
-  // ЖЕЛЕЗНЫЙ ТАЙМЕР: 12 секунд полета + 3 секунды паузы = 15 секунд
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (isAnimating) {
       timer = setTimeout(() => {
         setIsAnimating(false);
         setShowWinnerOverlay(true);
-      }, 15000); // Ровно 15 сек. 12 сек шарик летает, 3 сек стоит на месте.
+      }, 15000); // 12 секунд полета + 3 секунды паузы
     }
     return () => clearTimeout(timer);
   }, [isAnimating]);
@@ -240,6 +237,7 @@ export default function Arena({ user }: ArenaProps) {
         <div className="order-1 lg:col-span-2 w-full space-y-4 sm:space-y-6">
           <div className="bg-slate-950 rounded-[2rem] sm:rounded-[2.5rem] p-2 sm:p-4 text-white relative overflow-hidden flex flex-col items-center justify-center min-h-[350px] sm:min-h-[550px] border-2 border-slate-800 shadow-[inset_0_0_50px_rgba(0,0,0,0.8)]">
             
+            {/* Сетка на фоне */}
             <div className="absolute inset-0 opacity-10 bg-[linear-gradient(rgba(255,255,255,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.1)_1px,transparent_1px)] bg-[size:40px_40px]" />
 
             <div className="absolute top-4 left-4 flex items-center gap-2 bg-slate-900/80 border border-slate-700/50 px-4 py-2 rounded-2xl backdrop-blur-sm z-30">
@@ -255,15 +253,14 @@ export default function Arena({ user }: ArenaProps) {
                 <span className="text-sm font-black text-brand-400 tracking-widest">{room.totalPool.toFixed(0)} CAT</span>
             </div>
 
-            {/* ПРОСТРАНСТВО АРЕНЫ: Эстетичная мозаика (Bento Grid) */}
-            <div ref={containerRef} className="absolute inset-0 p-3 sm:p-5 flex flex-wrap content-start items-stretch gap-2 sm:gap-3 z-10">
+            {/* ПРОСТРАНСТВО АРЕНЫ: Идеальное заполнение */}
+            <div ref={containerRef} className="absolute inset-0 p-1 sm:p-2 flex flex-wrap content-stretch items-stretch gap-1 sm:gap-2 z-10">
                 <AnimatePresence>
                   {room.players?.map((player: any) => {
-                    // Раздаем случайную эстетичную форму, если её еще нет
                     if (!shapeMap.current[player.uid]) {
                       shapeMap.current[player.uid] = SHAPES[Math.floor(Math.random() * SHAPES.length)];
                     }
-                    const borderRadius = shapeMap.current[player.uid];
+                    const shapeClip = shapeMap.current[player.uid];
                     const percent = room.totalPool > 0 ? (player.betAmount / room.totalPool) * 100 : 0;
 
                     return (
@@ -274,12 +271,11 @@ export default function Arena({ user }: ArenaProps) {
                         animate={{ scale: 1, opacity: 1 }}
                         exit={{ scale: 0, opacity: 0 }}
                         transition={{ type: "spring", bounce: 0.4 }}
-                        className="relative flex flex-col items-center justify-center overflow-hidden transition-all duration-500 shadow-xl border-2 sm:border-[3px] border-white/10"
+                        className="relative flex flex-col items-center justify-center overflow-hidden transition-all duration-500 shadow-xl"
                         style={{
-                          // МАГИЯ ЗАПОЛНЕНИЯ: flex-grow берет на себя процент ставки!
-                          flex: `${player.betAmount} 1 ${percent > 40 ? '100%' : '30%'}`, 
-                          minHeight: percent > 50 ? '40%' : '25%', // Гарантируем высоту
-                          borderRadius: borderRadius,
+                          // Flex-grow позволяет элементам заполнять 100% ширины/высоты арены пропорционально ставке!
+                          flex: `${player.betAmount} 1 ${percent}%`, 
+                          clipPath: shapeClip,
                           backgroundColor: player.color, 
                         }}
                       >
@@ -289,7 +285,7 @@ export default function Arena({ user }: ArenaProps) {
                           <span className="font-bold text-white text-[10px] sm:text-xs tracking-wide truncate max-w-[80px] sm:max-w-[120px] drop-shadow-md">
                             {player.nickname}
                           </span>
-                          <span className="font-black text-sm sm:text-lg text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.6)] mt-0.5 leading-none">
+                          <span className="font-black text-xs sm:text-lg text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.6)] mt-0.5 leading-none">
                             {percent.toFixed(1)}%
                           </span>
                         </div>
@@ -299,7 +295,7 @@ export default function Arena({ user }: ArenaProps) {
                 </AnimatePresence>
             </div>
 
-            {/* ЛЕТАЮЩИЙ СНАРЯД С ИНЕРЦИЕЙ */}
+            {/* ЛЕТАЮЩАЯ ШАЙБА (Инерция и удары о стенки) */}
             <AnimatePresence>
               {isAnimating && (
                 <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute z-40 top-0 left-0 w-full h-full pointer-events-none">
@@ -308,8 +304,8 @@ export default function Arena({ user }: ArenaProps) {
                     animate={{ top: ballAnim.tops, left: ballAnim.lefts }}
                     style={{ translateX: '-50%', translateY: '-50%' }}
                     transition={{ 
-                      duration: 12, // 12 Секунд полета!
-                      ease: "linear", // times регулируют скорость для эффекта инерции
+                      duration: 12, 
+                      ease: "linear", 
                       times: ballAnim.times 
                     }}
                   >
@@ -321,28 +317,28 @@ export default function Arena({ user }: ArenaProps) {
               )}
             </AnimatePresence>
 
-            {/* ОКОШКО ПОБЕДИТЕЛЯ (Появляется спустя 3 сек после остановки шарика) */}
+            {/* ОКОШКО ПОБЕДИТЕЛЯ АРЕНЫ */}
             <AnimatePresence>
               {showWinnerOverlay && localWinner && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-center p-4 z-50">
                   <motion.div 
                     initial={{ scale: 0.5, y: 30 }} animate={{ scale: 1, y: 0 }} transition={{ type: "spring", damping: 15 }} 
-                    className="relative z-10 flex flex-col items-center bg-slate-900 border border-slate-700/50 p-5 sm:p-8 rounded-3xl sm:rounded-[2rem] shadow-2xl min-w-[200px] max-w-[85%] sm:max-w-none sm:min-w-[340px]"
+                    className="relative z-10 flex flex-col items-center bg-slate-900 border border-slate-700/50 p-6 sm:p-8 rounded-[2rem] shadow-2xl min-w-[280px]"
                   >
-                    <motion.div initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1.5, opacity: 0.2 }} transition={{ repeat: Infinity, duration: 2, repeatType: 'reverse' }} className="absolute w-24 sm:w-56 h-24 sm:h-56 rounded-full blur-[25px] sm:blur-[50px] pointer-events-none" style={{ backgroundColor: localWinner.color || '#eab308' }} />
-                    <div className="relative mb-3 sm:mb-6">
-                      <Sparkles className="absolute -top-2 sm:-top-5 -left-2 sm:-left-5 w-4 sm:w-8 h-4 sm:h-8 text-yellow-400 animate-pulse" />
-                      <div className="relative w-16 h-16 sm:w-28 sm:h-28 rounded-[30%] border-4 overflow-hidden shadow-lg" style={{ borderColor: localWinner.color }}>
+                    <motion.div initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1.5, opacity: 0.2 }} transition={{ repeat: Infinity, duration: 2, repeatType: 'reverse' }} className="absolute w-40 sm:w-56 h-40 sm:h-56 rounded-full blur-[40px] sm:blur-[50px] pointer-events-none" style={{ backgroundColor: localWinner.color || '#eab308' }} />
+                    <div className="relative mb-4 sm:mb-6">
+                      <Sparkles className="absolute -top-3 sm:-top-5 -left-3 sm:-left-5 w-6 sm:w-8 h-6 sm:h-8 text-yellow-400 animate-pulse" />
+                      <div className="relative w-20 h-20 sm:w-28 sm:h-28 rounded-[30%] border-4 overflow-hidden shadow-lg" style={{ borderColor: localWinner.color }}>
                         <img src={localWinner.avatar} className="w-full h-full object-cover" />
                       </div>
-                      <div className="absolute -top-3 sm:-top-5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-yellow-400 to-amber-500 p-1 sm:p-2 rounded-full border-2 border-slate-900 shadow-xl z-30">
-                         <Crown className="w-3 sm:w-6 h-3 sm:h-6 text-slate-900" />
+                      <div className="absolute -top-4 sm:-top-5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-yellow-400 to-amber-500 p-1.5 sm:p-2 rounded-full border-2 border-slate-900 shadow-xl z-30">
+                         <Crown className="w-4 sm:w-6 h-4 sm:h-6 text-slate-900" />
                       </div>
                     </div>
-                    <h3 className="text-lg sm:text-3xl font-black text-white tracking-wider mb-1.5 sm:mb-2 drop-shadow-lg uppercase text-center w-full truncate px-2">{localWinner.nickname}</h3>
-                    <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-gradient-to-r from-emerald-500/20 to-emerald-400/10 border border-emerald-500/30 px-4 sm:px-8 py-1.5 sm:py-3 rounded-xl sm:rounded-2xl backdrop-blur-sm w-full text-center mt-2">
-                      <span className="text-[8px] sm:text-[10px] text-emerald-200/70 font-black block uppercase tracking-widest mb-0.5 sm:mb-1">Выигрыш Арены</span>
-                      <span className="text-xl sm:text-4xl font-black text-emerald-400 drop-shadow-[0_0_15px_rgba(52,211,153,0.5)] leading-none">+{localWinner.winAmount?.toFixed(2)}</span>
+                    <h3 className="text-xl sm:text-3xl font-black text-white tracking-wider mb-2 drop-shadow-lg uppercase">{localWinner.nickname}</h3>
+                    <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-gradient-to-r from-emerald-500/20 to-emerald-400/10 border border-emerald-500/30 px-6 sm:px-8 py-2 sm:py-3 rounded-xl sm:rounded-2xl backdrop-blur-sm w-full text-center">
+                      <span className="text-[10px] text-emerald-200/70 font-black block uppercase tracking-widest mb-1">Выигрыш Арены</span>
+                      <span className="text-3xl sm:text-4xl font-black text-emerald-400 drop-shadow-[0_0_15px_rgba(52,211,153,0.5)]">+{localWinner.winAmount?.toFixed(2)}</span>
                     </motion.div>
                   </motion.div>
                 </motion.div>
