@@ -46,7 +46,7 @@ export default function Sidebar({ user, onClose }: SidebarProps) {
     { icon: Home, label: 'Главная', path: '/' },
     { icon: Pickaxe, label: 'MineDrop', path: '/minedrop' },
     { icon: Coins, label: 'Jackpot', path: '/jackpot' }, 
-    { icon: Crosshair, label: 'Arena', path: '/arena' }, // ДОБАВЛЕНА АРЕНА
+    { icon: Crosshair, label: 'Arena', path: '/arena' }, // <--- КНОПКА АРЕНЫ В МЕНЮ
     { icon: Gift, label: 'Бонусы', path: '/bonuses' },
     { icon: Network, label: 'Партнеры', path: '/referral' },
     { icon: TrendingUp, label: 'LvL Котика', path: '/level' },

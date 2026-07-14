@@ -201,7 +201,7 @@ export default function Arena({ user }: ArenaProps) {
   const renderCustomAvatar = (player: any) => {
     const safeAvatar = player.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=fallback';
     return (
-      <div className="absolute inset-0 z-0 opacity-40 mix-blend-overlay flex items-center justify-center">
+      <div className="absolute inset-0 z-0 opacity-40 mix-blend-overlay flex items-center justify-center pointer-events-none">
         <img src={safeAvatar} className="w-full h-full object-cover" />
       </div>
     );
@@ -237,7 +237,6 @@ export default function Arena({ user }: ArenaProps) {
         <div className="order-1 lg:col-span-2 w-full space-y-4 sm:space-y-6">
           <div className="bg-slate-950 rounded-[2rem] sm:rounded-[2.5rem] p-2 sm:p-4 text-white relative overflow-hidden flex flex-col items-center justify-center min-h-[350px] sm:min-h-[550px] border-2 border-slate-800 shadow-[inset_0_0_50px_rgba(0,0,0,0.8)]">
             
-            {/* Сетка на фоне */}
             <div className="absolute inset-0 opacity-10 bg-[linear-gradient(rgba(255,255,255,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.1)_1px,transparent_1px)] bg-[size:40px_40px]" />
 
             <div className="absolute top-4 left-4 flex items-center gap-2 bg-slate-900/80 border border-slate-700/50 px-4 py-2 rounded-2xl backdrop-blur-sm z-30">
@@ -336,7 +335,7 @@ export default function Arena({ user }: ArenaProps) {
                       </div>
                     </div>
                     <h3 className="text-xl sm:text-3xl font-black text-white tracking-wider mb-2 drop-shadow-lg uppercase">{localWinner.nickname}</h3>
-                    <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-gradient-to-r from-emerald-500/20 to-emerald-400/10 border border-emerald-500/30 px-6 sm:px-8 py-2 sm:py-3 rounded-xl sm:rounded-2xl backdrop-blur-sm w-full text-center">
+                    <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-gradient-to-r from-emerald-500/20 to-emerald-400/10 border border-emerald-500/30 px-6 sm:px-8 py-2 sm:py-3 rounded-xl sm:rounded-2xl backdrop-blur-sm w-full text-center mt-2">
                       <span className="text-[10px] text-emerald-200/70 font-black block uppercase tracking-widest mb-1">Выигрыш Арены</span>
                       <span className="text-3xl sm:text-4xl font-black text-emerald-400 drop-shadow-[0_0_15px_rgba(52,211,153,0.5)]">+{localWinner.winAmount?.toFixed(2)}</span>
                     </motion.div>

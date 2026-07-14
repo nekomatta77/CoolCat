@@ -15,7 +15,7 @@ import Keno from './pages/Keno';
 import WheelX from './pages/WheelX';
 import MineDrop from './pages/MineDrop';
 import Jackpot from './pages/Jackpot'; 
-import Arena from './pages/Arena'; // ИМПОРТ АРЕНЫ
+import Arena from './pages/Arena'; // <--- ИМПОРТ НОВОГО РЕЖИМА
 import FAQ from './pages/FAQ';
 import Bonuses from './pages/Bonuses';
 import Level from './pages/Level';
