@@ -1,8 +1,8 @@
 // src/lib/vpsSocket.ts
 import { io } from 'socket.io-client';
 
-// НОВЫЙ IP АДРЕС ТВОЕГО СЕРВЕРА
-const VPS_URL = 'http://83.217.212.219:3001';
+// НОВЫЙ ЗАЩИЩЕННЫЙ АДРЕС ТВОЕГО СЕРВЕРА
+const VPS_URL = 'https://coolcat-api.duckdns.org';
 
 export const vpsSocket = io(VPS_URL, {
   transports: ['websocket', 'polling'],
