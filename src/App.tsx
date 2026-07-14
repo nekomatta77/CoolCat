@@ -13,9 +13,8 @@ import Dice from './pages/Dice';
 import Mines from './pages/Mines';
 import Keno from './pages/Keno';
 import WheelX from './pages/WheelX';
-import MineDrop from './pages/MineDrop';
 import Jackpot from './pages/Jackpot'; 
-import Arena from './pages/Arena'; // <--- ИМПОРТ НОВОГО РЕЖИМА
+import Arena from './pages/Arena'; 
 import FAQ from './pages/FAQ';
 import Bonuses from './pages/Bonuses';
 import Level from './pages/Level';
@@ -131,9 +130,9 @@ export default function App() {
           } else {
             const savedRef = localStorage.getItem('coolcat_ref');
             
-            const newUser: UserProfile = {
+            // ИСПРАВЛЕНИЕ ОШИБКИ РЕГИСТРАЦИИ (Без undefined)
+            const newUser: any = {
               uid: currentUser.uid,
-              email: currentUser.email || undefined,
               nickname: currentUser.displayName || `Cat${Math.floor(Math.random() * 10000)}`,
               balance: 1000, 
               rank: 'user',
@@ -146,9 +145,12 @@ export default function App() {
               totalDeposits: 0,
               totalWithdrawals: 0,
               wagerRequirement: 0,
-              unlockedAvatars: ['/assets/avatars/ava1.webp', '/assets/avatars/ava2.webp', '/assets/avatars/ava3.webp'],
-              invitedBy: savedRef || undefined
+              unlockedAvatars: ['/assets/avatars/ava1.webp', '/assets/avatars/ava2.webp', '/assets/avatars/ava3.webp']
             };
+
+            // Добавляем поля только если они существуют (избегаем undefined)
+            if (currentUser.email) newUser.email = currentUser.email;
+            if (savedRef) newUser.invitedBy = savedRef;
             
             await setDoc(userRef, newUser);
 
@@ -177,7 +179,7 @@ export default function App() {
               }
             }
 
-            setUser(newUser);
+            setUser(newUser as UserProfile);
             setAuthConfig((prev: AuthConfigState) => ({ ...prev, isOpen: false }));
             setLoading(false);
           }
@@ -255,12 +257,8 @@ export default function App() {
           <Route path="/mines" element={<ProtectedRoute user={user} onOpenAuth={handleOpenAuth}><Mines user={user!} /></ProtectedRoute>} />
           <Route path="/keno" element={<ProtectedRoute user={user} onOpenAuth={handleOpenAuth}><Keno user={user!} /></ProtectedRoute>} />
           <Route path="/wheelx" element={<ProtectedRoute user={user} onOpenAuth={handleOpenAuth}><WheelX user={user!} /></ProtectedRoute>} />
-          <Route path="/minedrop" element={<ProtectedRoute user={user} onOpenAuth={handleOpenAuth}><MineDrop user={user!} /></ProtectedRoute>} />
           <Route path="/jackpot" element={<ProtectedRoute user={user} onOpenAuth={handleOpenAuth}><Jackpot user={user!} /></ProtectedRoute>} />
-          
-          {/* РОУТ ДЛЯ АРЕНЫ */}
           <Route path="/arena" element={<ProtectedRoute user={user} onOpenAuth={handleOpenAuth}><Arena user={user!} /></ProtectedRoute>} />
-          
           <Route path="/bonuses" element={<ProtectedRoute user={user} onOpenAuth={handleOpenAuth}><Bonuses user={user!} /></ProtectedRoute>} />
           <Route path="/level" element={<ProtectedRoute user={user} onOpenAuth={handleOpenAuth}><Level user={user!} /></ProtectedRoute>} />
           <Route path="/achievements" element={<ProtectedRoute user={user} onOpenAuth={handleOpenAuth}><Achievements user={user!} /></ProtectedRoute>} />

@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { UserProfile } from '../types';
-import { Home, HelpCircle, Gift, TrendingUp, Trophy, Settings, Phone, ShieldAlert, Network, Pickaxe, Coins, Crosshair } from 'lucide-react';
+import { Home, HelpCircle, Gift, TrendingUp, Trophy, Settings, Phone, ShieldAlert, Network } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import OnlineCounter from './OnlineCounter';
@@ -44,9 +44,6 @@ export default function Sidebar({ user, onClose }: SidebarProps) {
 
   const menuItems = [
     { icon: Home, label: 'Главная', path: '/' },
-    { icon: Pickaxe, label: 'MineDrop', path: '/minedrop' },
-    { icon: Coins, label: 'Jackpot', path: '/jackpot' }, 
-    { icon: Crosshair, label: 'Arena', path: '/arena' }, // <--- КНОПКА АРЕНЫ В МЕНЮ
     { icon: Gift, label: 'Бонусы', path: '/bonuses' },
     { icon: Network, label: 'Партнеры', path: '/referral' },
     { icon: TrendingUp, label: 'LvL Котика', path: '/level' },
