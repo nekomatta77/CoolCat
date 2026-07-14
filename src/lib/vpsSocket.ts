@@ -1,10 +1,13 @@
+// src/lib/vpsSocket.ts
 import { io } from 'socket.io-client';
 
-// Раскомментируй эту строку для работы на компьютере:
-const VPS_URL = 'http://localhost:3001'; 
+// Определяем, где мы находимся: на локальном компьютере или в интернете
+const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
-// А эту строку закомментируй (поставь // в начале), пока тестируешь локально:
-// const VPS_URL = 'https://coolcat-api.duckdns.org';
+// Если мы на компьютере - стучимся в локальный бэкенд. Если в интернете - стучимся на наш VPS!
+const VPS_URL = isLocalhost 
+  ? 'http://localhost:3001' 
+  : 'https://coolcat-api.duckdns.org';
 
 export const vpsSocket = io(VPS_URL, {
   transports: ['websocket', 'polling'],
