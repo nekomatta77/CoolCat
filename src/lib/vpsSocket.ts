@@ -1,16 +1,12 @@
 // src/lib/vpsSocket.ts
 import { io } from 'socket.io-client';
 
-// Определяем, где мы находимся: на локальном компьютере или в интернете
-const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-
-// Если мы на компьютере - стучимся в локальный бэкенд. Если в интернете - стучимся на наш VPS!
-const VPS_URL = isLocalhost 
-  ? 'http://localhost:3001' 
-  : 'https://coolcat-api.duckdns.org';
+// Теперь мы ВСЕГДА стучимся на боевой сервер (и при разработке на ПК, и на Vercel)
+const VPS_URL = 'https://coolcat-api.duckdns.org';
 
 export const vpsSocket = io(VPS_URL, {
-  transports: ['websocket', 'polling'],
+  // Меняем порядок! Сначала polling (чтобы не было красных ошибок), затем мягкий апгрейд до websocket
+  transports: ['polling', 'websocket'],
   reconnectionDelay: 1000,
   reconnectionDelayMax: 5000,
   reconnectionAttempts: Infinity
