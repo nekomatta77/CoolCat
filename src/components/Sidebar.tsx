@@ -42,6 +42,7 @@ export default function Sidebar({ user, onClose }: SidebarProps) {
   const textCfg = isMobile ? SIDEBAR_CONFIG.text.mobile : SIDEBAR_CONFIG.text.pc;
   const menuCfg = isMobile ? SIDEBAR_CONFIG.menu.mobile : SIDEBAR_CONFIG.menu.pc;
 
+  // Меню полностью очищено от рулеток, арены и майн дропа
   const menuItems = [
     { icon: Home, label: 'Главная', path: '/' },
     { icon: Gift, label: 'Бонусы', path: '/bonuses' },

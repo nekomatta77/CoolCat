@@ -38,21 +38,17 @@ export default function Jackpot({ user }: JackpotProps) {
   const [localWinner, setLocalWinner] = useState<any>(null);
   const [isBetting, setIsBetting] = useState(false);
 
-  const activeConfig = ROOMS_CONFIG.find(r => r.id === activeRoomId)!;
+  // ВОТ ЭТА СТРОКА ИСПРАВЛЯЕТ ОШИБКУ: определяем настройки текущей выбранной комнаты
+  const activeConfig = ROOMS_CONFIG.find(r => r.id === activeRoomId) || ROOMS_CONFIG[0];
 
-  // Синхронизируем Ref
-  useEffect(() => {
-    isAnimatingRef.current = isAnimating;
-  }, [isAnimating]);
-
-  // ЖЕЛЕЗНЫЙ ТАЙМЕР ДЛЯ ИДЕАЛЬНОГО ОТОБРАЖЕНИЯ ПОБЕДИТЕЛЯ
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (isAnimating) {
       timer = setTimeout(() => {
         setIsAnimating(false);
+        isAnimatingRef.current = false;
         setShowWinnerOverlay(true);
-      }, 15000); // Ровно 15 секунд — синхронизировано со временем вращения
+      }, 15000); 
     }
     return () => clearTimeout(timer);
   }, [isAnimating]);
@@ -62,6 +58,7 @@ export default function Jackpot({ user }: JackpotProps) {
 
     setShowWinnerOverlay(false);
     setIsAnimating(false);
+    isAnimatingRef.current = false;
     setWheelRotation(0);
     setTapeTranslateX(0);
     setExtendedTapePlayers([]);
@@ -71,14 +68,13 @@ export default function Jackpot({ user }: JackpotProps) {
       setRoom(updatedRoom);
       
       if (updatedRoom.gameState === 'finished') {
-        // Подстраховка: если сервер прислал статус finished, принудительно показываем окно
         if (updatedRoom.winner) setLocalWinner(updatedRoom.winner);
         setShowWinnerOverlay(true);
       } 
       else if (updatedRoom.gameState === 'rolling') {
         if (!isAnimatingRef.current && updatedRoom.winner) {
            setLocalWinner(updatedRoom.winner);
-           setIsAnimating(false); // Snap instantly for late joiners
+           setIsAnimating(false); 
            
            const basePlayers = updatedRoom.players || [];
            let calculatedTrack = Array(70).fill(updatedRoom.winner);
@@ -93,7 +89,6 @@ export default function Jackpot({ user }: JackpotProps) {
            const itemWidth = isMobile ? 80 : 100;
            const gap = isMobile ? 12 : 16;
            const totalItemWidth = itemWidth + gap;
-           
            const containerEl = document.getElementById('roulette-container');
            const containerWidth = containerEl ? containerEl.clientWidth : window.innerWidth;
            
@@ -104,6 +99,7 @@ export default function Jackpot({ user }: JackpotProps) {
       else if (updatedRoom.gameState === 'waiting') {
         setShowWinnerOverlay(false);
         setIsAnimating(false);
+        isAnimatingRef.current = false;
         setWheelRotation(0);
         setTapeTranslateX(0);
         setExtendedTapePlayers([]);
@@ -121,7 +117,9 @@ export default function Jackpot({ user }: JackpotProps) {
       if (!winner || totalTickets === 0) return;
 
       setLocalWinner({ ...winner, winningTicket });
-      setIsAnimating(true); // Запускает анимацию и наш надежный таймер 15 сек
+      
+      setIsAnimating(true); 
+      isAnimatingRef.current = true;
       
       const startPercentage = (winner.ticketsStart - 1) / totalTickets;
       const endPercentage = winner.ticketsEnd / totalTickets;
@@ -134,7 +132,6 @@ export default function Jackpot({ user }: JackpotProps) {
       const gap = isMobile ? 12 : 16;
       const totalItemWidth = itemWidth + gap;
 
-      // Оптимизировано: 70 элементов достаточно для плавной работы на слабых телефонах
       let calculatedTrack: any[] = [];
       const basePlayers = players || [];
       if (basePlayers.length > 0) {
@@ -277,7 +274,6 @@ export default function Jackpot({ user }: JackpotProps) {
 
   return (
     <div className="space-y-4 sm:space-y-8 pb-12 font-sans">
-      {/* КНОПКИ ВЫБОРА КОМНАТ */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
         {ROOMS_CONFIG.map((roomTab) => {
           const isActive = roomTab.id === activeRoomId;
@@ -307,7 +303,6 @@ export default function Jackpot({ user }: JackpotProps) {
         })}
       </div>
 
-      {/* ИСТОРИЯ ИГР */}
       {room.history && room.history.length > 0 && (
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="w-full bg-white border border-slate-100 rounded-[1.5rem] sm:rounded-[2rem] p-3 sm:p-5 shadow-lg shadow-slate-200/40">
           <div className="flex items-center justify-between mb-3 px-1">
@@ -341,7 +336,6 @@ export default function Jackpot({ user }: JackpotProps) {
         </motion.div>
       )}
 
-      {/* УВЕДОМЛЕНИЯ ОБ ОШИБКАХ */}
       <AnimatePresence>
         {errorMessage && (
           <motion.div 
@@ -356,7 +350,6 @@ export default function Jackpot({ user }: JackpotProps) {
 
       <div className="flex flex-col lg:grid lg:grid-cols-3 gap-4 sm:gap-6 items-start">
         
-        {/* 1. БЛОК РУЛЕТКИ (Mobile: Order 1 | Desktop: Order 2) */}
         <div className="order-1 lg:order-2 lg:col-span-2 w-full space-y-4 sm:space-y-6">
           <div className="bg-slate-900 rounded-[2rem] sm:rounded-[2.5rem] p-4 sm:p-8 text-white relative overflow-hidden flex flex-col items-center justify-center min-h-[280px] sm:min-h-[460px] border border-slate-800 shadow-2xl">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-slate-800/40 via-transparent to-transparent -z-10" />
@@ -371,7 +364,6 @@ export default function Jackpot({ user }: JackpotProps) {
               </span>
             </div>
 
-            {/* ИДЕАЛЬНОЕ КОЛЕСО */}
             {viewMode === 'wheel' && (
               <div className="relative w-52 h-52 sm:w-72 sm:h-72 lg:w-80 lg:h-80 rounded-full border-[6px] sm:border-[8px] border-slate-800 flex items-center justify-center shadow-2xl overflow-hidden mt-8 sm:mt-6 bg-slate-950">
                 <div className="absolute top-0 z-30 w-0 h-0 border-l-[10px] sm:border-l-[16px] border-l-transparent border-r-[10px] sm:border-r-[16px] border-r-transparent border-t-[18px] sm:border-t-[28px] border-t-rose-500 drop-shadow-[0_4px_4px_rgba(0,0,0,0.5)]" />
@@ -379,19 +371,18 @@ export default function Jackpot({ user }: JackpotProps) {
                   className="w-full h-full rounded-full relative" 
                   initial={{ rotate: 0 }}
                   animate={{ rotate: -wheelRotation }} 
-                  transition={{ type: "tween", duration: isAnimating ? 15 : 0, ease: isAnimating ? [0.15, 0.85, 0.05, 1] : "linear" }} 
+                  transition={{ type: "tween", duration: isAnimating ? 15 : 0, ease: isAnimating ? [0.1, 0.85, 0.15, 1] : "linear" }} 
                   style={{ background: getConicGradient(), willChange: "transform" }}
                 >
                   <div className="absolute inset-[2.5rem] sm:inset-[4.5rem] bg-slate-900 rounded-full border-[4px] sm:border-[8px] border-slate-800 flex flex-col items-center justify-center z-10 shadow-[inset_0_0_20px_rgba(0,0,0,0.8)]">
-                    <span className="text-[9px] sm:text-xs font-black text-slate-400 uppercase tracking-widest mt-1">Джекпот</span>
-                    <span className="text-xl sm:text-3xl font-black text-white leading-none my-1">{((room.totalPool || 0) * 0.9).toFixed(0)}</span>
+                    <span className="text-[9px] sm:text-xs font-black text-slate-400 uppercase tracking-widest mt-1">Пул Игры</span>
+                    <span className="text-xl sm:text-3xl font-black text-white leading-none my-1">{(room.totalPool || 0).toFixed(0)}</span>
                     <span className="text-[9px] sm:text-[10px] font-black text-slate-500 uppercase tracking-widest">CAT</span>
                   </div>
                 </motion.div>
               </div>
             )}
 
-            {/* ИДЕАЛЬНАЯ ЛЕНТА */}
             {viewMode === 'tape' && (
               <div 
                 id="roulette-container" 
@@ -433,7 +424,7 @@ export default function Jackpot({ user }: JackpotProps) {
                       className="flex gap-3 sm:gap-4 items-center h-full absolute left-0" 
                       initial={{ x: 0 }} 
                       animate={{ x: tapeTranslateX }} 
-                      transition={{ type: "tween", duration: isAnimating ? 15 : 0, ease: isAnimating ? [0.15, 0.85, 0.05, 1] : "linear" }}
+                      transition={{ type: "tween", duration: isAnimating ? 15 : 0, ease: isAnimating ? [0.1, 0.85, 0.15, 1] : "linear" }}
                       style={{ willChange: "transform" }}
                     >
                       {extendedTapePlayers.map((player: any, idx: number) => {
@@ -460,7 +451,6 @@ export default function Jackpot({ user }: JackpotProps) {
               </div>
             )}
 
-            {/* КОМПАКТНОЕ ОКОШКО ПОБЕДИТЕЛЯ ДЛЯ МОБИЛОК */}
             <AnimatePresence>
               {showWinnerOverlay && localWinner && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center p-4 z-40">
@@ -487,7 +477,7 @@ export default function Jackpot({ user }: JackpotProps) {
                     </p>
                     
                     <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-gradient-to-r from-emerald-500/20 to-emerald-400/10 border border-emerald-500/30 px-4 sm:px-8 py-1.5 sm:py-3 rounded-xl sm:rounded-2xl backdrop-blur-sm w-full text-center">
-                      <span className="text-[8px] sm:text-[10px] text-emerald-200/70 font-black block uppercase tracking-widest mb-0.5 sm:mb-1">Выигрыш</span>
+                      <span className="text-[8px] sm:text-[10px] text-emerald-200/70 font-black block uppercase tracking-widest mb-0.5 sm:mb-1">Выигрыш (с учетом комиссии)</span>
                       <span className="text-xl sm:text-4xl font-black text-emerald-400 drop-shadow-[0_0_15px_rgba(52,211,153,0.5)] leading-none">+{localWinner.winAmount?.toFixed(2)} CAT</span>
                     </motion.div>
                   </motion.div>
@@ -497,7 +487,6 @@ export default function Jackpot({ user }: JackpotProps) {
           </div>
         </div>
 
-        {/* 2. СПИСОК ИГРОКОВ (Mobile: Order 2 | Desktop: Order 3) */}
         <div className="order-2 lg:order-3 lg:col-span-1 w-full space-y-4 sm:space-y-6">
           <div className="bg-white border border-slate-100 rounded-[2rem] sm:rounded-[2.5rem] p-4 sm:p-6 shadow-xl shadow-slate-200/40 space-y-4">
             <div className="flex items-center justify-between">
@@ -542,7 +531,6 @@ export default function Jackpot({ user }: JackpotProps) {
           </div>
         </div>
 
-        {/* 3. БЛОК СО СТАВКОЙ (Mobile: Order 3 | Desktop: Order 1) */}
         <div className="order-3 lg:order-1 lg:col-span-1 w-full space-y-4 sm:space-y-6">
           <div className="bg-white border border-slate-100 rounded-[2rem] sm:rounded-[2.5rem] p-4 sm:p-6 shadow-xl shadow-slate-200/40">
             <div className="flex items-center justify-between mb-4 sm:mb-5">
@@ -586,7 +574,6 @@ export default function Jackpot({ user }: JackpotProps) {
           </div>
         </div>
 
-        {/* 4. ЗАЛ СЛАВЫ И ЧЕСТНАЯ ИГРА (Mobile: Order 4 | Desktop: Order 4) */}
         <div className="order-4 lg:order-4 lg:col-span-2 w-full grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
           <div className="bg-gradient-to-br from-amber-50 to-orange-50/50 border border-amber-100 rounded-[2rem] sm:rounded-[2.5rem] p-4 sm:p-6 shadow-xl relative overflow-hidden flex flex-col">
             <div className="absolute -top-10 -right-10 opacity-10">
