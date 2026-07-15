@@ -1,17 +1,17 @@
 // src/pages/Arena.tsx
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence, animate } from 'framer-motion';
-import { io, Socket } from 'socket.io-client';
+import { vpsSocket as socket } from '../lib/vpsSocket';
 import { UserProfile } from '../types';
-import { Users, Swords, AlertCircle, Clock } from 'lucide-react'; // <-- ДОБАВЛЕН ИМПОРТ CLOCK
+import { Users, Swords, AlertCircle, Clock } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { FRAMES, BACKGROUNDS } from '../lib/customization';
 
-// Настройки комнат Арены
 const ROOMS = [
-  { id: 'arena_small', name: 'Small', min: 1, max: 100 },
-  { id: 'arena_medium', name: 'Medium', min: 100, max: 1000 },
-  { id: 'arena_high', name: 'High', min: 1000, max: 10000 },
-  { id: 'arena_unlimited', name: 'Unlimited', min: 10, max: 1000000 },
+  { id: 'small', name: 'Small', min: 1, max: 100 },
+  { id: 'medium', name: 'Medium', min: 100, max: 1000 },
+  { id: 'high', name: 'High', min: 1000, max: 10000 },
+  { id: 'unlimited', name: 'Unlimited', min: 10, max: 1000000 },
 ];
 
 interface Player {
@@ -22,6 +22,9 @@ interface Player {
   betAmount: number;
   ticketsStart: number;
   ticketsEnd: number;
+  cardStyle?: any;
+  equippedFrame?: string;
+  equippedBg?: string;
 }
 
 interface RoomState {
@@ -35,19 +38,11 @@ interface RoomState {
   history: any[];
 }
 
-// ---------------------------------------------------------
-// МАТЕМАТИКА ИГРОВОГО ПОЛЯ (ГЕНЕРАЦИЯ ПОЛИГОНОВ 100% ПОЛЯ)
-// ---------------------------------------------------------
 const getPointForArea = (targetArea: number, xc: number, yc: number) => {
   const V = [
-    { x: 100, y: yc },
-    { x: 100, y: 100 },
-    { x: 0, y: 100 },
-    { x: 0, y: 0 },
-    { x: 100, y: 0 },
-    { x: 100, y: yc }
+    { x: 100, y: yc }, { x: 100, y: 100 }, { x: 0, y: 100 },
+    { x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: yc }
   ];
-
   const A = [0];
   A.push(A[0] + 0.5 * (100 - yc) * (100 - xc));
   A.push(A[1] + 0.5 * 100 * (100 - yc));
@@ -75,19 +70,44 @@ const getPointForArea = (targetArea: number, xc: number, yc: number) => {
   return { x: V[5].x, y: V[5].y };
 };
 
+const renderCustomAvatar = (player: any, sizeClass: string) => {
+  const frameObj = FRAMES.find(f => f.id === player.equippedFrame) || FRAMES[0];
+  const bgObj = BACKGROUNDS.find(b => b.id === player.equippedBg);
+  const cardBg = player.cardStyle?.background || '#ffffff';
+  const cardBorder = player.cardStyle?.border || player.color;
+  const safeAvatar = player.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=fallback';
+
+  return (
+    <div className={cn("relative flex items-center justify-center", sizeClass)}>
+      <div 
+        className={cn(
+          "absolute inset-0 overflow-hidden shadow-md rounded-[30%] sm:rounded-[35%] border-[3px]",
+          frameObj.css
+        )}
+        style={{ backgroundColor: cardBg, borderColor: frameObj.id === 'none' ? cardBorder : undefined }}
+      >
+        <div className={cn("absolute inset-0 opacity-40 z-0", bgObj?.gradient)} />
+        <img src={safeAvatar} alt="avatar" className="absolute inset-0 w-full h-full z-10 object-cover" />
+      </div>
+      {frameObj.img && (
+        <img src={frameObj.img} alt="frame" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[125%] h-[125%] object-contain pointer-events-none z-30 drop-shadow-lg" />
+      )}
+    </div>
+  );
+};
+
 const ArenaField = ({ roomState, spinData }: { roomState: RoomState | null, spinData: any }) => {
   const [currentIndicator, setCurrentIndicator] = useState(0);
 
   useEffect(() => {
     if (roomState?.gameState === 'rolling' && spinData) {
-      // Вычитаем 0.5, чтобы остановиться точно в центре билетов победителя
-      const targetArea = ((spinData.winningTicket - 0.5) / spinData.totalTickets) * 10000;
-      const totalSpins = 4 * 10000; // 4 полных оборота "радара"
+      const targetArea = ((spinData.winningTicket - 0.5) / (spinData.totalTickets || 1)) * 10000;
+      const totalSpins = 4 * 10000; 
       const finalValue = totalSpins + targetArea;
       
       const controls = animate(0, finalValue, {
         duration: 14.5, 
-        ease: [0.15, 0, 0.05, 1], // Плавная остановка
+        ease: [0.15, 0, 0.05, 1],
         onUpdate: (val) => setCurrentIndicator(val)
       });
       return () => controls.stop();
@@ -100,19 +120,17 @@ const ArenaField = ({ roomState, spinData }: { roomState: RoomState | null, spin
     if (!roomState || !roomState.players || roomState.players.length === 0) {
       return { xc: 50, yc: 50 };
     }
-    // "Рандомизация" центра, зависящая от суммы банка — фигуры никогда не повторяются!
-    const seed = roomState.totalPool + roomState.players.length * 73;
+    const seed = (roomState.totalPool || 1) + (roomState.players.length * 73);
     return {
-      xc: 35 + (seed % 30), // Центр гуляет в пределах 35-64 по X
-      yc: 35 + ((seed * 17) % 30) // Центр гуляет в пределах 35-64 по Y
+      xc: 35 + (seed % 30),
+      yc: 35 + ((seed * 17) % 30)
     };
   }, [roomState?.totalPool, roomState?.players?.length]);
 
   const layout = useMemo(() => {
     if (!roomState || !roomState.players || roomState.players.length === 0) return [];
-    
     const players = roomState.players;
-    const totalPool = roomState.totalPool;
+    const totalPool = roomState.totalPool || 0;
 
     const V = [
       { x: 100, y: yc }, { x: 100, y: 100 }, { x: 0, y: 100 }, 
@@ -128,10 +146,14 @@ const ArenaField = ({ roomState, spinData }: { roomState: RoomState | null, spin
 
     let currentArea = 0;
     return players.map((p) => {
-      const playerArea = (p.betAmount / totalPool) * 10000;
+      const playerArea = totalPool > 0 ? (p.betAmount / totalPool) * 10000 : 0;
       const startArea = currentArea;
       const endArea = currentArea + playerArea;
       
+      if (playerArea <= 0) {
+        return { ...p, pointsStr: "", cx: xc, cy: yc, startArea, endArea, percentage: 0 };
+      }
+
       const pStart = getPointForArea(startArea, xc, yc);
       const pEnd = getPointForArea(endArea, xc, yc);
       
@@ -146,7 +168,6 @@ const ArenaField = ({ roomState, spinData }: { roomState: RoomState | null, spin
       
       const pointsStr = points.map(pt => `${pt.x},${pt.y}`).join(' ');
       
-      // Идеальное нахождение центра фигуры для размещения аватарки
       let cx = 0, cy = 0, signedArea = 0;
       for(let i = 0; i < points.length; i++) {
          const p1 = points[i];
@@ -168,7 +189,7 @@ const ArenaField = ({ roomState, spinData }: { roomState: RoomState | null, spin
 
       return {
         ...p, pointsStr, cx, cy, startArea, endArea,
-        percentage: (p.betAmount / totalPool) * 100
+        percentage: totalPool > 0 ? (p.betAmount / totalPool) * 100 : 0
       };
     });
   }, [roomState?.players, roomState?.totalPool, xc, yc]);
@@ -176,156 +197,169 @@ const ArenaField = ({ roomState, spinData }: { roomState: RoomState | null, spin
   const indicatorPoint = getPointForArea(currentIndicator, xc, yc);
   const tailPoint = getPointForArea(currentIndicator - 250, xc, yc);
 
-  if (!layout.length) {
-    return (
-      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full rounded-[2.5rem] bg-slate-900">
-        <defs>
-          <pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse">
-            <path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="0.5"/>
-          </pattern>
-        </defs>
-        <rect width="100" height="100" fill="url(#grid)" />
-      </svg>
-    );
-  }
-
   return (
-    <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full rounded-[2.5rem] bg-slate-900 shadow-inner overflow-hidden">
-      <defs>
-        <filter id="glow">
-          <feGaussianBlur stdDeviation="1.5" result="coloredBlur"/>
-          <feMerge>
-            <feMergeNode in="coloredBlur"/>
-            <feMergeNode in="SourceGraphic"/>
-          </feMerge>
-        </filter>
+    <div className="w-full h-full relative rounded-[3rem] bg-slate-950 shadow-[0_0_50px_rgba(0,0,0,0.5)_inset] border-8 border-slate-900 overflow-hidden group">
+      
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-full">
+        <defs>
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="1.5" result="coloredBlur"/>
+            <feMerge>
+              <feMergeNode in="coloredBlur"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
+          <radialGradient id="arena-bg" cx="50%" cy="50%" r="75%">
+             <stop offset="0%" stopColor="#1e293b" />
+             <stop offset="100%" stopColor="#020617" />
+          </radialGradient>
+        </defs>
+        
+        {/* Базовый радиальный фон (космос) */}
+        <rect width="100" height="100" fill="url(#arena-bg)" />
+
+        {/* Сетка радара (оси и концентрические круги) */}
+        <circle cx={xc} cy={yc} r="25" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="0.5" />
+        <circle cx={xc} cy={yc} r="50" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="0.5" />
+        <circle cx={xc} cy={yc} r="75" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="0.5" />
+        <circle cx={xc} cy={yc} r="100" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="0.5" />
+        
+        {/* Отрисовка полигонов (зон игроков) */}
         {layout.map((p, i) => {
-          // Динамический размер аватарки (максимум 7, минимум 1.5)
-          const avatarRadius = Math.max(1.5, Math.min(7, Math.sqrt(p.percentage) * 1.3));
+          if (!p.pointsStr) return null;
+          const isWinner = roomState?.gameState === 'finished' && roomState.winner?.uid === p.uid;
+          const isHighlighted = roomState?.gameState === 'rolling' && (currentIndicator % 10000) >= p.startArea && (currentIndicator % 10000) <= p.endArea;
+          
+          let opacity = 0.65; // Glassmorphism-эффект
+          if (roomState?.gameState === 'finished' && !isWinner) opacity = 0.15;
+          if (roomState?.gameState === 'rolling' && !isHighlighted) opacity = 0.4;
+          if (isHighlighted || isWinner) opacity = 0.85;
+
           return (
-            <clipPath id={`clip-${p.uid}-${i}`} key={i}>
-              <circle cx={p.cx} cy={p.cy} r={avatarRadius} />
-            </clipPath>
+            <polygon 
+              key={`poly-${i}`}
+              points={p.pointsStr} 
+              fill={p.color} 
+              stroke="rgba(255,255,255,0.3)" 
+              strokeWidth="0.4"
+              style={{ filter: isHighlighted || isWinner ? 'url(#glow)' : 'none', opacity, transition: 'opacity 0.3s ease-in-out' }}
+            />
           );
         })}
-      </defs>
 
+        {/* Радарная крутилка (Луч) */}
+        {roomState?.gameState === 'rolling' && indicatorPoint && (
+          <>
+            <polygon points={`${xc},${yc} ${tailPoint.x},${tailPoint.y} ${indicatorPoint.x},${indicatorPoint.y}`} fill="rgba(255,255,255,0.15)" />
+            <line x1={xc} y1={yc} x2={indicatorPoint.x} y2={indicatorPoint.y} stroke="white" strokeWidth="0.8" filter="url(#glow)" />
+          </>
+        )}
+
+        {/* Светящееся ядро арены */}
+        <circle cx={xc} cy={yc} r="2" fill="#818cf8" filter="url(#glow)" />
+        <circle cx={xc} cy={yc} r="0.8" fill="#ffffff" />
+      </svg>
+
+      {/* Аватарки HTML поверх SVG (для поддержки кастомных рамок) */}
       {layout.map((p, i) => {
+        if (!p.pointsStr) return null;
+        
+        const sizePx = Math.max(35, Math.min(110, 25 + Math.sqrt(p.percentage) * 10));
+        
         const isWinner = roomState?.gameState === 'finished' && roomState.winner?.uid === p.uid;
         const isHighlighted = roomState?.gameState === 'rolling' && (currentIndicator % 10000) >= p.startArea && (currentIndicator % 10000) <= p.endArea;
         
         let opacity = 1;
-        if (roomState?.gameState === 'finished' && !isWinner) opacity = 0.15;
+        if (roomState?.gameState === 'finished' && !isWinner) opacity = 0.2;
         if (roomState?.gameState === 'rolling' && !isHighlighted) opacity = 0.5;
-        
-        const avatarRadius = Math.max(1.5, Math.min(7, Math.sqrt(p.percentage) * 1.3));
 
         return (
-          <g key={`${p.uid}-${i}`} style={{ opacity, transition: 'opacity 0.3s ease-in-out' }}>
-            <polygon 
-              points={p.pointsStr} 
-              fill={p.color} 
-              stroke={p.color} 
-              strokeWidth="0.3"
-              style={{ filter: isHighlighted || isWinner ? 'url(#glow)' : 'none' }}
-              className="transition-all duration-300"
-            />
-            {/* Картинка профиля по центру фигуры */}
-            <image 
-              href={p.avatar || '/assets/avatars/default.webp'} 
-              x={p.cx - avatarRadius} 
-              y={p.cy - avatarRadius} 
-              width={avatarRadius * 2} 
-              height={avatarRadius * 2} 
-              clipPath={`url(#clip-${p.uid}-${i})`}
-              preserveAspectRatio="xMidYMid slice"
-              className="transition-transform duration-500"
-            />
-            <circle cx={p.cx} cy={p.cy} r={avatarRadius} fill="none" stroke="#ffffff" strokeWidth="0.4" opacity="0.8" />
-          </g>
+          <div 
+            key={`ava-${i}`}
+            className="absolute transition-opacity duration-300 pointer-events-none drop-shadow-2xl"
+            style={{ 
+              left: `${p.cx}%`, 
+              top: `${p.cy}%`, 
+              transform: 'translate(-50%, -50%)',
+              opacity,
+              width: `${sizePx}px`,
+              height: `${sizePx}px`
+            }}
+          >
+            {renderCustomAvatar(p, "w-full h-full")}
+          </div>
         );
       })}
-      
-      {/* ЛУЧ РАДАРА (КРУТИЛКА) */}
-      {roomState?.gameState === 'rolling' && indicatorPoint && (
-        <>
-          <polygon 
-            points={`${xc},${yc} ${tailPoint.x},${tailPoint.y} ${indicatorPoint.x},${indicatorPoint.y}`}
-            fill="rgba(255,255,255,0.3)"
-            style={{ mixBlendMode: 'overlay' }}
-          />
-          <line x1={xc} y1={yc} x2={indicatorPoint.x} y2={indicatorPoint.y} stroke="white" strokeWidth="1" strokeLinecap="round" />
-        </>
-      )}
-      
-      {/* Центр */}
-      <circle cx={xc} cy={yc} r="1.5" fill="white" className="drop-shadow-lg" />
-      <circle cx={xc} cy={yc} r="0.5" fill="#0f172a" />
-    </svg>
+    </div>
   );
 };
 
-
-// ---------------------------------------------------------
-// ГЛАВНЫЙ КОМПОНЕНТ СТРАНИЦЫ
-// ---------------------------------------------------------
 export default function Arena({ user }: { user: UserProfile | null }) {
-  const [socket, setSocket] = useState<Socket | null>(null);
-  const [activeRoom, setActiveRoom] = useState('arena_small');
+  const [activeRoom, setActiveRoom] = useState('small');
   const [roomState, setRoomState] = useState<RoomState | null>(null);
   const [betAmount, setBetAmount] = useState<number>(10);
   const [spinData, setSpinData] = useState<any>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [isBetting, setIsBetting] = useState(false);
 
   useEffect(() => {
-    const newSocket = io(import.meta.env.VITE_SERVER_URL || 'http://localhost:3001');
-    setSocket(newSocket);
-
-    newSocket.on('jackpotState', (state: RoomState) => {
-      setRoomState(state);
-    });
-
-    newSocket.on('jackpotSpin', (data: any) => {
-      setSpinData(data);
-    });
-
-    newSocket.on('jackpotError', (msg: string) => {
+    const handleState = (state: RoomState) => setRoomState(state);
+    const handleSpin = (data: any) => setSpinData(data);
+    const handleError = (msg: string) => {
       setErrorMsg(msg);
       setTimeout(() => setErrorMsg(null), 3000);
-    });
+      setIsBetting(false);
+    };
+
+    socket.on('jackpotState', handleState);
+    socket.on('jackpotSpin', handleSpin);
+    socket.on('jackpotError', handleError);
 
     return () => {
-      newSocket.disconnect();
+      socket.off('jackpotState', handleState);
+      socket.off('jackpotSpin', handleSpin);
+      socket.off('jackpotError', handleError);
     };
   }, []);
 
   useEffect(() => {
-    if (socket) {
-      socket.emit('joinRoom', activeRoom);
-      return () => {
-        socket.emit('leaveRoom', activeRoom);
-      };
-    }
-  }, [socket, activeRoom]);
+    socket.emit('joinRoom', activeRoom);
+    return () => {
+      socket.emit('leaveRoom', activeRoom);
+    };
+  }, [activeRoom]);
 
   const handleBet = () => {
-    if (!user || !socket) return;
+    if (!user || isBetting) return;
+    
+    if (user.balance < betAmount) {
+       setErrorMsg("Недостаточно средств");
+       setTimeout(() => setErrorMsg(null), 3000);
+       return;
+    }
+
+    setIsBetting(true);
     socket.emit('placeJackpotBet', {
       userId: user.uid,
       nickname: user.nickname,
       avatar: user.avatar,
       amount: betAmount,
       roomId: activeRoom,
-      cardStyle: undefined, 
-      equippedFrame: undefined,
-      equippedPrefix: undefined,
-      equippedBg: undefined
+      cardStyle: user.cardStyle, 
+      equippedFrame: user.equippedFrame,
+      equippedPrefix: user.equippedPrefix,
+      equippedBg: user.equippedBg
     });
+
+    setTimeout(() => {
+      setIsBetting(false);
+    }, 500);
   };
+
+  const isGameRunning = roomState?.gameState === 'rolling' || roomState?.gameState === 'finished';
 
   return (
     <div className="pb-12 max-w-7xl mx-auto px-4 lg:px-8 space-y-6">
-       {/* ХЕДЕР: Заголовок и Выбор комнаты */}
        <header className="flex flex-col md:flex-row items-center justify-between gap-4">
          <div className="flex items-center gap-3">
            <div className="w-12 h-12 bg-brand-100 rounded-2xl flex items-center justify-center">
@@ -355,15 +389,16 @@ export default function Arena({ user }: { user: UserProfile | null }) {
          </div>
        </header>
 
-       {errorMsg && (
-         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="bg-red-500/10 border border-red-500/20 text-red-600 px-4 py-3 rounded-2xl flex items-center gap-3 font-bold text-sm">
-           <AlertCircle className="w-5 h-5" />
-           {errorMsg}
-         </motion.div>
-       )}
+       <AnimatePresence>
+         {errorMsg && (
+           <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="bg-red-500/10 border border-red-500/20 text-red-600 px-4 py-3 rounded-2xl flex items-center justify-center gap-3 font-bold text-sm">
+             <AlertCircle className="w-5 h-5" />
+             {errorMsg}
+           </motion.div>
+         )}
+       </AnimatePresence>
 
        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-         {/* ЛЕВАЯ КОЛОНКА: Игровое поле (100% графика без текста) */}
          <div className="lg:col-span-2 space-y-4">
             <div className="flex items-center justify-between bg-white px-6 py-4 rounded-3xl border border-slate-100 shadow-sm">
                <div className="flex items-center gap-3">
@@ -378,6 +413,7 @@ export default function Arena({ user }: { user: UserProfile | null }) {
                     {roomState?.gameState === 'countdown' && `Битва через ${roomState.timeLeft}с`}
                     {roomState?.gameState === 'rolling' && 'Крутим рулетку!'}
                     {roomState?.gameState === 'finished' && 'Раунд завершен'}
+                    {!roomState && 'Подключение к Арене...'}
                   </span>
                </div>
                <div className="text-right">
@@ -386,10 +422,10 @@ export default function Arena({ user }: { user: UserProfile | null }) {
                </div>
             </div>
 
-            <div className="w-full aspect-square bg-slate-900 rounded-[3.5rem] p-3 shadow-2xl relative border-[6px] border-slate-800">
+            {/* ИГРОВОЕ ПОЛЕ АРЕНЫ */}
+            <div className="w-full aspect-square relative">
                <ArenaField roomState={roomState} spinData={spinData} />
                
-               {/* Окно победителя появляется поверх, но вне самого SVG поля */}
                <AnimatePresence>
                  {roomState?.gameState === 'finished' && roomState.winner && (
                    <motion.div 
@@ -398,11 +434,11 @@ export default function Arena({ user }: { user: UserProfile | null }) {
                      exit={{ opacity: 0, scale: 0.8 }}
                      className="absolute inset-0 flex items-center justify-center pointer-events-none z-50"
                    >
-                     <div className="bg-slate-900/80 backdrop-blur-md border border-white/10 p-8 rounded-[3rem] text-center shadow-[0_0_50px_rgba(0,0,0,0.5)]">
-                       <img src={roomState.winner.avatar} className="w-24 h-24 rounded-full mx-auto mb-4 border-4" style={{ borderColor: roomState.winner.color }} alt="" />
+                     <div className="bg-slate-900/90 backdrop-blur-md border border-white/10 p-8 rounded-[3rem] text-center shadow-[0_0_50px_rgba(0,0,0,0.5)]">
+                       {renderCustomAvatar(roomState.winner, "w-24 h-24 mx-auto mb-4")}
                        <h3 className="text-3xl font-black text-white mb-1">{roomState.winner.nickname}</h3>
                        <p className="text-brand-400 font-bold uppercase tracking-widest text-xs">Забирает банк</p>
-                       <p className="text-white font-black text-4xl mt-4">+{roomState.winner.winAmount} CAT</p>
+                       <p className="text-white font-black text-4xl mt-4">+{roomState.winner.winAmount?.toFixed(0)} CAT</p>
                      </div>
                    </motion.div>
                  )}
@@ -410,7 +446,6 @@ export default function Arena({ user }: { user: UserProfile | null }) {
             </div>
          </div>
 
-         {/* ПРАВАЯ КОЛОНКА: Ставки и Игроки */}
          <div className="space-y-6">
             <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50">
                <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-4">Внести ставку</h3>
@@ -439,10 +474,10 @@ export default function Arena({ user }: { user: UserProfile | null }) {
                  
                  <button 
                    onClick={handleBet}
-                   disabled={!user || roomState?.gameState === 'rolling' || roomState?.gameState === 'finished'}
-                   className="w-full bg-brand-500 hover:bg-brand-600 disabled:bg-slate-300 text-white font-black uppercase tracking-widest py-4 rounded-2xl transition-all shadow-lg shadow-brand-500/30 active:scale-95"
+                   disabled={!user || isGameRunning || isBetting || user.balance < betAmount}
+                   className="w-full bg-brand-500 hover:bg-brand-600 disabled:bg-slate-300 text-white font-black uppercase tracking-widest py-4 rounded-2xl transition-all shadow-lg shadow-brand-500/30 active:scale-95 flex items-center justify-center gap-2"
                  >
-                   {user ? 'Сделать ставку' : 'Войдите для игры'}
+                   {!user ? 'Войдите для игры' : isGameRunning ? 'Раунд идет...' : 'Сделать ставку'}
                  </button>
                </div>
             </div>
@@ -464,7 +499,7 @@ export default function Arena({ user }: { user: UserProfile | null }) {
                        style={{ borderLeft: `4px solid ${p.color}` }}
                      >
                        <div className="flex items-center gap-3">
-                         <img src={p.avatar} alt="avatar" className="w-10 h-10 rounded-full bg-slate-200" />
+                         {renderCustomAvatar(p, "w-10 h-10")}
                          <div>
                            <p className="font-bold text-slate-900 text-sm max-w-[100px] truncate">{p.nickname}</p>
                            <p className="text-xs font-bold text-slate-400">{((p.betAmount / (roomState.totalPool || 1)) * 100).toFixed(1)}% шанс</p>
@@ -479,7 +514,7 @@ export default function Arena({ user }: { user: UserProfile | null }) {
                    {(!roomState?.players || roomState.players.length === 0) && (
                      <div className="text-center py-8">
                        <Clock className="w-8 h-8 text-slate-200 mx-auto mb-2" />
-                       <p className="text-slate-400 font-medium">Ждем первых гладиаторов...</p>
+                       <p className="text-slate-400 font-medium text-sm">Ждем первых гладиаторов...</p>
                      </div>
                    )}
                  </AnimatePresence>
