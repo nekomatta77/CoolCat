@@ -1,6 +1,6 @@
 // src/pages/Arena.tsx
-import React, { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence, animate } from 'framer-motion';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { vpsSocket as socket } from '../lib/vpsSocket';
 import { UserProfile } from '../types';
 import { Users, Swords, AlertCircle, Clock } from 'lucide-react';
@@ -38,6 +38,7 @@ interface RoomState {
   history: any[];
 }
 
+// Математика 100% заполнения поля полигонами
 const getPointForArea = (targetArea: number, xc: number, yc: number) => {
   const V = [
     { x: 100, y: yc }, { x: 100, y: 100 }, { x: 0, y: 100 },
@@ -80,10 +81,7 @@ const renderCustomAvatar = (player: any, sizeClass: string) => {
   return (
     <div className={cn("relative flex items-center justify-center", sizeClass)}>
       <div 
-        className={cn(
-          "absolute inset-0 overflow-hidden shadow-md rounded-[30%] sm:rounded-[35%] border-[3px]",
-          frameObj.css
-        )}
+        className={cn("absolute inset-0 overflow-hidden shadow-md rounded-[30%] sm:rounded-[35%] border-[3px]", frameObj.css)}
         style={{ backgroundColor: cardBg, borderColor: frameObj.id === 'none' ? cardBorder : undefined }}
       >
         <div className={cn("absolute inset-0 opacity-40 z-0", bgObj?.gradient)} />
@@ -96,39 +94,124 @@ const renderCustomAvatar = (player: any, sizeClass: string) => {
   );
 };
 
+// =========================================================
+// ИГРОВОЕ ПОЛЕ С ФИЗИКОЙ И ШАЙБОЙ
+// =========================================================
 const ArenaField = ({ roomState, spinData }: { roomState: RoomState | null, spinData: any }) => {
-  const [currentIndicator, setCurrentIndicator] = useState(0);
+  // Состояние физики шайбы
+  const [ball, setBall] = useState({ x: 50, y: 50 });
+  const [ballTrail, setBallTrail] = useState<{x: number, y: number}[]>([]);
+  
+  // Рефы для хранения текущих физических параметров без ререндера
+  const physicsRef = useRef({
+    x: 50, y: 50,
+    vx: 1.2, vy: 1.5,
+    isRolling: false,
+    rollStartTime: 0
+  });
 
+  // ИСПРАВЛЕНИЕ: Явное указание null как стартового значения
+  const reqRef = useRef<number | null>(null);
+
+  // Игровой цикл физики шайбы (60 FPS)
   useEffect(() => {
-    if (roomState?.gameState === 'rolling' && spinData) {
-      const targetArea = ((spinData.winningTicket - 0.5) / (spinData.totalTickets || 1)) * 10000;
-      const totalSpins = 4 * 10000; 
-      const finalValue = totalSpins + targetArea;
+    const loop = () => {
+      const p = physicsRef.current;
       
-      const controls = animate(0, finalValue, {
-        duration: 14.5, 
-        ease: [0.15, 0, 0.05, 1],
-        onUpdate: (val) => setCurrentIndicator(val)
-      });
-      return () => controls.stop();
-    } else if (roomState?.gameState === 'waiting' || roomState?.gameState === 'countdown') {
-      setCurrentIndicator(0);
-    }
-  }, [roomState?.gameState, spinData]);
+      if (p.isRolling) {
+        const elapsed = Date.now() - p.rollStartTime;
+        const remaining = 15000 - elapsed; // 15 секунд прокрутки
+        
+        // Нормальные отскоки от стен арены (радиус шайбы ~3%)
+        if (p.x <= 3 || p.x >= 97) p.vx *= -1;
+        if (p.y <= 3 || p.y >= 97) p.vy *= -1;
 
-  const { xc, yc } = useMemo(() => {
-    if (!roomState || !roomState.players || roomState.players.length === 0) {
-      return { xc: 50, yc: 50 };
+        if (remaining > 3000) {
+          // Активная фаза отскоков (небольшое ускорение, чтобы шайба не застревала)
+          const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+          if (speed < 1.5) { p.vx *= 1.05; p.vy *= 1.05; }
+          if (speed > 2.5) { p.vx *= 0.95; p.vy *= 0.95; }
+          
+          p.x += p.vx;
+          p.y += p.vy;
+        } else if (remaining > 0 && (window as any).winnerCentroid) {
+          // Фаза магнита (последние 3 секунды) - шайбу притягивает в центр победителя
+          const target = (window as any).winnerCentroid;
+          const dx = target.x - p.x;
+          const dy = target.y - p.y;
+          
+          // Трение и магнетизм
+          p.vx = (p.vx * 0.9) + (dx * 0.03);
+          p.vy = (p.vy * 0.9) + (dy * 0.03);
+          
+          p.x += p.vx;
+          p.y += p.vy;
+        }
+
+        // Ограничители, чтобы шайба не вылетела за пределы
+        p.x = Math.max(3, Math.min(97, p.x));
+        p.y = Math.max(3, Math.min(97, p.y));
+
+        setBall({ x: p.x, y: p.y });
+        
+        // След от шайбы (Trail)
+        setBallTrail(prev => {
+          const newTrail = [...prev, { x: p.x, y: p.y }];
+          if (newTrail.length > 10) newTrail.shift();
+          return newTrail;
+        });
+
+      } else {
+        // Если игра не крутится, плавно возвращаем шайбу в центр
+        if (p.x !== 50 || p.y !== 50) {
+          p.x += (50 - p.x) * 0.1;
+          p.y += (50 - p.y) * 0.1;
+          setBall({ x: p.x, y: p.y });
+          setBallTrail([]);
+        }
+      }
+
+      reqRef.current = requestAnimationFrame(loop);
+    };
+    
+    reqRef.current = requestAnimationFrame(loop);
+    
+    return () => {
+      if (reqRef.current !== null) {
+        cancelAnimationFrame(reqRef.current);
+      }
+    };
+  }, []);
+
+  // Синхронизация состояний из пропсов в физику
+  useEffect(() => {
+    if (roomState?.gameState === 'rolling' && !physicsRef.current.isRolling) {
+      physicsRef.current.isRolling = true;
+      physicsRef.current.rollStartTime = Date.now();
+      // Рандомизируем начальный толчок шайбы
+      physicsRef.current.vx = (Math.random() > 0.5 ? 1.5 : -1.5) * (Math.random() * 0.5 + 0.8);
+      physicsRef.current.vy = (Math.random() > 0.5 ? 1.5 : -1.5) * (Math.random() * 0.5 + 0.8);
+    } else if (roomState?.gameState !== 'rolling') {
+      physicsRef.current.isRolling = false;
     }
+  }, [roomState?.gameState]);
+
+  // СТАТИЧНЫЙ ЦЕНТР (Фигуры меняются только при новых ставках)
+  const { xc, yc } = useMemo(() => {
+    if (!roomState || !roomState.players || roomState.players.length === 0) return { xc: 50, yc: 50 };
+    // Центр, из которого делятся полигоны, теперь зависит от размера банка и количества игроков.
+    // При добавлении нового игрока поле перестроится случайным, но строго статичным образом.
     const seed = (roomState.totalPool || 1) + (roomState.players.length * 73);
     return {
       xc: 35 + (seed % 30),
       yc: 35 + ((seed * 17) % 30)
     };
-  }, [roomState?.totalPool, roomState?.players?.length]);
+  }, [roomState?.players?.length, roomState?.totalPool]);
 
+  // Генерация полигонов
   const layout = useMemo(() => {
     if (!roomState || !roomState.players || roomState.players.length === 0) return [];
+    
     const players = roomState.players;
     const totalPool = roomState.totalPool || 0;
 
@@ -145,7 +228,7 @@ const ArenaField = ({ roomState, spinData }: { roomState: RoomState | null, spin
     A.push(10000); 
 
     let currentArea = 0;
-    return players.map((p) => {
+    const lyt = players.map((p) => {
       const playerArea = totalPool > 0 ? (p.betAmount / totalPool) * 10000 : 0;
       const startArea = currentArea;
       const endArea = currentArea + playerArea;
@@ -187,19 +270,30 @@ const ArenaField = ({ roomState, spinData }: { roomState: RoomState | null, spin
         cy = (yc + pStart.y + pEnd.y) / 3;
       }
 
+      // Глобально сохраняем центр победителя для физики шайбы
+      if (spinData && roomState.gameState === 'rolling' && spinData.winner?.uid === p.uid) {
+        (window as any).winnerCentroid = { x: cx, y: cy };
+      }
+
       return {
         ...p, pointsStr, cx, cy, startArea, endArea,
         percentage: totalPool > 0 ? (p.betAmount / totalPool) * 100 : 0
       };
     });
-  }, [roomState?.players, roomState?.totalPool, xc, yc]);
+    
+    return lyt;
+  }, [roomState?.players, roomState?.totalPool, xc, yc, spinData, roomState?.gameState]);
 
-  const indicatorPoint = getPointForArea(currentIndicator, xc, yc);
-  const tailPoint = getPointForArea(currentIndicator - 250, xc, yc);
+  if (!layout.length) {
+    return (
+      <div className="w-full h-full relative rounded-[3rem] bg-slate-950 border-8 border-slate-900 flex items-center justify-center overflow-hidden">
+        <div className="absolute inset-0 opacity-[0.05]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,1) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+      </div>
+    );
+  }
 
   return (
     <div className="w-full h-full relative rounded-[3rem] bg-slate-950 shadow-[0_0_50px_rgba(0,0,0,0.5)_inset] border-8 border-slate-900 overflow-hidden group">
-      
       <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-full">
         <defs>
           <filter id="glow">
@@ -209,81 +303,107 @@ const ArenaField = ({ roomState, spinData }: { roomState: RoomState | null, spin
               <feMergeNode in="SourceGraphic"/>
             </feMerge>
           </filter>
-          <radialGradient id="arena-bg" cx="50%" cy="50%" r="75%">
-             <stop offset="0%" stopColor="#1e293b" />
-             <stop offset="100%" stopColor="#020617" />
-          </radialGradient>
         </defs>
         
-        {/* Базовый радиальный фон (космос) */}
-        <rect width="100" height="100" fill="url(#arena-bg)" />
-
-        {/* Сетка радара (оси и концентрические круги) */}
-        <circle cx={xc} cy={yc} r="25" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="0.5" />
-        <circle cx={xc} cy={yc} r="50" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="0.5" />
-        <circle cx={xc} cy={yc} r="75" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="0.5" />
-        <circle cx={xc} cy={yc} r="100" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="0.5" />
+        {/* Базовый радиальный фон Арены */}
+        <rect width="100" height="100" fill="#020617" />
         
-        {/* Отрисовка полигонов (зон игроков) */}
+        {/* Сетка Арены (только концентрические круги, без луча) */}
+        <g stroke="rgba(255,255,255,0.05)" strokeWidth="0.5" fill="none">
+          <circle cx="50" cy="50" r="20" />
+          <circle cx="50" cy="50" r="40" />
+          <circle cx="50" cy="50" r="60" />
+          <circle cx="50" cy="50" r="80" />
+          <line x1="0" y1="50" x2="100" y2="50" />
+          <line x1="50" y1="0" x2="50" y2="100" />
+          <line x1="15" y1="15" x2="85" y2="85" />
+          <line x1="15" y1="85" x2="85" y2="15" />
+        </g>
+
+        {/* ПОЛИГОНЫ ИГРОКОВ (Голографический эффект) */}
         {layout.map((p, i) => {
           if (!p.pointsStr) return null;
           const isWinner = roomState?.gameState === 'finished' && roomState.winner?.uid === p.uid;
-          const isHighlighted = roomState?.gameState === 'rolling' && (currentIndicator % 10000) >= p.startArea && (currentIndicator % 10000) <= p.endArea;
           
-          let opacity = 0.65; // Glassmorphism-эффект
-          if (roomState?.gameState === 'finished' && !isWinner) opacity = 0.15;
-          if (roomState?.gameState === 'rolling' && !isHighlighted) opacity = 0.4;
-          if (isHighlighted || isWinner) opacity = 0.85;
+          let opacity = 0.5;
+          let strokeWidth = "0.2";
+          let filter = "none";
+
+          if (roomState?.gameState === 'finished') {
+             opacity = isWinner ? 0.9 : 0.1;
+             strokeWidth = isWinner ? "0.8" : "0.1";
+             filter = isWinner ? "url(#glow)" : "none";
+          } else if (roomState?.gameState === 'rolling') {
+             // Фигура подсвечивается (реагирует), если шайба пролетает близко к её центру
+             const dx = p.cx - ball.x;
+             const dy = p.cy - ball.y;
+             const dist = Math.sqrt(dx*dx + dy*dy);
+             if (dist < 30) {
+               opacity = 0.8;
+               filter = "url(#glow)";
+             }
+          }
 
           return (
             <polygon 
               key={`poly-${i}`}
               points={p.pointsStr} 
               fill={p.color} 
-              stroke="rgba(255,255,255,0.3)" 
-              strokeWidth="0.4"
-              style={{ filter: isHighlighted || isWinner ? 'url(#glow)' : 'none', opacity, transition: 'opacity 0.3s ease-in-out' }}
+              stroke="#ffffff" 
+              strokeWidth={strokeWidth}
+              style={{ filter, opacity, transition: 'opacity 0.2s ease, stroke-width 0.2s ease' }}
             />
           );
         })}
 
-        {/* Радарная крутилка (Луч) */}
-        {roomState?.gameState === 'rolling' && indicatorPoint && (
-          <>
-            <polygon points={`${xc},${yc} ${tailPoint.x},${tailPoint.y} ${indicatorPoint.x},${indicatorPoint.y}`} fill="rgba(255,255,255,0.15)" />
-            <line x1={xc} y1={yc} x2={indicatorPoint.x} y2={indicatorPoint.y} stroke="white" strokeWidth="0.8" filter="url(#glow)" />
-          </>
+        {/* СЛЕД ОТ ШАЙБЫ */}
+        {roomState?.gameState === 'rolling' && ballTrail.length > 1 && (
+          <polyline 
+            points={ballTrail.map(pt => `${pt.x},${pt.y}`).join(' ')}
+            fill="none"
+            stroke="#ffffff"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity="0.3"
+            filter="url(#glow)"
+          />
         )}
-
-        {/* Светящееся ядро арены */}
-        <circle cx={xc} cy={yc} r="2" fill="#818cf8" filter="url(#glow)" />
-        <circle cx={xc} cy={yc} r="0.8" fill="#ffffff" />
+        
+        {/* ШАЙБА (PUCK) */}
+        {roomState?.gameState === 'rolling' && (
+          <g transform={`translate(${ball.x}, ${ball.y})`}>
+             <circle r="3.5" fill="#818cf8" filter="url(#glow)" opacity="0.6" />
+             <circle r="2.5" fill="#e0e7ff" />
+             <circle r="1" fill="#ffffff" />
+          </g>
+        )}
+        
+        {/* Статичное Ядро (Центр пересечения лучей) */}
+        <circle cx={xc} cy={yc} r="1" fill="#ffffff" filter="url(#glow)" />
       </svg>
 
-      {/* Аватарки HTML поверх SVG (для поддержки кастомных рамок) */}
+      {/* АВАТАРКИ ИГРОКОВ (HTML слой) */}
       {layout.map((p, i) => {
         if (!p.pointsStr) return null;
-        
         const sizePx = Math.max(35, Math.min(110, 25 + Math.sqrt(p.percentage) * 10));
-        
         const isWinner = roomState?.gameState === 'finished' && roomState.winner?.uid === p.uid;
-        const isHighlighted = roomState?.gameState === 'rolling' && (currentIndicator % 10000) >= p.startArea && (currentIndicator % 10000) <= p.endArea;
         
         let opacity = 1;
         if (roomState?.gameState === 'finished' && !isWinner) opacity = 0.2;
-        if (roomState?.gameState === 'rolling' && !isHighlighted) opacity = 0.5;
 
         return (
           <div 
             key={`ava-${i}`}
-            className="absolute transition-opacity duration-300 pointer-events-none drop-shadow-2xl"
+            className="absolute transition-all duration-300 pointer-events-none drop-shadow-2xl"
             style={{ 
               left: `${p.cx}%`, 
               top: `${p.cy}%`, 
               transform: 'translate(-50%, -50%)',
               opacity,
               width: `${sizePx}px`,
-              height: `${sizePx}px`
+              height: `${sizePx}px`,
+              zIndex: isWinner ? 40 : 10
             }}
           >
             {renderCustomAvatar(p, "w-full h-full")}
@@ -331,13 +451,11 @@ export default function Arena({ user }: { user: UserProfile | null }) {
 
   const handleBet = () => {
     if (!user || isBetting) return;
-    
     if (user.balance < betAmount) {
        setErrorMsg("Недостаточно средств");
        setTimeout(() => setErrorMsg(null), 3000);
        return;
     }
-
     setIsBetting(true);
     socket.emit('placeJackpotBet', {
       userId: user.uid,
@@ -350,10 +468,7 @@ export default function Arena({ user }: { user: UserProfile | null }) {
       equippedPrefix: user.equippedPrefix,
       equippedBg: user.equippedBg
     });
-
-    setTimeout(() => {
-      setIsBetting(false);
-    }, 500);
+    setTimeout(() => { setIsBetting(false); }, 500);
   };
 
   const isGameRunning = roomState?.gameState === 'rolling' || roomState?.gameState === 'finished';
@@ -367,7 +482,7 @@ export default function Arena({ user }: { user: UserProfile | null }) {
            </div>
            <div>
              <h1 className="text-3xl font-black text-slate-900 tracking-tight uppercase leading-none">Arena</h1>
-             <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest mt-1">Останется только один</p>
+             <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest mt-1">Неоновая битва</p>
            </div>
          </div>
          
@@ -411,7 +526,7 @@ export default function Arena({ user }: { user: UserProfile | null }) {
                   <span className="font-black text-slate-700 uppercase tracking-widest text-sm">
                     {roomState?.gameState === 'waiting' && 'Ожидание соперников'}
                     {roomState?.gameState === 'countdown' && `Битва через ${roomState.timeLeft}с`}
-                    {roomState?.gameState === 'rolling' && 'Крутим рулетку!'}
+                    {roomState?.gameState === 'rolling' && 'Шайба на поле!'}
                     {roomState?.gameState === 'finished' && 'Раунд завершен'}
                     {!roomState && 'Подключение к Арене...'}
                   </span>
@@ -422,8 +537,7 @@ export default function Arena({ user }: { user: UserProfile | null }) {
                </div>
             </div>
 
-            {/* ИГРОВОЕ ПОЛЕ АРЕНЫ */}
-            <div className="w-full aspect-square relative">
+            <div className="w-full aspect-square relative drop-shadow-2xl">
                <ArenaField roomState={roomState} spinData={spinData} />
                
                <AnimatePresence>
@@ -514,7 +628,7 @@ export default function Arena({ user }: { user: UserProfile | null }) {
                    {(!roomState?.players || roomState.players.length === 0) && (
                      <div className="text-center py-8">
                        <Clock className="w-8 h-8 text-slate-200 mx-auto mb-2" />
-                       <p className="text-slate-400 font-medium text-sm">Ждем первых гладиаторов...</p>
+                       <p className="text-slate-400 font-medium text-sm">Ждем первых игроков...</p>
                      </div>
                    )}
                  </AnimatePresence>

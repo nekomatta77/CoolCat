@@ -1,10 +1,11 @@
+// src/pages/Achievements.tsx
 import { useState, useEffect } from 'react';
 import { UserProfile, Achievement } from '../types';
 import { doc, updateDoc, getDocs, query, collection, where, arrayUnion, increment } from 'firebase/firestore';
 import { db } from '../firebase';
 import { 
   Trophy, Dice5, Grid3X3, Layers, Coins, CheckCircle2, Lock, 
-  Star, Sparkles, ChevronLeft, ChevronRight, Gift, ArrowRight, Aperture 
+  Star, Sparkles, ChevronLeft, ChevronRight, Gift, ArrowRight, Aperture, Swords
 } from 'lucide-react';
 import { motion, AnimatePresence, PanInfo } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
@@ -20,7 +21,7 @@ interface AchievementsProps {
 
 interface LocalAchievement {
   id: string;
-  category: 'dice' | 'mines' | 'keno' | 'wheelx' | 'jackpot' | 'general';
+  category: 'dice' | 'mines' | 'keno' | 'wheelx' | 'jackpot' | 'arena' | 'general';
   title: string;
   desc: string;
   target: number;
@@ -40,7 +41,7 @@ export default function Achievements({ user }: AchievementsProps) {
   const [loading, setLoading] = useState(true);
 
   const [activeIndices, setActiveIndices] = useState<Record<string, number>>({
-    dice: 0, mines: 0, keno: 0, wheelx: 0, jackpot: 0, general: 0
+    dice: 0, mines: 0, keno: 0, wheelx: 0, jackpot: 0, arena: 0, general: 0
   });
   const [directions, setDirections] = useState<Record<string, number>>({});
 
@@ -50,6 +51,7 @@ export default function Achievements({ user }: AchievementsProps) {
     { id: 'keno', name: 'Keno', icon: Layers, color: 'bg-violet-500', shadow: 'shadow-violet-500/50' },
     { id: 'wheelx', name: 'WheelX', icon: Aperture, color: 'bg-pink-500', shadow: 'shadow-pink-500/50' },
     { id: 'jackpot', name: 'Jackpot', icon: Trophy, color: 'bg-amber-500', shadow: 'shadow-amber-500/50' },
+    { id: 'arena', name: 'Arena', icon: Swords, color: 'bg-indigo-500', shadow: 'shadow-indigo-500/50' },
     { id: 'general', name: 'Общие', icon: Coins, color: 'bg-emerald-500', shadow: 'shadow-emerald-500/50' },
   ] as const;
 
@@ -96,6 +98,13 @@ export default function Achievements({ user }: AchievementsProps) {
     { id: 'jackpot_predator', category: 'jackpot', title: 'Азартный хищник', desc: 'Выиграть 5 раз ПОДРЯД', target: 5, rewardCat: 300, rewardXp: 250, bonus: 'Аватар "Tiger"', itemRewards: { avatars: ['/assets/avatars/tiger.webp'] } },
     { id: 'jackpot_big_catch', category: 'jackpot', title: 'Большой куш', desc: 'Выиграть за раз более 10,000 CAT', target: 1, rewardCat: 1000, rewardXp: 1500 },
     
+    // --- ARENA ---
+    { id: 'arena_first_blood', category: 'arena', title: 'Первая кровь', desc: 'Сделайте свою самую первую ставку на неоновой Арене.', target: 1, rewardCat: 100, rewardXp: 100 },
+    { id: 'arena_gladiator', category: 'arena', title: 'Истинный Гладиатор', desc: 'Одержите 10 побед в безжалостной Арене.', target: 10, rewardCat: 500, rewardXp: 150, bonus: 'Префикс "ГЛАДИАТОР"', itemRewards: { prefixes: ['gladiator'] } },
+    { id: 'arena_underdog', category: 'arena', title: 'Чудом выжил', desc: 'Победите в Арене, имея шанс на победу менее 5%.', target: 1, rewardCat: 1000, rewardXp: 200, bonus: 'Аватар "Мастер Арены"', itemRewards: { avatars: ['/assets/avatars/arena_master.webp'] } },
+    { id: 'arena_highroller', category: 'arena', title: 'Владелец Колизея', desc: 'Сделайте ставку размером более 10,000 CAT в Арене.', target: 1, rewardCat: 500, rewardXp: 500 },
+    { id: 'arena_domination', category: 'arena', title: 'Тотальная доминация', desc: 'Займите более 90% площади поля и уверенно заберите банк.', target: 1, rewardCat: 150, rewardXp: 200 },
+
     // --- GENERAL ---
     { id: 'gen_first_step', category: 'general', title: 'Первые шаги', desc: 'Сумма депозитов более 1000 CAT', target: 1000, rewardCat: 100, rewardXp: 100 },
     { id: 'gen_investor', category: 'general', title: 'Инвестор', desc: 'Сумма депозитов более 10,000 CAT', target: 10000, rewardCat: 500, rewardXp: 1000 },
