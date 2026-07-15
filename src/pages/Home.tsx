@@ -24,8 +24,9 @@ export default function Home({ user, onLogin }: HomeProps) {
     { id: 'mines', name: 'Mines', image: '/assets/mines_cat_original.webp', path: '/mines', config: { pc: { x: 0, y: 0, scale: 2 }, mobile: { x: -7, y: 10, scale: 2.7 } } },
     { id: 'keno', name: 'Keno', image: '/assets/keno_cat_original.webp', path: '/keno', config: { pc: { x: 0, y: 0, scale: 2.2 }, mobile: { x: 0, y: 16, scale: 2.6 } } },
     { id: 'wheelx', name: 'WheelX', image: '/assets/wheel_cat_original.webp', path: '/wheelx', config: { pc: { x: 0, y: 5, scale: 1.4 }, mobile: { x: 0, y: 10, scale: 1.6 } } },
-    // НОВЫЙ ИГРОВОЙ РЕЖИМ JACKPOT
     { id: 'jackpot', name: 'Jackpot', image: '/assets/jackpot_cat_original.webp', path: '/jackpot', config: { pc: { x: 0, y: 2, scale: 1.6 }, mobile: { x: 0, y: 8, scale: 1.9 } } },
+    // НОВЫЙ ИГРОВОЙ РЕЖИМ ARENA
+    { id: 'arena', name: 'Arena', image: '/assets/arena_cat_original.webp', path: '/arena', config: { pc: { x: 0, y: 0, scale: 2 }, mobile: { x: 0, y: 15, scale: 2.5 } } },
   ];
 
   return (
@@ -90,7 +91,16 @@ export default function Home({ user, onLogin }: HomeProps) {
                 <div className="w-24 h-24 lg:w-40 lg:h-40 mb-4 lg:mb-8 flex items-center justify-center relative">
                   <div className="absolute inset-0 bg-slate-100 rounded-full blur-2xl scale-50 group-hover:scale-100 transition-transform duration-500 opacity-60" />
                   <div className="relative z-10 w-full h-full flex items-center justify-center transition-transform duration-300" style={{ transform: `translate(${gameCfg.x}px, ${gameCfg.y}px) scale(${gameCfg.scale})` }}>
-                    <img src={game.image} alt={game.name} className="w-full h-full object-contain drop-shadow-2xl group-hover:rotate-6 transition-transform duration-500" onError={(e) => { (e.target as HTMLImageElement).src = '/assets/CoolCat_logo.webp'; }} />
+                    <img 
+                      src={game.image} 
+                      alt={game.name} 
+                      className="w-full h-full object-contain drop-shadow-2xl group-hover:rotate-6 transition-transform duration-500" 
+                      onError={(e) => { 
+                        // ДОБАВЛЕНО ЛОГИРОВАНИЕ ДЛЯ УДОБСТВА ОТЛАДКИ:
+                        console.error(`[CoolCat Debug] Не удалось загрузить картинку для: ${game.name}. Проверьте наличие файла по пути: ${game.image}`);
+                        (e.target as HTMLImageElement).src = '/assets/CoolCat_logo.webp'; 
+                      }} 
+                    />
                   </div>
                 </div>
                 <h3 className="text-xl lg:text-3xl font-black text-slate-900 mb-6 lg:mb-8 tracking-tight leading-none mt-2">{game.name}</h3>
