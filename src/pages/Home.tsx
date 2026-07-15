@@ -10,6 +10,34 @@ const TROPHY_CONFIG = {
   mobile: { x: 0, y: 10, scale: 1.6 },
 };
 
+// Вынесенная конфигурация размеров и смещений для каждой карточки игры
+const GAME_CONFIGS = {
+  dice: {
+    pc: { x: 0, y: 25, scale: 2.2 },
+    mobile: { x: 0, y: 12, scale: 2.6 }
+  },
+  mines: {
+    pc: { x: -10, y: 16, scale: 2.2 },
+    mobile: { x: -7, y: 6, scale: 2.7 }
+  },
+  keno: {
+    pc: { x: 0, y: 30, scale: 2.4 },
+    mobile: { x: 0, y: 10, scale: 2.6 }
+  },
+  wheelx: {
+    pc: { x: 0, y: 16, scale: 1.6 },
+    mobile: { x: 0, y: 7, scale: 1.6 }
+  },
+  jackpot: {
+    pc: { x: 0, y: -10, scale: 1.6 },
+    mobile: { x: 0, y: -15, scale: 1.9 }
+  },
+  arena: {
+    pc: { x: 0, y: 20, scale: 2.1 },
+    mobile: { x: 0, y: 8, scale: 2.2 }
+  }
+};
+
 interface HomeProps {
   user: UserProfile | null;
   onLogin?: () => void;
@@ -20,13 +48,12 @@ export default function Home({ user, onLogin }: HomeProps) {
   const trophyCfg = isMobile ? TROPHY_CONFIG.mobile : TROPHY_CONFIG.pc;
 
   const games = [
-    { id: 'dice', name: 'Dice', image: '/assets/dice_cat_original.webp', path: '/dice', config: { pc: { x: 0, y: 0, scale: 2 }, mobile: { x: 0, y: 18, scale: 2.6 } } },
-    { id: 'mines', name: 'Mines', image: '/assets/mines_cat_original.webp', path: '/mines', config: { pc: { x: 0, y: 0, scale: 2 }, mobile: { x: -7, y: 10, scale: 2.7 } } },
-    { id: 'keno', name: 'Keno', image: '/assets/keno_cat_original.webp', path: '/keno', config: { pc: { x: 0, y: 0, scale: 2.2 }, mobile: { x: 0, y: 16, scale: 2.6 } } },
-    { id: 'wheelx', name: 'WheelX', image: '/assets/wheel_cat_original.webp', path: '/wheelx', config: { pc: { x: 0, y: 5, scale: 1.4 }, mobile: { x: 0, y: 10, scale: 1.6 } } },
-    { id: 'jackpot', name: 'Jackpot', image: '/assets/jackpot_cat_original.webp', path: '/jackpot', config: { pc: { x: 0, y: 2, scale: 1.6 }, mobile: { x: 0, y: 8, scale: 1.9 } } },
-    // НОВЫЙ ИГРОВОЙ РЕЖИМ ARENA
-    { id: 'arena', name: 'Arena', image: '/assets/arena_cat_original.webp', path: '/arena', config: { pc: { x: 0, y: 0, scale: 2 }, mobile: { x: 0, y: 15, scale: 2.5 } } },
+    { id: 'dice', name: 'Dice', image: '/assets/dice_cat_original.webp', path: '/dice' },
+    { id: 'mines', name: 'Mines', image: '/assets/mines_cat_original.webp', path: '/mines' },
+    { id: 'keno', name: 'Keno', image: '/assets/keno_cat_original.webp', path: '/keno' },
+    { id: 'wheelx', name: 'WheelX', image: '/assets/wheel_cat_original.webp', path: '/wheelx' },
+    { id: 'jackpot', name: 'Jackpot', image: '/assets/jackpot_cat_original.webp', path: '/jackpot' },
+    { id: 'arena', name: 'Arena', image: '/assets/arena_cat_original.webp', path: '/arena' },
   ];
 
   return (
@@ -84,21 +111,28 @@ export default function Home({ user, onLogin }: HomeProps) {
       {/* СЕТКА ИГР */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-6">
         {games.map((game, i) => {
-          const gameCfg = isMobile ? game.config.mobile : game.config.pc;
+          const config = GAME_CONFIGS[game.id as keyof typeof GAME_CONFIGS];
+          const styleCfg = isMobile ? config.mobile : config.pc;
+
           return (
             <motion.div key={game.id} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }}>
               <Link to={game.path} className="group relative bg-white p-4 lg:p-8 rounded-[2rem] lg:rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/50 hover:shadow-2xl transition-all flex flex-col items-center text-center overflow-hidden h-full">
                 <div className="w-24 h-24 lg:w-40 lg:h-40 mb-4 lg:mb-8 flex items-center justify-center relative">
                   <div className="absolute inset-0 bg-slate-100 rounded-full blur-2xl scale-50 group-hover:scale-100 transition-transform duration-500 opacity-60" />
-                  <div className="relative z-10 w-full h-full flex items-center justify-center transition-transform duration-300" style={{ transform: `translate(${gameCfg.x}px, ${gameCfg.y}px) scale(${gameCfg.scale})` }}>
+                  <div 
+                    className="relative z-10 w-full h-full flex items-center justify-center transition-transform duration-300" 
+                    style={{ transform: `translate(${styleCfg.x}px, ${styleCfg.y}px) scale(${styleCfg.scale})` }}
+                  >
                     <img 
                       src={game.image} 
                       alt={game.name} 
                       className="w-full h-full object-contain drop-shadow-2xl group-hover:rotate-6 transition-transform duration-500" 
                       onError={(e) => { 
-                        // ДОБАВЛЕНО ЛОГИРОВАНИЕ ДЛЯ УДОБСТВА ОТЛАДКИ:
-                        console.error(`[CoolCat Debug] Не удалось загрузить картинку для: ${game.name}. Проверьте наличие файла по пути: ${game.image}`);
-                        (e.target as HTMLImageElement).src = '/assets/CoolCat_logo.webp'; 
+                        const target = e.target as HTMLImageElement;
+                        if (!target.src.includes('CoolCat_logo.webp')) {
+                            console.error(`[CoolCat Debug] Не удалось загрузить картинку для: ${game.name}. Проверьте наличие файла по пути: ${game.image}`);
+                            target.src = '/assets/CoolCat_logo.webp';
+                        }
                       }} 
                     />
                   </div>
