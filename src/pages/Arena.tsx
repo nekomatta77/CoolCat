@@ -1,415 +1,492 @@
 // src/pages/Arena.tsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { motion, AnimatePresence, animate } from 'framer-motion';
+import { io, Socket } from 'socket.io-client';
 import { UserProfile } from '../types';
-import { Coins, Users, Play, Crosshair, Sparkles, Crown, AlertTriangle } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { Users, Swords, AlertCircle, Clock } from 'lucide-react'; // <-- ДОБАВЛЕН ИМПОРТ CLOCK
 import { cn } from '../lib/utils';
-import { vpsSocket as socket } from '../lib/vpsSocket';
 
-interface ArenaProps {
-  user: UserProfile;
+// Настройки комнат Арены
+const ROOMS = [
+  { id: 'arena_small', name: 'Small', min: 1, max: 100 },
+  { id: 'arena_medium', name: 'Medium', min: 100, max: 1000 },
+  { id: 'arena_high', name: 'High', min: 1000, max: 10000 },
+  { id: 'arena_unlimited', name: 'Unlimited', min: 10, max: 1000000 },
+];
+
+interface Player {
+  uid: string;
+  nickname: string;
+  avatar: string;
+  color: string;
+  betAmount: number;
+  ticketsStart: number;
+  ticketsEnd: number;
 }
 
-const ARENA_CONFIG = [
-  { id: 'arena_small', name: 'Micro Arena', minBet: 1, maxBet: 100, gradient: 'from-fuchsia-500 to-pink-600', shadow: 'shadow-pink-500/20' },
-  { id: 'arena_medium', name: 'Neon Arena', minBet: 100, maxBet: 1000, gradient: 'from-violet-500 to-indigo-600', shadow: 'shadow-violet-500/20' },
-  { id: 'arena_high', name: 'Cyber Arena', minBet: 1000, maxBet: 10000, gradient: 'from-cyan-500 to-blue-600', shadow: 'shadow-cyan-500/20' },
-  { id: 'arena_unlimited', name: 'Cosmic Arena', minBet: 10, maxBet: 1000000, gradient: 'from-rose-500 to-orange-600', shadow: 'shadow-rose-500/20' },
-];
+interface RoomState {
+  id: string;
+  gameState: 'waiting' | 'countdown' | 'rolling' | 'finished';
+  timeLeft: number;
+  players: Player[];
+  totalPool: number;
+  totalTickets: number;
+  winner: any;
+  history: any[];
+}
 
-// Грубые, рубленые фигуры (создают эффект разбитого стекла/прямых линий)
-const SHAPES = [
-  'polygon(2% 0%, 100% 2%, 98% 100%, 0% 98%)',
-  'polygon(0% 2%, 98% 0%, 100% 100%, 2% 98%)',
-  'polygon(0% 0%, 100% 2%, 98% 98%, 2% 100%)',
-  'polygon(2% 2%, 100% 0%, 100% 98%, 0% 100%)',
-  'polygon(0% 0%, 98% 2%, 100% 100%, 2% 98%)',
-  'polygon(4% 0%, 96% 0%, 100% 100%, 0% 100%)', // Трапеция
-  'polygon(0% 0%, 100% 4%, 96% 100%, 4% 96%)'
-];
+// ---------------------------------------------------------
+// МАТЕМАТИКА ИГРОВОГО ПОЛЯ (ГЕНЕРАЦИЯ ПОЛИГОНОВ 100% ПОЛЯ)
+// ---------------------------------------------------------
+const getPointForArea = (targetArea: number, xc: number, yc: number) => {
+  const V = [
+    { x: 100, y: yc },
+    { x: 100, y: 100 },
+    { x: 0, y: 100 },
+    { x: 0, y: 0 },
+    { x: 100, y: 0 },
+    { x: 100, y: yc }
+  ];
 
-export default function Arena({ user }: ArenaProps) {
-  const [activeRoomId, setActiveRoomId] = useState('arena_small');
-  const [room, setRoom] = useState<any>({ gameState: 'waiting', timeLeft: 20, players: [], totalPool: 0, totalTickets: 0, winner: null, history: [] });
-  const [betInput, setBetInput] = useState('10');
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isBetting, setIsBetting] = useState(false);
+  const A = [0];
+  A.push(A[0] + 0.5 * (100 - yc) * (100 - xc));
+  A.push(A[1] + 0.5 * 100 * (100 - yc));
+  A.push(A[2] + 0.5 * 100 * xc);
+  A.push(A[3] + 0.5 * 100 * yc);
+  A.push(10000); 
 
-  const [isAnimating, setIsAnimating] = useState(false);
-  const [localWinner, setLocalWinner] = useState<any>(null);
-  const [showWinnerOverlay, setShowWinnerOverlay] = useState(false);
+  let tA = targetArea;
+  while (tA < 0) tA += 10000;
+  tA = tA % 10000;
+
+  if (tA <= 0) return { x: V[0].x, y: V[0].y };
+  if (tA >= 10000) return { x: V[5].x, y: V[5].y };
   
-  const containerRef = useRef<HTMLDivElement>(null);
-  const playerRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const shapeMap = useRef<Record<string, string>>({});
-  const isAnimatingRef = useRef(false);
-  
-  const [ballAnim, setBallAnim] = useState<{ tops: string[], lefts: string[], times: number[] }>({ tops: ['50%'], lefts: ['50%'], times: [0] });
+  for (let i = 0; i < 5; i++) {
+    if (tA >= A[i] && tA <= A[i+1]) {
+      if (A[i+1] === A[i]) continue;
+      const t = (tA - A[i]) / (A[i+1] - A[i]);
+      return {
+        x: V[i].x + t * (V[i+1].x - V[i].x),
+        y: V[i].y + t * (V[i+1].y - V[i].y)
+      };
+    }
+  }
+  return { x: V[5].x, y: V[5].y };
+};
+
+const ArenaField = ({ roomState, spinData }: { roomState: RoomState | null, spinData: any }) => {
+  const [currentIndicator, setCurrentIndicator] = useState(0);
 
   useEffect(() => {
-    isAnimatingRef.current = isAnimating;
-  }, [isAnimating]);
-
-  useEffect(() => {
-    socket.emit('joinRoom', activeRoomId);
-
-    setShowWinnerOverlay(false);
-    setIsAnimating(false);
-    setLocalWinner(null);
-    shapeMap.current = {};
-
-    socket.on('jackpotState', (updatedRoom) => {
-      setRoom(updatedRoom);
-
-      if (updatedRoom.gameState === 'finished') {
-        if (!isAnimatingRef.current) {
-          if (updatedRoom.winner) setLocalWinner(updatedRoom.winner);
-          setShowWinnerOverlay(true);
-        }
-      } 
-      else if (updatedRoom.gameState === 'waiting') {
-        setShowWinnerOverlay(false);
-        setIsAnimating(false);
-        setLocalWinner(null);
-        shapeMap.current = {};
-      }
-    });
-
-    socket.on('jackpotError', (msg) => {
-      setErrorMessage(msg);
-      setTimeout(() => setErrorMessage(null), 4000);
-      setIsBetting(false); 
-    });
-
-    socket.on('jackpotSpin', ({ winner }) => {
-      if (!winner) return;
-
-      setLocalWinner(winner);
+    if (roomState?.gameState === 'rolling' && spinData) {
+      // Вычитаем 0.5, чтобы остановиться точно в центре билетов победителя
+      const targetArea = ((spinData.winningTicket - 0.5) / spinData.totalTickets) * 10000;
+      const totalSpins = 4 * 10000; // 4 полных оборота "радара"
+      const finalValue = totalSpins + targetArea;
       
-      // Идеальная физика отскоков шайбы
-      if (containerRef.current) {
-        const cw = containerRef.current.clientWidth;
-        const ch = containerRef.current.clientHeight;
-        const ballRadius = 16; 
-        const margin = ballRadius; 
-        
-        const points = [{ x: cw / 2, y: ch / 2 }]; // Старт из центра
-        const sides = ['top', 'right', 'bottom', 'left'];
-        let currentSide = sides[Math.floor(Math.random() * sides.length)];
+      const controls = animate(0, finalValue, {
+        duration: 14.5, 
+        ease: [0.15, 0, 0.05, 1], // Плавная остановка
+        onUpdate: (val) => setCurrentIndicator(val)
+      });
+      return () => controls.stop();
+    } else if (roomState?.gameState === 'waiting' || roomState?.gameState === 'countdown') {
+      setCurrentIndicator(0);
+    }
+  }, [roomState?.gameState, spinData]);
 
-        // Генерируем 10 ударов СТРОГО о стенки
-        for (let i = 0; i < 10; i++) {
-          let nextSide;
-          do { nextSide = sides[Math.floor(Math.random() * sides.length)]; } while (nextSide === currentSide);
-          currentSide = nextSide;
+  const { xc, yc } = useMemo(() => {
+    if (!roomState || !roomState.players || roomState.players.length === 0) {
+      return { xc: 50, yc: 50 };
+    }
+    // "Рандомизация" центра, зависящая от суммы банка — фигуры никогда не повторяются!
+    const seed = roomState.totalPool + roomState.players.length * 73;
+    return {
+      xc: 35 + (seed % 30), // Центр гуляет в пределах 35-64 по X
+      yc: 35 + ((seed * 17) % 30) // Центр гуляет в пределах 35-64 по Y
+    };
+  }, [roomState?.totalPool, roomState?.players?.length]);
 
-          let nx = 0, ny = 0;
-          if (currentSide === 'top') { ny = margin; nx = margin + Math.random() * (cw - margin * 2); }
-          else if (currentSide === 'bottom') { ny = ch - margin; nx = margin + Math.random() * (cw - margin * 2); }
-          else if (currentSide === 'left') { nx = margin; ny = margin + Math.random() * (ch - margin * 2); }
-          else if (currentSide === 'right') { nx = cw - margin; ny = margin + Math.random() * (ch - margin * 2); }
+  const layout = useMemo(() => {
+    if (!roomState || !roomState.players || roomState.players.length === 0) return [];
+    
+    const players = roomState.players;
+    const totalPool = roomState.totalPool;
 
-          points.push({ x: nx, y: ny });
+    const V = [
+      { x: 100, y: yc }, { x: 100, y: 100 }, { x: 0, y: 100 }, 
+      { x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: yc }
+    ];
+
+    const A = [0];
+    A.push(A[0] + 0.5 * (100 - yc) * (100 - xc));
+    A.push(A[1] + 0.5 * 100 * (100 - yc));
+    A.push(A[2] + 0.5 * 100 * xc);
+    A.push(A[3] + 0.5 * 100 * yc);
+    A.push(10000); 
+
+    let currentArea = 0;
+    return players.map((p) => {
+      const playerArea = (p.betAmount / totalPool) * 10000;
+      const startArea = currentArea;
+      const endArea = currentArea + playerArea;
+      
+      const pStart = getPointForArea(startArea, xc, yc);
+      const pEnd = getPointForArea(endArea, xc, yc);
+      
+      const points = [{ x: xc, y: yc }, pStart];
+      for (let i = 1; i <= 4; i++) {
+        if (A[i] > startArea && A[i] < endArea) {
+          points.push({ x: V[i].x, y: V[i].y });
         }
-
-        // Финальная точка - ровно в центр фигуры победителя
-        const cb = containerRef.current.getBoundingClientRect();
-        const wb = playerRefs.current[winner.uid]?.getBoundingClientRect();
-        
-        if (cb && wb) {
-          const targetX = (wb.left - cb.left) + wb.width / 2;
-          const targetY = (wb.top - cb.top) + wb.height / 2;
-          points.push({ x: targetX, y: targetY });
-        } else {
-          points.push({ x: cw / 2, y: ch / 2 });
-        }
-
-        // РАСЧЕТ РАВНОМЕРНОЙ СКОРОСТИ И ФИНАЛЬНОГО ЗАМЕДЛЕНИЯ
-        let totalTimeWeight = 0;
-        const dists = [];
-        const timeWeights = [];
-        
-        for(let i = 1; i < points.length; i++) {
-           const dx = points[i].x - points[i-1].x;
-           const dy = points[i].y - points[i-1].y;
-           const d = Math.sqrt(dx * dx + dy * dy);
-           dists.push(d);
-           
-           // Скорость шайбы быстрая и константная, замедляется только на последнем отрезке
-           const isLastStretch = i === points.length - 1;
-           const speed = isLastStretch ? 0.15 : 1; 
-           
-           const weight = d / speed;
-           timeWeights.push(weight);
-           totalTimeWeight += weight;
-        }
-
-        const times = [0];
-        let currT = 0;
-        for(let i = 0; i < timeWeights.length; i++) {
-           currT += timeWeights[i] / totalTimeWeight;
-           times.push(currT);
-        }
-
-        const lefts = points.map(p => `${(p.x / cw) * 100}%`);
-        const tops = points.map(p => `${(p.y / ch) * 100}%`);
-
-        setBallAnim({ tops, lefts, times });
-        setIsAnimating(true);
       }
+      points.push(pEnd);
+      currentArea = endArea;
+      
+      const pointsStr = points.map(pt => `${pt.x},${pt.y}`).join(' ');
+      
+      // Идеальное нахождение центра фигуры для размещения аватарки
+      let cx = 0, cy = 0, signedArea = 0;
+      for(let i = 0; i < points.length; i++) {
+         const p1 = points[i];
+         const p2 = points[(i+1) % points.length];
+         const a = p1.x * p2.y - p2.x * p1.y;
+         signedArea += a;
+         cx += (p1.x + p2.x) * a;
+         cy += (p1.y + p2.y) * a;
+      }
+      signedArea *= 0.5;
+      
+      if (Math.abs(signedArea) > 0.1) {
+        cx = cx / (6 * signedArea);
+        cy = cy / (6 * signedArea);
+      } else {
+        cx = (xc + pStart.x + pEnd.x) / 3;
+        cy = (yc + pStart.y + pEnd.y) / 3;
+      }
+
+      return {
+        ...p, pointsStr, cx, cy, startArea, endArea,
+        percentage: (p.betAmount / totalPool) * 100
+      };
+    });
+  }, [roomState?.players, roomState?.totalPool, xc, yc]);
+
+  const indicatorPoint = getPointForArea(currentIndicator, xc, yc);
+  const tailPoint = getPointForArea(currentIndicator - 250, xc, yc);
+
+  if (!layout.length) {
+    return (
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full rounded-[2.5rem] bg-slate-900">
+        <defs>
+          <pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse">
+            <path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="0.5"/>
+          </pattern>
+        </defs>
+        <rect width="100" height="100" fill="url(#grid)" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full rounded-[2.5rem] bg-slate-900 shadow-inner overflow-hidden">
+      <defs>
+        <filter id="glow">
+          <feGaussianBlur stdDeviation="1.5" result="coloredBlur"/>
+          <feMerge>
+            <feMergeNode in="coloredBlur"/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
+        </filter>
+        {layout.map((p, i) => {
+          // Динамический размер аватарки (максимум 7, минимум 1.5)
+          const avatarRadius = Math.max(1.5, Math.min(7, Math.sqrt(p.percentage) * 1.3));
+          return (
+            <clipPath id={`clip-${p.uid}-${i}`} key={i}>
+              <circle cx={p.cx} cy={p.cy} r={avatarRadius} />
+            </clipPath>
+          );
+        })}
+      </defs>
+
+      {layout.map((p, i) => {
+        const isWinner = roomState?.gameState === 'finished' && roomState.winner?.uid === p.uid;
+        const isHighlighted = roomState?.gameState === 'rolling' && (currentIndicator % 10000) >= p.startArea && (currentIndicator % 10000) <= p.endArea;
+        
+        let opacity = 1;
+        if (roomState?.gameState === 'finished' && !isWinner) opacity = 0.15;
+        if (roomState?.gameState === 'rolling' && !isHighlighted) opacity = 0.5;
+        
+        const avatarRadius = Math.max(1.5, Math.min(7, Math.sqrt(p.percentage) * 1.3));
+
+        return (
+          <g key={`${p.uid}-${i}`} style={{ opacity, transition: 'opacity 0.3s ease-in-out' }}>
+            <polygon 
+              points={p.pointsStr} 
+              fill={p.color} 
+              stroke={p.color} 
+              strokeWidth="0.3"
+              style={{ filter: isHighlighted || isWinner ? 'url(#glow)' : 'none' }}
+              className="transition-all duration-300"
+            />
+            {/* Картинка профиля по центру фигуры */}
+            <image 
+              href={p.avatar || '/assets/avatars/default.webp'} 
+              x={p.cx - avatarRadius} 
+              y={p.cy - avatarRadius} 
+              width={avatarRadius * 2} 
+              height={avatarRadius * 2} 
+              clipPath={`url(#clip-${p.uid}-${i})`}
+              preserveAspectRatio="xMidYMid slice"
+              className="transition-transform duration-500"
+            />
+            <circle cx={p.cx} cy={p.cy} r={avatarRadius} fill="none" stroke="#ffffff" strokeWidth="0.4" opacity="0.8" />
+          </g>
+        );
+      })}
+      
+      {/* ЛУЧ РАДАРА (КРУТИЛКА) */}
+      {roomState?.gameState === 'rolling' && indicatorPoint && (
+        <>
+          <polygon 
+            points={`${xc},${yc} ${tailPoint.x},${tailPoint.y} ${indicatorPoint.x},${indicatorPoint.y}`}
+            fill="rgba(255,255,255,0.3)"
+            style={{ mixBlendMode: 'overlay' }}
+          />
+          <line x1={xc} y1={yc} x2={indicatorPoint.x} y2={indicatorPoint.y} stroke="white" strokeWidth="1" strokeLinecap="round" />
+        </>
+      )}
+      
+      {/* Центр */}
+      <circle cx={xc} cy={yc} r="1.5" fill="white" className="drop-shadow-lg" />
+      <circle cx={xc} cy={yc} r="0.5" fill="#0f172a" />
+    </svg>
+  );
+};
+
+
+// ---------------------------------------------------------
+// ГЛАВНЫЙ КОМПОНЕНТ СТРАНИЦЫ
+// ---------------------------------------------------------
+export default function Arena({ user }: { user: UserProfile | null }) {
+  const [socket, setSocket] = useState<Socket | null>(null);
+  const [activeRoom, setActiveRoom] = useState('arena_small');
+  const [roomState, setRoomState] = useState<RoomState | null>(null);
+  const [betAmount, setBetAmount] = useState<number>(10);
+  const [spinData, setSpinData] = useState<any>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    const newSocket = io(import.meta.env.VITE_SERVER_URL || 'http://localhost:3001');
+    setSocket(newSocket);
+
+    newSocket.on('jackpotState', (state: RoomState) => {
+      setRoomState(state);
+    });
+
+    newSocket.on('jackpotSpin', (data: any) => {
+      setSpinData(data);
+    });
+
+    newSocket.on('jackpotError', (msg: string) => {
+      setErrorMsg(msg);
+      setTimeout(() => setErrorMsg(null), 3000);
     });
 
     return () => {
-      socket.emit('leaveRoom', activeRoomId);
-      socket.off('jackpotState');
-      socket.off('jackpotError');
-      socket.off('jackpotSpin');
+      newSocket.disconnect();
     };
-  }, [activeRoomId]);
+  }, []);
 
   useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (isAnimating) {
-      timer = setTimeout(() => {
-        setIsAnimating(false);
-        setShowWinnerOverlay(true);
-      }, 15000); // 12 секунд полета + 3 секунды паузы
+    if (socket) {
+      socket.emit('joinRoom', activeRoom);
+      return () => {
+        socket.emit('leaveRoom', activeRoom);
+      };
     }
-    return () => clearTimeout(timer);
-  }, [isAnimating]);
+  }, [socket, activeRoom]);
 
-  const activeConfig = ARENA_CONFIG.find(r => r.id === activeRoomId)!;
-  const currentPlayer = room.players?.find((p: any) => p.uid === user.uid);
-  const currentTotalBet = currentPlayer ? currentPlayer.betAmount : 0;
-  const isBetOverLimit = currentTotalBet + parseFloat(betInput || '0') > activeConfig.maxBet;
-
-  const handlePlaceBet = () => {
-    if (isBetting) return; 
-    const amount = parseFloat(betInput);
-    if (isNaN(amount) || amount <= 0) return;
-    if (amount < activeConfig.minBet || isBetOverLimit) return;
-    
-    setIsBetting(true);
+  const handleBet = () => {
+    if (!user || !socket) return;
     socket.emit('placeJackpotBet', {
-      userId: user.uid, nickname: user.nickname, avatar: user.avatar,
-      amount, roomId: activeRoomId,
-      cardStyle: user.cardStyle, equippedFrame: user.equippedFrame, equippedBg: user.equippedBg
+      userId: user.uid,
+      nickname: user.nickname,
+      avatar: user.avatar,
+      amount: betAmount,
+      roomId: activeRoom,
+      cardStyle: undefined, 
+      equippedFrame: undefined,
+      equippedPrefix: undefined,
+      equippedBg: undefined
     });
-    setTimeout(() => setIsBetting(false), 500);
-  };
-
-  const renderCustomAvatar = (player: any) => {
-    const safeAvatar = player.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=fallback';
-    return (
-      <div className="absolute inset-0 z-0 opacity-40 mix-blend-overlay flex items-center justify-center pointer-events-none">
-        <img src={safeAvatar} className="w-full h-full object-cover" />
-      </div>
-    );
   };
 
   return (
-    <div className="space-y-4 sm:space-y-8 pb-12 font-sans">
-      
-      {/* Выбор Арен */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
-        {ARENA_CONFIG.map((roomTab) => {
-          const isActive = roomTab.id === activeRoomId;
-          return (
-            <button
-              key={roomTab.id}
-              onClick={() => setActiveRoomId(roomTab.id)}
-              className={cn("relative p-3 sm:p-5 rounded-2xl sm:rounded-[2rem] border text-left transition-all overflow-hidden group active:scale-95",
-                isActive ? "bg-slate-900 border-slate-800 text-white shadow-xl " + roomTab.shadow : "bg-white border-slate-100 text-slate-800 hover:border-slate-200"
-              )}
-            >
-              <div className={cn("absolute inset-0 bg-gradient-to-br opacity-5 group-hover:opacity-10 transition-opacity", roomTab.gradient)} />
-              <h3 className="font-black text-xs sm:text-base uppercase tracking-widest mb-1">{roomTab.name}</h3>
-              <p className="text-[10px] sm:text-sm font-bold text-slate-400">{roomTab.minBet}-{roomTab.maxBet} CAT</p>
-              {isActive && <div className={cn("absolute bottom-0 left-0 h-1 sm:h-1.5 w-full bg-gradient-to-r", roomTab.gradient)} />}
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="flex flex-col lg:grid lg:grid-cols-3 gap-4 sm:gap-6 items-start">
-        
-        {/* ИГРОВОЕ ПОЛЕ АРЕНЫ */}
-        <div className="order-1 lg:col-span-2 w-full space-y-4 sm:space-y-6">
-          <div className="bg-slate-950 rounded-[2rem] sm:rounded-[2.5rem] p-2 sm:p-4 text-white relative overflow-hidden flex flex-col items-center justify-center min-h-[350px] sm:min-h-[550px] border-2 border-slate-800 shadow-[inset_0_0_50px_rgba(0,0,0,0.8)]">
-            
-            <div className="absolute inset-0 opacity-10 bg-[linear-gradient(rgba(255,255,255,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.1)_1px,transparent_1px)] bg-[size:40px_40px]" />
-
-            <div className="absolute top-4 left-4 flex items-center gap-2 bg-slate-900/80 border border-slate-700/50 px-4 py-2 rounded-2xl backdrop-blur-sm z-30">
-              <Crosshair className="w-4 h-4 text-brand-400 animate-pulse" />
-              <span className="text-xs font-black uppercase tracking-widest text-slate-200">
-                {room.gameState === 'waiting' && 'Ждем бойцов'}
-                {room.gameState === 'countdown' && `До старта: ${room.timeLeft}с`}
-                {room.gameState === 'rolling' && 'Огонь!'}
-              </span>
-            </div>
-
-            <div className="absolute top-4 right-4 bg-slate-900/80 border border-slate-700/50 px-4 py-2 rounded-2xl backdrop-blur-sm z-30">
-                <span className="text-sm font-black text-brand-400 tracking-widest">{room.totalPool.toFixed(0)} CAT</span>
-            </div>
-
-            {/* ПРОСТРАНСТВО АРЕНЫ: Идеальное заполнение */}
-            <div ref={containerRef} className="absolute inset-0 p-1 sm:p-2 flex flex-wrap content-stretch items-stretch gap-1 sm:gap-2 z-10">
-                <AnimatePresence>
-                  {room.players?.map((player: any) => {
-                    if (!shapeMap.current[player.uid]) {
-                      shapeMap.current[player.uid] = SHAPES[Math.floor(Math.random() * SHAPES.length)];
-                    }
-                    const shapeClip = shapeMap.current[player.uid];
-                    const percent = room.totalPool > 0 ? (player.betAmount / room.totalPool) * 100 : 0;
-
-                    return (
-                      <motion.div
-                        key={player.uid}
-                        ref={(el) => { playerRefs.current[player.uid] = el; }}
-                        initial={{ scale: 0, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        exit={{ scale: 0, opacity: 0 }}
-                        transition={{ type: "spring", bounce: 0.4 }}
-                        className="relative flex flex-col items-center justify-center overflow-hidden transition-all duration-500 shadow-xl"
-                        style={{
-                          // Flex-grow позволяет элементам заполнять 100% ширины/высоты арены пропорционально ставке!
-                          flex: `${player.betAmount} 1 ${percent}%`, 
-                          clipPath: shapeClip,
-                          backgroundColor: player.color, 
-                        }}
-                      >
-                        {renderCustomAvatar(player)}
-                        
-                        <div className="relative z-20 flex flex-col items-center p-2 text-center bg-slate-950/40 backdrop-blur-sm px-3 py-1.5 rounded-2xl border border-white/10">
-                          <span className="font-bold text-white text-[10px] sm:text-xs tracking-wide truncate max-w-[80px] sm:max-w-[120px] drop-shadow-md">
-                            {player.nickname}
-                          </span>
-                          <span className="font-black text-xs sm:text-lg text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.6)] mt-0.5 leading-none">
-                            {percent.toFixed(1)}%
-                          </span>
-                        </div>
-                      </motion.div>
-                    );
-                  })}
-                </AnimatePresence>
-            </div>
-
-            {/* ЛЕТАЮЩАЯ ШАЙБА (Инерция и удары о стенки) */}
-            <AnimatePresence>
-              {isAnimating && (
-                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute z-40 top-0 left-0 w-full h-full pointer-events-none">
-                  <motion.div
-                    className="absolute w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center"
-                    animate={{ top: ballAnim.tops, left: ballAnim.lefts }}
-                    style={{ translateX: '-50%', translateY: '-50%' }}
-                    transition={{ 
-                      duration: 12, 
-                      ease: "linear", 
-                      times: ballAnim.times 
-                    }}
-                  >
-                    <div className="w-full h-full rounded-full bg-white shadow-[0_0_30px_#fff,0_0_60px_#fff] flex items-center justify-center border-4 border-slate-900">
-                       <div className="w-3 h-3 bg-brand-500 rounded-full animate-pulse" />
-                    </div>
-                  </motion.div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* ОКОШКО ПОБЕДИТЕЛЯ АРЕНЫ */}
-            <AnimatePresence>
-              {showWinnerOverlay && localWinner && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-center p-4 z-50">
-                  <motion.div 
-                    initial={{ scale: 0.5, y: 30 }} animate={{ scale: 1, y: 0 }} transition={{ type: "spring", damping: 15 }} 
-                    className="relative z-10 flex flex-col items-center bg-slate-900 border border-slate-700/50 p-6 sm:p-8 rounded-[2rem] shadow-2xl min-w-[280px]"
-                  >
-                    <motion.div initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1.5, opacity: 0.2 }} transition={{ repeat: Infinity, duration: 2, repeatType: 'reverse' }} className="absolute w-40 sm:w-56 h-40 sm:h-56 rounded-full blur-[40px] sm:blur-[50px] pointer-events-none" style={{ backgroundColor: localWinner.color || '#eab308' }} />
-                    <div className="relative mb-4 sm:mb-6">
-                      <Sparkles className="absolute -top-3 sm:-top-5 -left-3 sm:-left-5 w-6 sm:w-8 h-6 sm:h-8 text-yellow-400 animate-pulse" />
-                      <div className="relative w-20 h-20 sm:w-28 sm:h-28 rounded-[30%] border-4 overflow-hidden shadow-lg" style={{ borderColor: localWinner.color }}>
-                        <img src={localWinner.avatar} className="w-full h-full object-cover" />
-                      </div>
-                      <div className="absolute -top-4 sm:-top-5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-yellow-400 to-amber-500 p-1.5 sm:p-2 rounded-full border-2 border-slate-900 shadow-xl z-30">
-                         <Crown className="w-4 sm:w-6 h-4 sm:h-6 text-slate-900" />
-                      </div>
-                    </div>
-                    <h3 className="text-xl sm:text-3xl font-black text-white tracking-wider mb-2 drop-shadow-lg uppercase">{localWinner.nickname}</h3>
-                    <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-gradient-to-r from-emerald-500/20 to-emerald-400/10 border border-emerald-500/30 px-6 sm:px-8 py-2 sm:py-3 rounded-xl sm:rounded-2xl backdrop-blur-sm w-full text-center mt-2">
-                      <span className="text-[10px] text-emerald-200/70 font-black block uppercase tracking-widest mb-1">Выигрыш Арены</span>
-                      <span className="text-3xl sm:text-4xl font-black text-emerald-400 drop-shadow-[0_0_15px_rgba(52,211,153,0.5)]">+{localWinner.winAmount?.toFixed(2)}</span>
-                    </motion.div>
-                  </motion.div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-          </div>
-        </div>
-
-        {/* ПРАВАЯ ПАНЕЛЬ (Ставка) */}
-        <div className="order-2 lg:col-span-1 w-full space-y-4 sm:space-y-6">
-          <div className="bg-white border border-slate-100 rounded-[2rem] p-6 shadow-xl shadow-slate-200/40">
-            <h2 className="text-lg font-black text-slate-900 tracking-wider flex items-center gap-2 mb-5">
-              <Coins className="w-6 h-6 text-brand-500" /> Ставка
-            </h2>
-            <div className="space-y-5">
-              <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl flex items-center justify-between transition-all focus-within:border-brand-300">
-                <span className="text-sm font-black text-slate-400 uppercase tracking-widest pl-1">CAT</span>
-                <input
-                  type="number" value={betInput} onChange={(e) => setBetInput(e.target.value)}
-                  disabled={room.gameState === 'rolling' || room.gameState === 'finished' || isBetting}
-                  className="bg-transparent text-right font-black text-slate-900 outline-none w-32 text-xl"
-                />
-              </div>
-              <div className="grid grid-cols-4 gap-2">
-                {[10, 50, 100, 500].map((v) => (
-                  <button key={v} onClick={() => setBetInput(v.toString())} disabled={room.gameState === 'rolling' || room.gameState === 'finished'} className="py-3 bg-slate-50 hover:bg-slate-100 border border-slate-100 rounded-xl text-sm font-black text-slate-600 active:scale-95">+{v}</button>
-                ))}
-              </div>
-              <AnimatePresence>
-                {errorMessage && (
-                  <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="flex items-center gap-2 p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-600 text-xs font-bold uppercase w-full">
-                    <AlertTriangle className="w-4 h-4 shrink-0" /> {errorMessage}
-                  </motion.div>
-                )}
-              </AnimatePresence>
+    <div className="pb-12 max-w-7xl mx-auto px-4 lg:px-8 space-y-6">
+       {/* ХЕДЕР: Заголовок и Выбор комнаты */}
+       <header className="flex flex-col md:flex-row items-center justify-between gap-4">
+         <div className="flex items-center gap-3">
+           <div className="w-12 h-12 bg-brand-100 rounded-2xl flex items-center justify-center">
+             <Swords className="w-6 h-6 text-brand-600" />
+           </div>
+           <div>
+             <h1 className="text-3xl font-black text-slate-900 tracking-tight uppercase leading-none">Arena</h1>
+             <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest mt-1">Останется только один</p>
+           </div>
+         </div>
+         
+         <div className="flex flex-wrap items-center justify-center gap-2 bg-white p-1.5 rounded-2xl shadow-sm border border-slate-100">
+            {ROOMS.map(room => (
               <button
-                onClick={handlePlaceBet}
-                disabled={room.gameState === 'rolling' || room.gameState === 'finished' || user.balance < parseFloat(betInput) || isBetOverLimit || isBetting}
-                className={cn("w-full py-5 bg-gradient-to-r text-white font-black rounded-2xl shadow-xl hover:-translate-y-0.5 uppercase tracking-widest active:scale-95 text-lg flex items-center justify-center gap-2", activeConfig.gradient, (room.gameState === 'rolling' || room.gameState === 'finished' || isBetOverLimit) && "opacity-50 pointer-events-none")}
+                key={room.id}
+                onClick={() => setActiveRoom(room.id)}
+                className={cn(
+                  "px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all",
+                  activeRoom === room.id 
+                    ? "bg-brand-500 text-white shadow-md shadow-brand-500/30" 
+                    : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
+                )}
               >
-                <Play className="w-6 h-6 fill-current" /> В бой
+                {room.name}
               </button>
+            ))}
+         </div>
+       </header>
+
+       {errorMsg && (
+         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="bg-red-500/10 border border-red-500/20 text-red-600 px-4 py-3 rounded-2xl flex items-center gap-3 font-bold text-sm">
+           <AlertCircle className="w-5 h-5" />
+           {errorMsg}
+         </motion.div>
+       )}
+
+       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+         {/* ЛЕВАЯ КОЛОНКА: Игровое поле (100% графика без текста) */}
+         <div className="lg:col-span-2 space-y-4">
+            <div className="flex items-center justify-between bg-white px-6 py-4 rounded-3xl border border-slate-100 shadow-sm">
+               <div className="flex items-center gap-3">
+                  <div className={cn(
+                    "w-3 h-3 rounded-full animate-pulse",
+                    roomState?.gameState === 'waiting' ? "bg-amber-400" :
+                    roomState?.gameState === 'countdown' ? "bg-brand-500" :
+                    roomState?.gameState === 'rolling' ? "bg-purple-500" : "bg-emerald-500"
+                  )} />
+                  <span className="font-black text-slate-700 uppercase tracking-widest text-sm">
+                    {roomState?.gameState === 'waiting' && 'Ожидание соперников'}
+                    {roomState?.gameState === 'countdown' && `Битва через ${roomState.timeLeft}с`}
+                    {roomState?.gameState === 'rolling' && 'Крутим рулетку!'}
+                    {roomState?.gameState === 'finished' && 'Раунд завершен'}
+                  </span>
+               </div>
+               <div className="text-right">
+                  <p className="text-[10px] uppercase font-black tracking-widest text-slate-400">Банк арены</p>
+                  <p className="text-xl font-black text-slate-900">{roomState?.totalPool || 0} CAT</p>
+               </div>
             </div>
-          </div>
-          
-          <div className="bg-white border border-slate-100 rounded-[2rem] p-6 shadow-xl shadow-slate-200/40">
-             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-black text-lg text-slate-900 flex items-center gap-2">
-                <Users className="w-6 h-6 text-slate-400" /> Бойцы ({room.players?.length || 0})
-              </h3>
+
+            <div className="w-full aspect-square bg-slate-900 rounded-[3.5rem] p-3 shadow-2xl relative border-[6px] border-slate-800">
+               <ArenaField roomState={roomState} spinData={spinData} />
+               
+               {/* Окно победителя появляется поверх, но вне самого SVG поля */}
+               <AnimatePresence>
+                 {roomState?.gameState === 'finished' && roomState.winner && (
+                   <motion.div 
+                     initial={{ opacity: 0, scale: 0.8, y: 20 }}
+                     animate={{ opacity: 1, scale: 1, y: 0 }}
+                     exit={{ opacity: 0, scale: 0.8 }}
+                     className="absolute inset-0 flex items-center justify-center pointer-events-none z-50"
+                   >
+                     <div className="bg-slate-900/80 backdrop-blur-md border border-white/10 p-8 rounded-[3rem] text-center shadow-[0_0_50px_rgba(0,0,0,0.5)]">
+                       <img src={roomState.winner.avatar} className="w-24 h-24 rounded-full mx-auto mb-4 border-4" style={{ borderColor: roomState.winner.color }} alt="" />
+                       <h3 className="text-3xl font-black text-white mb-1">{roomState.winner.nickname}</h3>
+                       <p className="text-brand-400 font-bold uppercase tracking-widest text-xs">Забирает банк</p>
+                       <p className="text-white font-black text-4xl mt-4">+{roomState.winner.winAmount} CAT</p>
+                     </div>
+                   </motion.div>
+                 )}
+               </AnimatePresence>
             </div>
-            <div className="space-y-2 max-h-[250px] overflow-y-auto custom-scrollbar">
-              <AnimatePresence>
-                {room.players?.map((player: any) => (
-                  <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} key={player.uid} className="flex items-center justify-between p-4 bg-slate-50 border border-slate-100/50 rounded-2xl">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-[30%] overflow-hidden border-2" style={{ borderColor: player.color }}>
-                         <img src={player.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=fallback'} className="w-full h-full object-cover" />
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-sm font-bold text-slate-900">{player.nickname}</span>
-                        <span className="text-[10px] font-bold tracking-widest" style={{ color: player.color }}>{player.betAmount} CAT</span>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
+         </div>
+
+         {/* ПРАВАЯ КОЛОНКА: Ставки и Игроки */}
+         <div className="space-y-6">
+            <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50">
+               <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-4">Внести ставку</h3>
+               <div className="space-y-4">
+                 <div className="relative">
+                   <input 
+                     type="number" 
+                     value={betAmount}
+                     onChange={(e) => setBetAmount(Number(e.target.value))}
+                     className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-4 py-4 text-2xl font-black text-slate-900 focus:outline-none focus:border-brand-500 transition-colors"
+                   />
+                   <span className="absolute right-4 top-1/2 -translate-y-1/2 font-black text-slate-300">CAT</span>
+                 </div>
+                 
+                 <div className="grid grid-cols-4 gap-2">
+                   {[10, 50, 100, 1000].map(val => (
+                     <button 
+                       key={val}
+                       onClick={() => setBetAmount(prev => prev + val)}
+                       className="py-2 bg-slate-50 hover:bg-brand-50 rounded-xl font-bold text-slate-600 hover:text-brand-600 transition-colors text-xs lg:text-sm"
+                     >
+                       +{val}
+                     </button>
+                   ))}
+                 </div>
+                 
+                 <button 
+                   onClick={handleBet}
+                   disabled={!user || roomState?.gameState === 'rolling' || roomState?.gameState === 'finished'}
+                   className="w-full bg-brand-500 hover:bg-brand-600 disabled:bg-slate-300 text-white font-black uppercase tracking-widest py-4 rounded-2xl transition-all shadow-lg shadow-brand-500/30 active:scale-95"
+                 >
+                   {user ? 'Сделать ставку' : 'Войдите для игры'}
+                 </button>
+               </div>
             </div>
-          </div>
-        </div>
-      </div>
+
+            <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50">
+               <div className="flex items-center justify-between mb-6">
+                 <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest">Участники ({roomState?.players?.length || 0})</h3>
+                 <Users className="w-5 h-5 text-slate-300" />
+               </div>
+               
+               <div className="space-y-3 max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
+                 <AnimatePresence>
+                   {roomState?.players?.map((p) => (
+                     <motion.div 
+                       key={p.uid}
+                       initial={{ opacity: 0, x: 20 }}
+                       animate={{ opacity: 1, x: 0 }}
+                       className="flex items-center justify-between bg-slate-50 p-3 rounded-2xl"
+                       style={{ borderLeft: `4px solid ${p.color}` }}
+                     >
+                       <div className="flex items-center gap-3">
+                         <img src={p.avatar} alt="avatar" className="w-10 h-10 rounded-full bg-slate-200" />
+                         <div>
+                           <p className="font-bold text-slate-900 text-sm max-w-[100px] truncate">{p.nickname}</p>
+                           <p className="text-xs font-bold text-slate-400">{((p.betAmount / (roomState.totalPool || 1)) * 100).toFixed(1)}% шанс</p>
+                         </div>
+                       </div>
+                       <div className="text-right">
+                         <p className="font-black text-brand-600">{p.betAmount}</p>
+                         <p className="text-[10px] font-bold text-slate-400 uppercase">CAT</p>
+                       </div>
+                     </motion.div>
+                   ))}
+                   {(!roomState?.players || roomState.players.length === 0) && (
+                     <div className="text-center py-8">
+                       <Clock className="w-8 h-8 text-slate-200 mx-auto mb-2" />
+                       <p className="text-slate-400 font-medium">Ждем первых гладиаторов...</p>
+                     </div>
+                   )}
+                 </AnimatePresence>
+               </div>
+            </div>
+         </div>
+       </div>
     </div>
   );
 }
