@@ -11,17 +11,17 @@ import { UserProfile } from '../types';
 // ==========================================
 
 const DEPOSIT_METHODS = [
-  { id: 'card', name: 'Банковская карта', icon: '/assets/pay/card.svg', min: 100, fee: '0%', imgSize: 'w-30 h-30' },
-  { id: 'sbp', name: 'СБП', icon: '/assets/pay/sbp.svg', min: 100, fee: '0%', imgSize: 'w-30 h-30' },
-  { id: 'yoomoney', name: 'YooMoney', icon: '/assets/pay/yoomoney.svg', min: 50, fee: '2%', imgSize: 'w-30 h-30' },
-  { id: 'fkwallet', name: 'FKWallet', icon: '/assets/pay/fkwallet.svg', min: 50, fee: '0%', imgSize: 'w-30 h-30' },
+  { id: 'card', name: 'Банковская карта', icon: '/assets/pay/card.svg', min: 100, fee: '0%', imgSize: 'w-12 h-12' },
+  { id: 'sbp', name: 'СБП', icon: '/assets/pay/sbp.svg', min: 100, fee: '0%', imgSize: 'w-14 h-10' },
+  { id: 'yoomoney', name: 'YooMoney', icon: '/assets/pay/yoomoney.svg', min: 50, fee: '2%', imgSize: 'w-14 h-14' },
+  { id: 'fkwallet', name: 'FKWallet', icon: '/assets/pay/fkwallet.svg', min: 50, fee: '0%', imgSize: 'w-10 h-10' },
 ];
 
 const WITHDRAW_METHODS = [
-  { id: 'card', name: 'Банковская карта', icon: '/assets/pay/card.svg', min: 1000, fee: '2%', imgSize: 'w-25 h-25' },
-  { id: 'sbp', name: 'СБП', icon: '/assets/pay/sbp.svg', min: 500, fee: '1%', imgSize: 'w-25 h-25' },
-  { id: 'yoomoney', name: 'YooMoney', icon: '/assets/pay/yoomoney.svg', min: 100, fee: '3%', imgSize: 'w-25 h-25' },
-  { id: 'fkwallet', name: 'FKWallet', icon: '/assets/pay/fkwallet.svg', min: 50, fee: '0%', imgSize: 'w-25 h-25' }, // ВЕРНУЛИ FKWALLET
+  { id: 'card', name: 'Банковская карта', icon: '/assets/pay/card.svg', min: 1000, fee: '2%', imgSize: 'w-12 h-12' },
+  { id: 'sbp', name: 'СБП', icon: '/assets/pay/sbp.svg', min: 500, fee: '1%', imgSize: 'w-14 h-10' },
+  { id: 'yoomoney', name: 'YooMoney', icon: '/assets/pay/yoomoney.svg', min: 100, fee: '3%', imgSize: 'w-14 h-14' },
+  { id: 'fkwallet', name: 'FKWallet', icon: '/assets/pay/fkwallet.svg', min: 50, fee: '0%', imgSize: 'w-10 h-10' },
 ];
 
 // ==========================================
@@ -116,12 +116,11 @@ export default function DepositModal({ isOpen, onClose, user, initialTab = 'depo
                       : "border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50"
                   )}
                 >
-                  {/* ИСПОЛЬЗУЕМ НАСТРОЙКУ РАЗМЕРА ИЗ МАССИВА */}
                   <div className={cn("mb-3 flex items-center justify-center", method.imgSize || "w-12 h-12")}>
                     <img src={method.icon} alt={method.name} className="w-full h-full object-contain drop-shadow-sm" onError={(e) => (e.currentTarget.src = '/assets/CoolCat_logo.webp')} />
                   </div>
-                  <p className={cn("text-[11px] lg:text-xs font-black tracking-tight mb-1 text-center", activeMethod === method.id ? "text-brand-600" : "text-slate-600")}>{method.name}</p>
-                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Мин: <span className={activeMethod === method.id ? "text-brand-500" : "text-slate-500"}>{method.min}</span> | Ком: <span className={activeMethod === method.id ? "text-brand-500" : "text-slate-500"}>{method.fee}</span></p>
+                  <p className={cn("text-xs lg:text-sm font-black tracking-tight mb-1 text-center", activeMethod === method.id ? "text-brand-600" : "text-slate-700")}>{method.name}</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Мин: <span className={activeMethod === method.id ? "text-brand-500" : "text-slate-500"}>{method.min}</span> | Ком: <span className={activeMethod === method.id ? "text-brand-500" : "text-slate-500"}>{method.fee}</span></p>
                 </button>
               ))}
             </div>

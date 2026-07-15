@@ -95,7 +95,7 @@ const renderCustomAvatar = (player: any, sizeClass: string) => {
 };
 
 // =========================================================
-// ИГРОВОЕ ПОЛЕ С ФИЗИКОЙ И ШАЙБОЙ
+// ИГРОВОЕ ПОЛЕ С ФИЗИКОЙ (СКОЛЬЖЕНИЕ ДО ПОБЕДИТЕЛЯ)
 // =========================================================
 const ArenaField = ({ roomState, spinData }: { roomState: RoomState | null, spinData: any }) => {
   // Состояние физики шайбы
@@ -107,10 +107,12 @@ const ArenaField = ({ roomState, spinData }: { roomState: RoomState | null, spin
     x: 50, y: 50,
     vx: 1.2, vy: 1.5,
     isRolling: false,
-    rollStartTime: 0
+    rollStartTime: 0,
+    stopStartX: 0,
+    stopStartY: 0,
+    stopInitialized: false
   });
 
-  // ИСПРАВЛЕНИЕ: Явное указание null как стартового значения
   const reqRef = useRef<number | null>(null);
 
   // Игровой цикл физики шайбы (60 FPS)
@@ -122,30 +124,45 @@ const ArenaField = ({ roomState, spinData }: { roomState: RoomState | null, spin
         const elapsed = Date.now() - p.rollStartTime;
         const remaining = 15000 - elapsed; // 15 секунд прокрутки
         
-        // Нормальные отскоки от стен арены (радиус шайбы ~3%)
-        if (p.x <= 3 || p.x >= 97) p.vx *= -1;
-        if (p.y <= 3 || p.y >= 97) p.vy *= -1;
-
+        // Первые 12 секунд шайба просто отскакивает от бортов
         if (remaining > 3000) {
-          // Активная фаза отскоков (небольшое ускорение, чтобы шайба не застревала)
+          if (p.x <= 3 || p.x >= 97) p.vx *= -1;
+          if (p.y <= 3 || p.y >= 97) p.vy *= -1;
+
+          // Поддержание скорости
           const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
           if (speed < 1.5) { p.vx *= 1.05; p.vy *= 1.05; }
           if (speed > 2.5) { p.vx *= 0.95; p.vy *= 0.95; }
           
           p.x += p.vx;
           p.y += p.vy;
-        } else if (remaining > 0 && (window as any).winnerCentroid) {
-          // Фаза магнита (последние 3 секунды) - шайбу притягивает в центр победителя
+          
+          p.stopInitialized = false; // Сброс инициализации торможения
+        } 
+        // Последние 3 секунды - плавное скольжение и остановка на победителе
+        else if (remaining > 0 && (window as any).winnerCentroid) {
           const target = (window as any).winnerCentroid;
-          const dx = target.x - p.x;
-          const dy = target.y - p.y;
           
-          // Трение и магнетизм
-          p.vx = (p.vx * 0.9) + (dx * 0.03);
-          p.vy = (p.vy * 0.9) + (dy * 0.03);
-          
-          p.x += p.vx;
-          p.y += p.vy;
+          // Фиксируем координаты, откуда начинается торможение
+          if (!p.stopInitialized) {
+            p.stopStartX = p.x;
+            p.stopStartY = p.y;
+            p.stopInitialized = true;
+          }
+
+          // Вычисляем процент завершения (от 0 до 1)
+          const t = 1 - (remaining / 3000); 
+          // Функция плавного замедления (easeOutQuart) - имитация трения об лед
+          const easeOut = 1 - Math.pow(1 - t, 4);
+
+          p.x = p.stopStartX + (target.x - p.stopStartX) * easeOut;
+          p.y = p.stopStartY + (target.y - p.stopStartY) * easeOut;
+        } 
+        // По истечении времени фиксируем шайбу точно на центре
+        else if (remaining <= 0 && (window as any).winnerCentroid) {
+          const target = (window as any).winnerCentroid;
+          p.x = target.x;
+          p.y = target.y;
         }
 
         // Ограничители, чтобы шайба не вылетела за пределы
@@ -162,7 +179,7 @@ const ArenaField = ({ roomState, spinData }: { roomState: RoomState | null, spin
         });
 
       } else {
-        // Если игра не крутится, плавно возвращаем шайбу в центр
+        // Если игра не крутится, плавно возвращаем шайбу в центр арены
         if (p.x !== 50 || p.y !== 50) {
           p.x += (50 - p.x) * 0.1;
           p.y += (50 - p.y) * 0.1;
@@ -188,7 +205,8 @@ const ArenaField = ({ roomState, spinData }: { roomState: RoomState | null, spin
     if (roomState?.gameState === 'rolling' && !physicsRef.current.isRolling) {
       physicsRef.current.isRolling = true;
       physicsRef.current.rollStartTime = Date.now();
-      // Рандомизируем начальный толчок шайбы
+      physicsRef.current.stopInitialized = false;
+      // Рандомизируем начальный вектор движения шайбы
       physicsRef.current.vx = (Math.random() > 0.5 ? 1.5 : -1.5) * (Math.random() * 0.5 + 0.8);
       physicsRef.current.vy = (Math.random() > 0.5 ? 1.5 : -1.5) * (Math.random() * 0.5 + 0.8);
     } else if (roomState?.gameState !== 'rolling') {
@@ -305,19 +323,15 @@ const ArenaField = ({ roomState, spinData }: { roomState: RoomState | null, spin
           </filter>
         </defs>
         
-        {/* Базовый радиальный фон Арены */}
+        {/* Базовый фон Арены */}
         <rect width="100" height="100" fill="#020617" />
         
-        {/* Сетка Арены (только концентрические круги, без луча) */}
+        {/* Сетка Арены (только концентрические круги) */}
         <g stroke="rgba(255,255,255,0.05)" strokeWidth="0.5" fill="none">
           <circle cx="50" cy="50" r="20" />
           <circle cx="50" cy="50" r="40" />
           <circle cx="50" cy="50" r="60" />
           <circle cx="50" cy="50" r="80" />
-          <line x1="0" y1="50" x2="100" y2="50" />
-          <line x1="50" y1="0" x2="50" y2="100" />
-          <line x1="15" y1="15" x2="85" y2="85" />
-          <line x1="15" y1="85" x2="85" y2="15" />
         </g>
 
         {/* ПОЛИГОНЫ ИГРОКОВ (Голографический эффект) */}
@@ -378,9 +392,6 @@ const ArenaField = ({ roomState, spinData }: { roomState: RoomState | null, spin
              <circle r="1" fill="#ffffff" />
           </g>
         )}
-        
-        {/* Статичное Ядро (Центр пересечения лучей) */}
-        <circle cx={xc} cy={yc} r="1" fill="#ffffff" filter="url(#glow)" />
       </svg>
 
       {/* АВАТАРКИ ИГРОКОВ (HTML слой) */}
