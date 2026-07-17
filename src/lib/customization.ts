@@ -1,19 +1,37 @@
 export const AVATARS = [
-  { id: '/assets/avatars/ava1.webp', type: 'default', hint: 'Базовая' },
-  { id: '/assets/avatars/ava2.webp', type: 'default', hint: 'Базовая' },
-  { id: '/assets/avatars/ava3.webp', type: 'default', hint: 'Базовая' },
-  { id: '/assets/ranks/cat_rank6.webp', type: 'level', reqLevel: 6, hint: 'Уровень 6: Гроза' },
-  { id: '/assets/avatars/dice_cat_original.webp', type: 'achievement', hint: 'Достижение: DICE CAT' },
-  { id: '/assets/avatars/nine_lives.webp', type: 'achievement', hint: 'Достижение: Девять жизней' },
-  { id: '/assets/avatars/sapper.webp', type: 'achievement', hint: 'Достижение: Кот-сапёр III' },
-  { id: '/assets/avatars/i_find.webp', type: 'achievement', hint: 'Достижение: В поисках кисы IV' },
-  { id: '/assets/avatars/buzz_cat.webp', type: 'achievement', hint: 'Достижение: Бесконечность не предел II' },
-  { id: '/assets/avatars/paw.webp', type: 'achievement', hint: 'Достижение: Первая линия III' },
-  { id: '/assets/avatars/numbers.webp', type: 'achievement', hint: 'Достижение: Счастливое число' },
-  { id: '/assets/avatars/magic_cat.webp', type: 'achievement', hint: 'Достижение: Ностракотус' },
-  { id: '/assets/avatars/my_precious.webp', type: 'achievement', hint: 'Достижение: Жадный (WheelX)' },
-  { id: '/assets/avatars/patience.webp', type: 'achievement', hint: 'Достижение: Почему бы и нет? (WheelX)' },
-  { id: '/assets/avatars/tiger.webp', type: 'achievement', hint: 'Достижение: Азартный хищник (Jackpot)' },
+  // Базовые
+  { id: '/assets/avatars/ava1.webp', type: 'avatar', name: 'Базовая 1', unlockType: 'default' },
+  { id: '/assets/avatars/ava2.webp', type: 'avatar', name: 'Базовая 2', unlockType: 'default' },
+  { id: '/assets/avatars/ava3.webp', type: 'avatar', name: 'Базовая 3', unlockType: 'default' },
+  
+  // За уровни
+  { id: '/assets/avatars/storm.webp', type: 'avatar', name: 'Гроза', unlockType: 'level', unlockValue: 6 },
+  
+  // За достижения DICE
+  { id: '/assets/avatars/ava_dice.webp', type: 'avatar', name: 'DICE CAT', unlockType: 'achievement', unlockValue: 'dice_fb1' },
+  { id: '/assets/avatars/nine.webp', type: 'avatar', name: '9 Жизней', unlockType: 'achievement', unlockValue: 'dice_nine_lives' },
+  
+  // За достижения MINES
+  { id: '/assets/avatars/bomb.webp', type: 'avatar', name: 'Кот-сапёр', unlockType: 'achievement', unlockValue: 'mines_sapper3' },
+  { id: '/assets/avatars/find.webp', type: 'avatar', name: 'Искатель', unlockType: 'achievement', unlockValue: 'mines_kitty4' },
+  { id: '/assets/avatars/astrocat.webp', type: 'avatar', name: 'Астрокот', unlockType: 'achievement', unlockValue: 'mines_infinity2' },
+  
+  // За достижения KENO
+  // ВНИМАНИЕ: Для достижения "Первая линия III" нужен файл paw.webp. Если его нет, закомментируй строку ниже или добавь картинку.
+  { id: '/assets/avatars/paw.webp', type: 'avatar', name: 'Paw', unlockType: 'achievement', unlockValue: 'keno_line3' },
+  { id: '/assets/avatars/brain_cat.webp', type: 'avatar', name: 'Счастливое число', unlockType: 'achievement', unlockValue: 'keno_lucky_num' },
+  { id: '/assets/avatars/magic_cat.webp', type: 'avatar', name: 'Маг', unlockType: 'achievement', unlockValue: 'keno_nostracat' },
+  
+  // За достижения WHEELX
+  { id: '/assets/avatars/money_cat.webp', type: 'avatar', name: 'Жадность', unlockType: 'achievement', unlockValue: 'wx_greedy' },
+  { id: '/assets/avatars/meditation_cat.webp', type: 'avatar', name: 'Терпение', unlockType: 'achievement', unlockValue: 'wx_why_not' },
+  
+  // За достижения JACKPOT
+  // ВНИМАНИЕ: Для достижения "Азартный хищник" нужен файл tiger.webp. 
+  { id: '/assets/avatars/tiger.webp', type: 'avatar', name: 'Tiger', unlockType: 'achievement', unlockValue: 'jackpot_predator' },
+  
+  // За достижения ARENA
+  { id: '/assets/avatars/fight_cat.webp', type: 'avatar', name: 'Арена', unlockType: 'achievement', unlockValue: 'arena_underdog' }
 ];
 
 export const FRAMES = [
