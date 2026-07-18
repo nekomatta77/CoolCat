@@ -1,64 +1,113 @@
+// src/lib/customization.ts
+
 export const AVATARS = [
-  // Базовые
-  { id: '/assets/avatars/ava1.webp', type: 'avatar', name: 'Базовая 1', unlockType: 'default' },
-  { id: '/assets/avatars/ava2.webp', type: 'avatar', name: 'Базовая 2', unlockType: 'default' },
-  { id: '/assets/avatars/ava3.webp', type: 'avatar', name: 'Базовая 3', unlockType: 'default' },
+  // === БАЗОВЫЕ (ДОСТУПНЫ ВСЕМ) ===
+  { 
+    id: '/assets/avatars/ava1.webp', type: 'avatar', name: 'Базовая 1', unlockType: 'default', 
+    config: { x: 0, y: 0, scale: 1 } 
+  },
+  { 
+    id: '/assets/avatars/ava2.webp', type: 'avatar', name: 'Базовая 2', unlockType: 'default', 
+    config: { x: 0, y: 0, scale: 1 } 
+  },
+  { 
+    id: '/assets/avatars/ava3.webp', type: 'avatar', name: 'Базовая 3', unlockType: 'default', 
+    config: { x: 0, y: 0, scale: 1 } 
+  },
   
-  // За уровни
-  { id: '/assets/avatars/storm.webp', type: 'avatar', name: 'Гроза', unlockType: 'level', unlockValue: 6 },
+  // === ЗА УРОВНИ ===
+  { 
+    id: '/assets/avatars/storm.webp', type: 'avatar', name: 'Гроза', unlockType: 'level', unlockValue: 6, 
+    config: { x: 0, y: 0, scale: 1 } 
+  },
   
-  // За достижения DICE
-  { id: '/assets/avatars/ava_dice.webp', type: 'avatar', name: 'DICE CAT', unlockType: 'achievement', unlockValue: 'dice_fb1' },
-  { id: '/assets/avatars/nine.webp', type: 'avatar', name: '9 Жизней', unlockType: 'achievement', unlockValue: 'dice_nine_lives' },
+  // === ЗА ДОСТИЖЕНИЯ: DICE ===
+  { 
+    id: '/assets/avatars/ava_dice.webp', type: 'avatar', name: 'DICE CAT', unlockType: 'achievement', unlockValue: 'dice_fb1', 
+    config: { x: 0, y: 0, scale: 1 } 
+  },
+  { 
+    id: '/assets/avatars/nine.webp', type: 'avatar', name: '9 Жизней', unlockType: 'achievement', unlockValue: 'dice_nine_lives', 
+    config: { x: 0, y: 0, scale: 1 } 
+  },
   
-  // За достижения MINES
-  { id: '/assets/avatars/bomb.webp', type: 'avatar', name: 'Кот-сапёр', unlockType: 'achievement', unlockValue: 'mines_sapper3' },
-  { id: '/assets/avatars/find.webp', type: 'avatar', name: 'Искатель', unlockType: 'achievement', unlockValue: 'mines_kitty4' },
-  { id: '/assets/avatars/astrocat.webp', type: 'avatar', name: 'Астрокот', unlockType: 'achievement', unlockValue: 'mines_infinity2' },
+  // === ЗА ДОСТИЖЕНИЯ: MINES ===
+  { 
+    id: '/assets/avatars/bomb.webp', type: 'avatar', name: 'Кот-сапёр', unlockType: 'achievement', unlockValue: 'mines_sapper3', 
+    config: { x: 0, y: 0, scale: 1 } 
+  },
+  { 
+    id: '/assets/avatars/find.webp', type: 'avatar', name: 'Искатель', unlockType: 'achievement', unlockValue: 'mines_kitty4', 
+    config: { x: 0, y: 0, scale: 1 } 
+  },
+  { 
+    id: '/assets/avatars/astrocat.webp', type: 'avatar', name: 'Астрокот', unlockType: 'achievement', unlockValue: 'mines_infinity2', 
+    config: { x: 0, y: 0, scale: 1 } 
+  },
   
-  // За достижения KENO
-  // ВНИМАНИЕ: Для достижения "Первая линия III" нужен файл paw.webp. Если его нет, закомментируй строку ниже или добавь картинку.
-  { id: '/assets/avatars/paw.webp', type: 'avatar', name: 'Paw', unlockType: 'achievement', unlockValue: 'keno_line3' },
-  { id: '/assets/avatars/brain_cat.webp', type: 'avatar', name: 'Счастливое число', unlockType: 'achievement', unlockValue: 'keno_lucky_num' },
-  { id: '/assets/avatars/magic_cat.webp', type: 'avatar', name: 'Маг', unlockType: 'achievement', unlockValue: 'keno_nostracat' },
+  // === ЗА ДОСТИЖЕНИЯ: KENO ===
+  { 
+    id: '/assets/avatars/brain_cat.webp', type: 'avatar', name: 'Счастливое число', unlockType: 'achievement', unlockValue: 'keno_lucky_num', 
+    config: { x: 0, y: 0, scale: 1 } 
+  },
+  { 
+    id: '/assets/avatars/magic_cat.webp', type: 'avatar', name: 'Маг', unlockType: 'achievement', unlockValue: 'keno_nostracat', 
+    config: { x: 0, y: 0, scale: 1 } 
+  },
   
-  // За достижения WHEELX
-  { id: '/assets/avatars/money_cat.webp', type: 'avatar', name: 'Жадность', unlockType: 'achievement', unlockValue: 'wx_greedy' },
-  { id: '/assets/avatars/meditation_cat.webp', type: 'avatar', name: 'Терпение', unlockType: 'achievement', unlockValue: 'wx_why_not' },
+  // === ЗА ДОСТИЖЕНИЯ: WHEELX ===
+  { 
+    id: '/assets/avatars/money_cat.webp', type: 'avatar', name: 'Жадность', unlockType: 'achievement', unlockValue: 'wx_greedy', 
+    config: { x: 0, y: 0, scale: 1 } 
+  },
+  { 
+    id: '/assets/avatars/meditation_cat.webp', type: 'avatar', name: 'Терпение', unlockType: 'achievement', unlockValue: 'wx_why_not', 
+    config: { x: 0, y: 0, scale: 1 } 
+  },
   
-  // За достижения JACKPOT
-  // ВНИМАНИЕ: Для достижения "Азартный хищник" нужен файл tiger.webp. 
-  { id: '/assets/avatars/tiger.webp', type: 'avatar', name: 'Tiger', unlockType: 'achievement', unlockValue: 'jackpot_predator' },
-  
-  // За достижения ARENA
-  { id: '/assets/avatars/fight_cat.webp', type: 'avatar', name: 'Арена', unlockType: 'achievement', unlockValue: 'arena_underdog' }
+  // === ЗА ДОСТИЖЕНИЯ: ARENA ===
+  { 
+    id: '/assets/avatars/fight_cat.webp', type: 'avatar', name: 'Арена', unlockType: 'achievement', unlockValue: 'arena_underdog', 
+    config: { x: 0, y: 0, scale: 1 } 
+  }
 ];
 
 export const FRAMES = [
-  { id: 'none', name: 'Без рамки', reqLevel: 0, css: 'border-transparent' },
-  { id: 'bronze', name: 'Бронзовая', reqLevel: 2, css: 'border-[#cd7f32] shadow-[0_0_10px_rgba(205,127,50,0.4)]' },
-  { id: 'silver', name: 'Серебряная', reqLevel: 4, css: 'border-slate-300 shadow-[0_0_10px_rgba(203,213,225,0.5)]' },
-  { id: 'gold', name: 'Золотая', reqLevel: 7, css: 'border-yellow-400 shadow-[0_0_15px_rgba(250,204,21,0.6)]' },
-  { id: 'platinum', name: 'Платиновая', reqLevel: 10, css: 'border-cyan-300 shadow-[0_0_20px_rgba(103,232,249,0.8)]' },
-  { id: 'custom_15', name: 'Легенда', reqLevel: 15, css: 'border-fuchsia-500 shadow-[0_0_25px_rgba(217,70,239,0.8)]' },
-  { id: 'dice_frame', name: 'Рамка DICE', reqLevel: 99, isAch: true, hint: 'Достижение: Кошачье чутье', css: 'border-transparent', img: '/assets/frames/dice_frame.webp' },
-];
-
-export const PREFIXES = [
-  { id: 'none', name: 'Без префикса', reqLevel: 0, color: 'text-slate-400 bg-slate-100' },
-  { id: 'diamond', name: 'Бриллиант', reqLevel: 11, color: 'text-cyan-600 bg-cyan-100 border border-cyan-200' },
-  { id: 'madness', name: 'БЕЗУМИЕ', reqLevel: 99, isAch: true, hint: 'Достижение: Безумец', color: 'text-rose-600 bg-rose-100 border border-rose-200' },
-  { id: 'prophet', name: 'ПРОРОК', reqLevel: 99, isAch: true, hint: 'Достижение: Ностракотус', color: 'text-purple-600 bg-purple-100 border border-purple-200' },
-  { id: 'midas', name: 'Рука Мидаса', reqLevel: 99, isAch: true, hint: 'Достижение: Мне нужно больше', color: 'text-amber-600 bg-amber-100 border border-amber-200' },
+  // Базовые
+  { id: 'none', name: 'Без рамки', css: 'border-transparent', unlockType: 'default' },
+  
+  // За уровни
+  { id: 'bronze', name: 'Бронзовая', css: 'border-[#cd7f32] shadow-[#cd7f32]/50', unlockType: 'level', unlockValue: 2 },
+  { id: 'silver', name: 'Серебряная', css: 'border-slate-300 shadow-slate-300/50', unlockType: 'level', unlockValue: 4 },
+  { id: 'gold', name: 'Золотая', css: 'border-amber-400 shadow-amber-400/50', unlockType: 'level', unlockValue: 7 },
+  { id: 'platinum', name: 'Платиновая', css: 'border-cyan-300 shadow-cyan-300/50', unlockType: 'level', unlockValue: 10 },
+  { id: 'legend', name: 'Легенда', css: 'border-rose-500 shadow-rose-500/50', unlockType: 'level', unlockValue: 15 },
+  
+  // За достижения
+  { id: 'dice_frame', name: 'Рамка DICE', css: 'border-brand-500 shadow-brand-500/50', unlockType: 'achievement', unlockValue: 'dice_cat_sense' },
 ];
 
 export const BACKGROUNDS = [
-  { id: 'default', name: 'Стандартный', reqLevel: 0, gradient: 'from-brand-50 to-transparent' },
-  { id: 'exclusive', name: 'Эксклюзив', reqLevel: 9, gradient: 'from-emerald-100 via-teal-50 to-transparent' },
-  { id: 'custom_14', name: 'Котодракон', reqLevel: 14, gradient: 'from-rose-100 via-red-50 to-transparent' },
-  { id: 'dice_bg', name: 'DICE Фон', reqLevel: 99, isAch: true, hint: 'Достижение: Первый бросок III', gradient: 'from-blue-100 via-indigo-50 to-transparent' },
-  { id: 'society_bg', name: 'Любимец общества', reqLevel: 99, isAch: true, hint: 'Достижение: Билет в высшее общество III', gradient: 'from-amber-100 via-yellow-50 to-transparent' },
-  { id: 'crypto_bg', name: 'CRYPTO', reqLevel: 99, isAch: true, hint: 'Достижение: Крипто-Кот', gradient: 'from-slate-800 via-slate-700 to-transparent' },
+  // Базовые
+  { id: 'default', name: 'Стандартный', gradient: 'bg-gradient-to-br from-slate-100 to-slate-200', unlockType: 'default' },
+  
+  // За уровни
+  { id: 'exclusive', name: 'Эксклюзив', gradient: 'bg-gradient-to-br from-emerald-400 to-teal-600', unlockType: 'level', unlockValue: 9 },
+  { id: 'dragon', name: 'Котодракон', gradient: 'bg-gradient-to-br from-rose-400 to-red-600', unlockType: 'level', unlockValue: 14 },
+  
+  // За достижения
+  { id: 'dice_bg', name: 'DICE Фон', gradient: 'bg-gradient-to-br from-blue-500 to-indigo-600', unlockType: 'achievement', unlockValue: 'dice_fb3' },
+  { id: 'society_bg', name: 'Любимец общества', gradient: 'bg-gradient-to-br from-amber-300 to-orange-500', unlockType: 'achievement', unlockValue: 'jackpot_ticket3' },
+  { id: 'crypto_bg', name: 'CRYPTO', gradient: 'bg-gradient-to-br from-slate-700 to-slate-900', unlockType: 'achievement', unlockValue: 'gen_crypto_cat' },
 ];
 
-export const COLORS = ['#ffffff', '#f8fafc', '#f1f5f9', '#e2e8f0', '#cbd5e1', '#94a3b8', '#64748b', '#475569', '#334155', '#1e293b', '#0f172a', '#020617', '#6366f1', '#4f46e5', '#4338ca', '#3730a3', '#312e81', '#1e1b4b', '#10b981', '#059669', '#047857', '#ef4444', '#dc2626', '#b91c1c'];
+export const PREFIXES = [
+  // Базовые
+  { id: 'none', name: 'Без префикса', css: 'text-slate-400', unlockType: 'default' },
+  
+  // За достижения
+  { id: 'madness', name: 'БЕЗУМИЕ', css: 'text-rose-500 font-black drop-shadow-[0_0_8px_rgba(244,63,94,0.6)]', unlockType: 'achievement', unlockValue: 'dice_madman' },
+  { id: 'prophet', name: 'ПРОРОК', css: 'text-violet-500 font-black drop-shadow-[0_0_8px_rgba(139,92,246,0.6)]', unlockType: 'achievement', unlockValue: 'keno_nostracat' },
+  { id: 'midas', name: 'Рука Мидаса', css: 'text-amber-400 font-black drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]', unlockType: 'achievement', unlockValue: 'wx_more' },
+  { id: 'gladiator', name: 'ГЛАДИАТОР', css: 'text-rose-500 font-black drop-shadow-[0_0_8px_rgba(244,63,94,0.6)]', unlockType: 'achievement', unlockValue: 'arena_gladiator' },
+];

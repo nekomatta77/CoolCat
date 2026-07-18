@@ -5,7 +5,7 @@ import { vpsSocket as socket } from '../lib/vpsSocket';
 import { UserProfile } from '../types';
 import { Users, Swords, AlertCircle, Clock } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { FRAMES, BACKGROUNDS } from '../lib/customization';
+import { FRAMES, BACKGROUNDS, AVATARS } from '../lib/customization';
 
 const ROOMS = [
   { id: 'small', name: 'Small', min: 1, max: 100 },
@@ -76,7 +76,13 @@ const renderCustomAvatar = (player: any, sizeClass: string) => {
   const bgObj = BACKGROUNDS.find(b => b.id === player.equippedBg);
   const cardBg = player.cardStyle?.background || '#ffffff';
   const cardBorder = player.cardStyle?.border || player.color;
-  const safeAvatar = player.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=fallback';
+  const safeAvatar = player.avatar || '/assets/avatars/ava1.webp';
+
+  const avatarDef = AVATARS.find(a => a.id === safeAvatar);
+  const imgConfig = avatarDef?.config || { x: 0, y: 0, scale: 1 };
+
+  // Обходим строгую типизацию TypeScript для опциональных картинок-рамок
+  const frameImage = (frameObj as any).img;
 
   return (
     <div className={cn("relative flex items-center justify-center", sizeClass)}>
@@ -85,10 +91,17 @@ const renderCustomAvatar = (player: any, sizeClass: string) => {
         style={{ backgroundColor: cardBg, borderColor: frameObj.id === 'none' ? cardBorder : undefined }}
       >
         <div className={cn("absolute inset-0 opacity-40 z-0", bgObj?.gradient)} />
-        <img src={safeAvatar} alt="avatar" className="absolute inset-0 w-full h-full z-10 object-cover" />
+        <img 
+          src={safeAvatar} 
+          alt="avatar" 
+          className="absolute inset-0 w-full h-full z-10 object-cover" 
+          style={{ 
+            transform: `translate(${imgConfig.x}%, ${imgConfig.y}%) scale(${imgConfig.scale})` 
+          }}
+        />
       </div>
-      {frameObj.img && (
-        <img src={frameObj.img} alt="frame" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[125%] h-[125%] object-contain pointer-events-none z-30 drop-shadow-lg" />
+      {frameImage && (
+        <img src={frameImage} alt="frame" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[125%] h-[125%] object-contain pointer-events-none z-30 drop-shadow-lg" />
       )}
     </div>
   );
@@ -98,11 +111,9 @@ const renderCustomAvatar = (player: any, sizeClass: string) => {
 // ИГРОВОЕ ПОЛЕ С ФИЗИКОЙ (СКОЛЬЖЕНИЕ ДО ПОБЕДИТЕЛЯ)
 // =========================================================
 const ArenaField = ({ roomState, spinData }: { roomState: RoomState | null, spinData: any }) => {
-  // Состояние физики шайбы
   const [ball, setBall] = useState({ x: 50, y: 50 });
   const [ballTrail, setBallTrail] = useState<{x: number, y: number}[]>([]);
   
-  // Рефы для хранения текущих физических параметров без ререндера
   const physicsRef = useRef({
     x: 50, y: 50,
     vx: 1.2, vy: 1.5,
@@ -115,21 +126,18 @@ const ArenaField = ({ roomState, spinData }: { roomState: RoomState | null, spin
 
   const reqRef = useRef<number | null>(null);
 
-  // Игровой цикл физики шайбы (60 FPS)
   useEffect(() => {
     const loop = () => {
       const p = physicsRef.current;
       
       if (p.isRolling) {
         const elapsed = Date.now() - p.rollStartTime;
-        const remaining = 15000 - elapsed; // 15 секунд прокрутки
+        const remaining = 15000 - elapsed; 
         
-        // Первые 12 секунд шайба просто отскакивает от бортов
         if (remaining > 3000) {
           if (p.x <= 3 || p.x >= 97) p.vx *= -1;
           if (p.y <= 3 || p.y >= 97) p.vy *= -1;
 
-          // Поддержание скорости
           const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
           if (speed < 1.5) { p.vx *= 1.05; p.vy *= 1.05; }
           if (speed > 2.5) { p.vx *= 0.95; p.vy *= 0.95; }
@@ -137,41 +145,34 @@ const ArenaField = ({ roomState, spinData }: { roomState: RoomState | null, spin
           p.x += p.vx;
           p.y += p.vy;
           
-          p.stopInitialized = false; // Сброс инициализации торможения
+          p.stopInitialized = false;
         } 
-        // Последние 3 секунды - плавное скольжение и остановка на победителе
         else if (remaining > 0 && (window as any).winnerCentroid) {
           const target = (window as any).winnerCentroid;
           
-          // Фиксируем координаты, откуда начинается торможение
           if (!p.stopInitialized) {
             p.stopStartX = p.x;
             p.stopStartY = p.y;
             p.stopInitialized = true;
           }
 
-          // Вычисляем процент завершения (от 0 до 1)
           const t = 1 - (remaining / 3000); 
-          // Функция плавного замедления (easeOutQuart) - имитация трения об лед
           const easeOut = 1 - Math.pow(1 - t, 4);
 
           p.x = p.stopStartX + (target.x - p.stopStartX) * easeOut;
           p.y = p.stopStartY + (target.y - p.stopStartY) * easeOut;
         } 
-        // По истечении времени фиксируем шайбу точно на центре
         else if (remaining <= 0 && (window as any).winnerCentroid) {
           const target = (window as any).winnerCentroid;
           p.x = target.x;
           p.y = target.y;
         }
 
-        // Ограничители, чтобы шайба не вылетела за пределы
         p.x = Math.max(3, Math.min(97, p.x));
         p.y = Math.max(3, Math.min(97, p.y));
 
         setBall({ x: p.x, y: p.y });
         
-        // След от шайбы (Trail)
         setBallTrail(prev => {
           const newTrail = [...prev, { x: p.x, y: p.y }];
           if (newTrail.length > 10) newTrail.shift();
@@ -179,7 +180,6 @@ const ArenaField = ({ roomState, spinData }: { roomState: RoomState | null, spin
         });
 
       } else {
-        // Если игра не крутится, плавно возвращаем шайбу в центр арены
         if (p.x !== 50 || p.y !== 50) {
           p.x += (50 - p.x) * 0.1;
           p.y += (50 - p.y) * 0.1;
@@ -200,13 +200,11 @@ const ArenaField = ({ roomState, spinData }: { roomState: RoomState | null, spin
     };
   }, []);
 
-  // Синхронизация состояний из пропсов в физику
   useEffect(() => {
     if (roomState?.gameState === 'rolling' && !physicsRef.current.isRolling) {
       physicsRef.current.isRolling = true;
       physicsRef.current.rollStartTime = Date.now();
       physicsRef.current.stopInitialized = false;
-      // Рандомизируем начальный вектор движения шайбы
       physicsRef.current.vx = (Math.random() > 0.5 ? 1.5 : -1.5) * (Math.random() * 0.5 + 0.8);
       physicsRef.current.vy = (Math.random() > 0.5 ? 1.5 : -1.5) * (Math.random() * 0.5 + 0.8);
     } else if (roomState?.gameState !== 'rolling') {
@@ -214,11 +212,8 @@ const ArenaField = ({ roomState, spinData }: { roomState: RoomState | null, spin
     }
   }, [roomState?.gameState]);
 
-  // СТАТИЧНЫЙ ЦЕНТР (Фигуры меняются только при новых ставках)
   const { xc, yc } = useMemo(() => {
     if (!roomState || !roomState.players || roomState.players.length === 0) return { xc: 50, yc: 50 };
-    // Центр, из которого делятся полигоны, теперь зависит от размера банка и количества игроков.
-    // При добавлении нового игрока поле перестроится случайным, но строго статичным образом.
     const seed = (roomState.totalPool || 1) + (roomState.players.length * 73);
     return {
       xc: 35 + (seed % 30),
@@ -226,7 +221,6 @@ const ArenaField = ({ roomState, spinData }: { roomState: RoomState | null, spin
     };
   }, [roomState?.players?.length, roomState?.totalPool]);
 
-  // Генерация полигонов
   const layout = useMemo(() => {
     if (!roomState || !roomState.players || roomState.players.length === 0) return [];
     
@@ -288,7 +282,6 @@ const ArenaField = ({ roomState, spinData }: { roomState: RoomState | null, spin
         cy = (yc + pStart.y + pEnd.y) / 3;
       }
 
-      // Глобально сохраняем центр победителя для физики шайбы
       if (spinData && roomState.gameState === 'rolling' && spinData.winner?.uid === p.uid) {
         (window as any).winnerCentroid = { x: cx, y: cy };
       }
@@ -323,10 +316,8 @@ const ArenaField = ({ roomState, spinData }: { roomState: RoomState | null, spin
           </filter>
         </defs>
         
-        {/* Базовый фон Арены */}
         <rect width="100" height="100" fill="#020617" />
         
-        {/* Сетка Арены (только концентрические круги) */}
         <g stroke="rgba(255,255,255,0.05)" strokeWidth="0.5" fill="none">
           <circle cx="50" cy="50" r="20" />
           <circle cx="50" cy="50" r="40" />
@@ -334,7 +325,6 @@ const ArenaField = ({ roomState, spinData }: { roomState: RoomState | null, spin
           <circle cx="50" cy="50" r="80" />
         </g>
 
-        {/* ПОЛИГОНЫ ИГРОКОВ (Голографический эффект) */}
         {layout.map((p, i) => {
           if (!p.pointsStr) return null;
           const isWinner = roomState?.gameState === 'finished' && roomState.winner?.uid === p.uid;
@@ -348,7 +338,6 @@ const ArenaField = ({ roomState, spinData }: { roomState: RoomState | null, spin
              strokeWidth = isWinner ? "0.8" : "0.1";
              filter = isWinner ? "url(#glow)" : "none";
           } else if (roomState?.gameState === 'rolling') {
-             // Фигура подсвечивается (реагирует), если шайба пролетает близко к её центру
              const dx = p.cx - ball.x;
              const dy = p.cy - ball.y;
              const dist = Math.sqrt(dx*dx + dy*dy);
@@ -370,7 +359,6 @@ const ArenaField = ({ roomState, spinData }: { roomState: RoomState | null, spin
           );
         })}
 
-        {/* СЛЕД ОТ ШАЙБЫ */}
         {roomState?.gameState === 'rolling' && ballTrail.length > 1 && (
           <polyline 
             points={ballTrail.map(pt => `${pt.x},${pt.y}`).join(' ')}
@@ -384,7 +372,6 @@ const ArenaField = ({ roomState, spinData }: { roomState: RoomState | null, spin
           />
         )}
         
-        {/* ШАЙБА (PUCK) */}
         {roomState?.gameState === 'rolling' && (
           <g transform={`translate(${ball.x}, ${ball.y})`}>
              <circle r="3.5" fill="#818cf8" filter="url(#glow)" opacity="0.6" />
@@ -394,7 +381,6 @@ const ArenaField = ({ roomState, spinData }: { roomState: RoomState | null, spin
         )}
       </svg>
 
-      {/* АВАТАРКИ ИГРОКОВ (HTML слой) */}
       {layout.map((p, i) => {
         if (!p.pointsStr) return null;
         const sizePx = Math.max(35, Math.min(110, 25 + Math.sqrt(p.percentage) * 10));
