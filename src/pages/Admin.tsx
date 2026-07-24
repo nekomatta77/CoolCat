@@ -3,9 +3,10 @@ import { useState, useEffect } from 'react';
 import { UserProfile, PromoCode } from '../types';
 import { doc, updateDoc, getDocs, query, collection, addDoc, deleteDoc, orderBy, setDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Users, Ticket, Plus, List, Zap, Search, Ban, Trash2, Cat, CheckCircle2, AlertCircle, Copy, X, ShieldAlert, RefreshCw, ArrowRight, RotateCcw, Globe, Network, Star } from 'lucide-react';
+import { Users, Ticket, Plus, List, Zap, Search, Ban, Trash2, Cat, CheckCircle2, AlertCircle, Copy, X, ShieldAlert, RefreshCw, ArrowRight, RotateCcw, Globe, Network, Star, Package } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
+import { AVATARS, FRAMES, PREFIXES, BACKGROUNDS } from '../lib/customization';
 
 interface AdminProps {
   user: UserProfile;
@@ -49,6 +50,10 @@ export default function Admin({ user }: AdminProps) {
   const [userActionModal, setUserActionModal] = useState<{ userTarget: UserProfile, action: UserActionType } | null>(null);
   const [globalActionModal, setGlobalActionModal] = useState<'clear_history' | null>(null);
   const [referralApproveModal, setReferralApproveModal] = useState<UserProfile | null>(null);
+  
+  // ИНВЕНТАРЬ
+  const [inventoryModalUser, setInventoryModalUser] = useState<UserProfile | null>(null);
+  const [tempInventory, setTempInventory] = useState<{avatars: string[], frames: string[], prefixes: string[], backgrounds: string[]}>({avatars:[], frames:[], prefixes:[], backgrounds:[]});
 
   const [editingUsers, setEditingUsers] = useState<Record<string, { balance?: number; level?: number; rank?: 'user'|'vip'|'admin' }>>({});
   const [editConfirmModal, setEditConfirmModal] = useState<EditConfirmData | null>(null);
@@ -261,7 +266,7 @@ export default function Admin({ user }: AdminProps) {
         plan,
         code,
         balance: u.referralData?.balance || 0,
-        registeredCount: u.referralData?.registeredCount || 0, // <--- ИНИЦИАЛИЗИРУЕМ СЧЕТЧИК
+        registeredCount: u.referralData?.registeredCount || 0, 
         rsDeposits: 0, rsWithdrawals: 0, rsCommissions: 0, rsBalances: 0,
         spTier1Count: 0, spTier2Count: 0, spTier3Count: 0,
         spTier1Profit: 0, spTier2Profit: 0, spTier3Profit: 0,
@@ -281,12 +286,92 @@ export default function Admin({ user }: AdminProps) {
     setNotification({ message: 'Реферальная система отключена для игрока', type: 'success' });
   };
 
+  const toggleInventoryItem = (category: keyof typeof tempInventory, id: string) => {
+    setTempInventory(prev => ({
+      ...prev,
+      [category]: prev[category].includes(id) ? prev[category].filter(x => x !== id) : [...prev[category], id]
+    }));
+  };
+
+  const saveInventory = async () => {
+    if (!inventoryModalUser) return;
+    await handleUpdateUser(inventoryModalUser.uid, {
+      unlockedAvatars: tempInventory.avatars,
+      unlockedFrames: tempInventory.frames,
+      unlockedPrefixes: tempInventory.prefixes,
+      unlockedBackgrounds: tempInventory.backgrounds,
+    });
+    setNotification({ message: `Инвентарь игрока ${inventoryModalUser.nickname} обновлен!`, type: 'success' });
+    setInventoryModalUser(null);
+  };
+
   const filteredUsers = users.filter(u => (u.nickname || '').toLowerCase().includes((search || '').toLowerCase()));
-  
-  // ФИЛЬТР: Выводим всех, у кого есть данные рефки и статус не none
   const referralUsers = users.filter(u => u.referralData && u.referralData.status !== 'none');
 
   const getModalContent = () => {
+    if (inventoryModalUser) {
+      return (
+        <div className="flex flex-col space-y-4 md:space-y-6 max-h-[80vh]">
+          <div className="text-center space-y-2 border-b border-slate-100 pb-4 shrink-0">
+            <h3 className="text-xl md:text-2xl font-black text-slate-900">Инвентарь: {inventoryModalUser.nickname}</h3>
+            <p className="text-slate-500 font-medium text-sm">Управляйте разблокированными предметами</p>
+          </div>
+          
+          <div className="overflow-y-auto custom-scrollbar pr-2 space-y-6 flex-1">
+             <div>
+                <h4 className="font-black text-slate-400 uppercase tracking-widest text-[10px] mb-3">Аватарки</h4>
+                <div className="grid grid-cols-4 gap-2">
+                  {AVATARS.filter(a => a.unlockType !== 'default').map(item => (
+                    <button key={item.id} onClick={() => toggleInventoryItem('avatars', item.id)} className={cn("p-2 rounded-xl border-2 transition-all flex flex-col items-center gap-1", tempInventory.avatars.includes(item.id) ? "border-brand-500 bg-brand-50" : "border-slate-100 hover:border-brand-300 bg-white")}>
+                      <img src={item.id} className="w-8 h-8 object-cover rounded-lg" />
+                      <span className="text-[8px] font-bold uppercase truncate w-full text-center">{item.name}</span>
+                    </button>
+                  ))}
+                </div>
+             </div>
+             
+             <div>
+                <h4 className="font-black text-slate-400 uppercase tracking-widest text-[10px] mb-3">Рамки</h4>
+                <div className="grid grid-cols-3 gap-2">
+                  {FRAMES.filter(a => a.unlockType !== 'default').map(item => (
+                    <button key={item.id} onClick={() => toggleInventoryItem('frames', item.id)} className={cn("p-2 rounded-xl border-2 transition-all flex flex-col items-center gap-1", tempInventory.frames.includes(item.id) ? "border-brand-500 bg-brand-50" : "border-slate-100 hover:border-brand-300 bg-white")}>
+                      <span className="text-[9px] font-bold uppercase truncate w-full text-center">{item.name}</span>
+                    </button>
+                  ))}
+                </div>
+             </div>
+
+             <div>
+                <h4 className="font-black text-slate-400 uppercase tracking-widest text-[10px] mb-3">Префиксы</h4>
+                <div className="flex flex-wrap gap-2">
+                  {PREFIXES.filter(a => a.unlockType !== 'default').map(item => (
+                    <button key={item.id} onClick={() => toggleInventoryItem('prefixes', item.id)} className={cn("px-3 py-1.5 rounded-lg border-2 transition-all text-[10px] font-black uppercase", tempInventory.prefixes.includes(item.id) ? "border-brand-500 bg-brand-50 text-brand-600" : "border-slate-100 hover:border-brand-300 bg-white text-slate-500")}>
+                      {item.name}
+                    </button>
+                  ))}
+                </div>
+             </div>
+
+             <div>
+                <h4 className="font-black text-slate-400 uppercase tracking-widest text-[10px] mb-3">Фоны профиля</h4>
+                <div className="grid grid-cols-2 gap-2">
+                  {BACKGROUNDS.filter(a => a.unlockType !== 'default').map(item => (
+                    <button key={item.id} onClick={() => toggleInventoryItem('backgrounds', item.id)} className={cn("p-2 rounded-xl border-2 transition-all flex flex-col items-center gap-1", tempInventory.backgrounds.includes(item.id) ? "border-brand-500 bg-brand-50" : "border-slate-100 hover:border-brand-300 bg-white")}>
+                      <span className="text-[10px] font-bold uppercase truncate w-full text-center">{item.name}</span>
+                    </button>
+                  ))}
+                </div>
+             </div>
+          </div>
+
+          <div className="flex flex-col-reverse md:flex-row gap-3 w-full pt-4 border-t border-slate-100 shrink-0">
+             <button onClick={() => setInventoryModalUser(null)} className="w-full py-3 bg-slate-50 hover:bg-slate-100 text-slate-600 font-black rounded-xl transition-all">Отмена</button>
+             <button onClick={saveInventory} className="w-full py-3 text-white font-black rounded-xl transition-all shadow-md bg-brand-500 hover:bg-brand-600 shadow-brand-200">Сохранить</button>
+          </div>
+        </div>
+      );
+    }
+
     if (referralApproveModal) {
       return (
         <div className="flex flex-col space-y-5 md:space-y-6">
@@ -421,16 +506,16 @@ export default function Admin({ user }: AdminProps) {
   return (
     <div className="max-w-[90rem] mx-auto space-y-6 md:space-y-8 pb-12 relative px-2 md:px-0">
       <AnimatePresence>
-        {(userActionModal || editConfirmModal || globalActionModal || referralApproveModal) && (
+        {(userActionModal || editConfirmModal || globalActionModal || referralApproveModal || inventoryModalUser) && (
           <motion.div 
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4"
           >
             <motion.div 
               initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-              className="bg-white rounded-[2.5rem] p-6 md:p-8 max-w-md w-full shadow-2xl border border-slate-100 relative mx-4"
+              className={cn("bg-white rounded-[2.5rem] p-6 md:p-8 w-full shadow-2xl border border-slate-100 relative mx-4", inventoryModalUser ? "max-w-2xl" : "max-w-md")}
             >
-              <button onClick={() => { setUserActionModal(null); setEditConfirmModal(null); setGlobalActionModal(null); setReferralApproveModal(null); }} className="absolute top-4 right-4 md:top-6 md:right-6 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all"><X className="w-6 h-6" /></button>
+              <button onClick={() => { setUserActionModal(null); setEditConfirmModal(null); setGlobalActionModal(null); setReferralApproveModal(null); setInventoryModalUser(null); }} className="absolute top-4 right-4 md:top-6 md:right-6 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all z-10"><X className="w-6 h-6" /></button>
               {getModalContent()}
             </motion.div>
           </motion.div>
@@ -467,7 +552,6 @@ export default function Admin({ user }: AdminProps) {
 
       <AnimatePresence mode="wait">
         
-        {/* Вкладка: Рефералы */}
         {activeTab === 'referrals' && (
           <motion.div key="referrals" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-6 max-w-7xl mx-auto">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -529,7 +613,6 @@ export default function Admin({ user }: AdminProps) {
           </motion.div>
         )}
 
-        {/* Остальные вкладки */}
         {activeTab === 'global' && (
           <motion.div key="global" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-6 md:space-y-8 max-w-7xl mx-auto">
             <div className="bg-white p-5 md:p-8 lg:p-12 rounded-[2rem] md:rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/50">
@@ -585,6 +668,7 @@ export default function Admin({ user }: AdminProps) {
                           <motion.button initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }} onClick={() => handleSaveProfileClick(u)} className="flex-1 lg:flex-none py-2.5 px-4 md:p-3 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 transition-all shadow-md shadow-emerald-200 flex items-center justify-center gap-2 animate-pulse" title="Сохранить изменения"><CheckCircle2 className="w-4 h-4" /> <span className="text-xs font-bold uppercase tracking-widest">Сохранить</span></motion.button>
                         )}
                       </AnimatePresence>
+                      <button onClick={() => { setTempInventory({ avatars: u.unlockedAvatars || [], frames: u.unlockedFrames || [], prefixes: u.unlockedPrefixes || [], backgrounds: u.unlockedBackgrounds || [] }); setInventoryModalUser(u); }} className="flex-1 lg:flex-none py-2.5 px-3 md:p-3 rounded-xl bg-indigo-50 text-indigo-500 hover:bg-indigo-500 hover:text-white transition-all shadow-sm flex items-center justify-center gap-2"><Package className="w-4 h-4" /> <span className="lg:hidden text-[10px] uppercase font-bold tracking-widest">Инвентарь</span></button>
                       <button onClick={() => setUserActionModal({ userTarget: u, action: 'reset_wager' })} className="flex-1 lg:flex-none py-2.5 px-3 md:p-3 rounded-xl bg-brand-50 text-brand-500 hover:bg-brand-500 hover:text-white transition-all shadow-sm flex items-center justify-center gap-2"><RefreshCw className="w-4 h-4" /> <span className="lg:hidden text-[10px] uppercase font-bold tracking-widest">Отыгрыш</span></button>
                       <button onClick={() => setUserActionModal({ userTarget: u, action: 'reset_level' })} className="flex-1 lg:flex-none py-2.5 px-3 md:p-3 rounded-xl bg-amber-50 text-amber-500 hover:bg-amber-500 hover:text-white transition-all shadow-sm flex items-center justify-center gap-2"><RotateCcw className="w-4 h-4" /> <span className="lg:hidden text-[10px] uppercase font-bold tracking-widest">Уровень</span></button>
                       <button onClick={() => setUserActionModal({ userTarget: u, action: u.banned ? 'unblock' : 'block' })} className={cn("flex-1 lg:flex-none py-2.5 px-3 md:p-3 rounded-xl transition-all shadow-sm flex items-center justify-center gap-2", u.banned ? "bg-emerald-50 text-emerald-500 hover:bg-emerald-500 hover:text-white" : "bg-orange-50 text-orange-500 hover:bg-orange-500 hover:text-white")}>{u.banned ? <CheckCircle2 className="w-4 h-4" /> : <Ban className="w-4 h-4" />} <span className="lg:hidden text-[10px] uppercase font-bold tracking-widest">{u.banned ? 'Разбан' : 'Бан'}</span></button>

@@ -49,16 +49,16 @@ export const FRAMES = [
   { id: 'gold', name: 'Золотая', css: 'border-amber-400 shadow-amber-400/50', unlockType: 'level', unlockValue: 7 },
   { id: 'platinum', name: 'Платиновая', css: 'border-cyan-300 shadow-cyan-300/50', unlockType: 'level', unlockValue: 10 },
   { id: 'legend', name: 'Легенда', css: 'border-rose-500 shadow-rose-500/50', unlockType: 'level', unlockValue: 15 },
-  { id: 'dice_frame', name: 'Рамка DICE', css: 'border-brand-500 shadow-brand-500/50', unlockType: 'achievement', unlockValue: 'dice_cat_sense' },
+  { id: 'dice_frame', name: 'Рамка DICE', css: 'border-transparent', img: '/assets/frame/dice_frame.webp', unlockType: 'achievement', unlockValue: 'dice_cat_sense' },
 ];
 
 export const BACKGROUNDS = [
-  { id: 'default', name: 'Стандартный', gradient: 'bg-gradient-to-br from-slate-100 to-slate-200', unlockType: 'default' },
-  { id: 'exclusive', name: 'Эксклюзив', gradient: 'bg-gradient-to-br from-emerald-400 to-teal-600', unlockType: 'level', unlockValue: 9 },
-  { id: 'dragon', name: 'Котодракон', gradient: 'bg-gradient-to-br from-rose-400 to-red-600', unlockType: 'level', unlockValue: 14 },
-  { id: 'dice_bg', name: 'DICE Фон', gradient: 'bg-gradient-to-br from-blue-500 to-indigo-600', unlockType: 'achievement', unlockValue: 'dice_fb3' },
-  { id: 'society_bg', name: 'Любимец общества', gradient: 'bg-gradient-to-br from-amber-300 to-orange-500', unlockType: 'achievement', unlockValue: 'jackpot_ticket3' },
-  { id: 'crypto_bg', name: 'CRYPTO', gradient: 'bg-gradient-to-br from-slate-700 to-slate-900', unlockType: 'achievement', unlockValue: 'gen_crypto_cat' },
+  { id: 'default', name: 'Стандартный', gradient: 'bg-gradient-to-br from-slate-100 to-slate-200', textColor: 'text-slate-900', subTextColor: 'text-slate-500', unlockType: 'default' },
+  { id: 'exclusive', name: 'Эксклюзив', gradient: 'bg-pattern-exclusive', textColor: 'text-white', subTextColor: 'text-white/80', unlockType: 'level', unlockValue: 9 },
+  { id: 'dragon', name: 'Котодракон', gradient: 'bg-pattern-dragon', textColor: 'text-white', subTextColor: 'text-white/80', unlockType: 'level', unlockValue: 14 },
+  { id: 'dice_bg', name: 'DICE Фон', gradient: 'bg-pattern-dice', textColor: 'text-white', subTextColor: 'text-white/80', unlockType: 'achievement', unlockValue: 'dice_fb3' },
+  { id: 'society_bg', name: 'Любимец общества', gradient: 'bg-pattern-hearts', textColor: 'text-slate-900', subTextColor: 'text-slate-600', unlockType: 'achievement', unlockValue: 'jackpot_ticket3' },
+  { id: 'crypto_bg', name: 'CRYPTO', gradient: 'bg-pattern-crypto', textColor: 'text-white', subTextColor: 'text-white/80', unlockType: 'achievement', unlockValue: 'gen_crypto_cat' },
 ];
 
 export const PREFIXES = [

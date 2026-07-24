@@ -1,16 +1,15 @@
 // src/pages/Profile.tsx
 import { useState } from 'react';
 import { UserProfile } from '../types';
-import { doc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
-import { db, auth } from '../firebase';
-import { updateProfile } from 'firebase/auth';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '../firebase';
 import { 
-  User, Settings, Shield, LogOut, Palette, CheckCircle2, 
-  Trophy, Wallet, Lock, Image as ImageIcon, MessageSquare, Frame, Package
+  Settings, Shield, LogOut, CheckCircle2, 
+  Trophy, Wallet, Lock, Image as ImageIcon, MessageSquare, Frame, Package, PaintBucket, Palette
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
-import { AVATARS, FRAMES, PREFIXES, BACKGROUNDS, COLORS } from '../lib/customization';
+import { AVATARS, FRAMES, PREFIXES, BACKGROUNDS } from '../lib/customization';
 
 interface ProfileProps {
   user: UserProfile;
@@ -18,56 +17,28 @@ interface ProfileProps {
 }
 
 export default function Profile({ user, onLogout }: ProfileProps) {
-  const [mainTab, setMainTab] = useState<'profile' | 'inventory' | 'settings'>('inventory');
+  const [mainTab, setMainTab] = useState<'inventory' | 'settings'>('inventory');
   const [invTab, setInvTab] = useState<'avatars' | 'frames' | 'backgrounds' | 'prefixes'>('avatars');
   
-  const [nickname, setNickname] = useState(user.nickname);
-  const [avatar, setAvatar] = useState(user.avatar);
-  const [cardBg, setCardBg] = useState(user.cardStyle?.background || '#ffffff');
-  const [cardBorder, setCardBorder] = useState(user.cardStyle?.border || '#6366f1');
-  
+  const [avatar, setAvatar] = useState(user.avatar || AVATARS[0].id);
   const [activeFrame, setActiveFrame] = useState(user.equippedFrame || 'none');
   const [activePrefix, setActivePrefix] = useState(user.equippedPrefix || 'none');
   const [activeBg, setActiveBg] = useState(user.equippedBg || 'default');
   
+  const [cardBg, setCardBg] = useState(user.cardStyle?.background || '#ffffff');
+
   const [loading, setLoading] = useState(false);
 
   const handleSave = async () => {
-    if (!nickname.trim()) {
-      alert('Никнейм не может быть пустым');
-      return;
-    }
-
     setLoading(true);
     try {
-      if (nickname.trim() !== user.nickname) {
-        const usersRef = collection(db, 'users');
-        const q = query(usersRef, where('nickname', '==', nickname.trim()));
-        const querySnapshot = await getDocs(q);
-        
-        if (!querySnapshot.empty) {
-          alert('Этот никнейм уже занят другим игроком!');
-          setLoading(false);
-          return;
-        }
-      }
-
       await updateDoc(doc(db, 'users', user.uid), {
-        nickname: nickname.trim(),
         avatar,
-        cardStyle: {
-          ...user.cardStyle,
-          background: cardBg,
-          border: cardBorder,
-        },
         equippedFrame: activeFrame,
         equippedPrefix: activePrefix,
-        equippedBg: activeBg
+        equippedBg: activeBg,
+        'cardStyle.background': cardBg
       });
-      
-      if (auth.currentUser) {
-        await updateProfile(auth.currentUser, { displayName: nickname.trim() });
-      }
       
       alert('Профиль успешно обновлен!');
     } catch (error) {
@@ -78,27 +49,26 @@ export default function Profile({ user, onLogout }: ProfileProps) {
     }
   };
 
-  // ЗАГЛУШКА: Все аватары всегда доступны для тестирования
-  const isAvatarUnlocked = (av: typeof AVATARS[0]) => {
-    return true; 
-  };
-
-  // ЗАГЛУШКА: Все рамки, префиксы и фоны всегда доступны для тестирования
-  const isItemUnlocked = (id: string, reqLevel: number, category: 'frames' | 'prefixes' | 'backgrounds', isAch?: boolean) => {
-    return true; 
+  const checkUnlocked = (id: string, unlockType: string, unlockValue: any, category: 'avatars'|'frames'|'prefixes'|'backgrounds') => {
+    if (unlockType === 'default') return true;
+    if (unlockType === 'level') return (user.level || 0) >= Number(unlockValue);
+    if (unlockType === 'achievement') {
+      const arr = user[`unlocked${category.charAt(0).toUpperCase() + category.slice(1)}` as keyof UserProfile] as string[] || [];
+      return arr.includes(id);
+    }
+    return false;
   };
 
   const activeFrameObj = FRAMES.find(f => f.id === activeFrame) || FRAMES[0];
   const activePrefixObj = PREFIXES.find(p => p.id === activePrefix);
-  const activeBgObj = BACKGROUNDS.find(b => b.id === activeBg);
+  const activeBgObj = BACKGROUNDS.find(b => b.id === activeBg) || BACKGROUNDS[0];
   const activeAvatarObj = AVATARS.find(a => a.id === avatar) || AVATARS[0];
 
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-12">
       
-      {/* HEADER ПРОФИЛЯ */}
       <header className="flex flex-col md:flex-row items-center gap-8 bg-white p-8 lg:p-12 rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/50 relative overflow-hidden">
-        <div className={cn("absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] opacity-50 transition-colors duration-700", activeBgObj?.gradient)} />
+        <div className={cn("absolute inset-0 transition-colors duration-700", activeBgObj?.gradient)} />
         
         <div className="relative z-10 flex items-center justify-center">
           <div className="relative w-32 h-32 lg:w-40 lg:h-40 flex-shrink-0">
@@ -109,12 +79,12 @@ export default function Profile({ user, onLogout }: ProfileProps) {
                )}
                style={{ 
                  backgroundColor: cardBg, 
-                 borderColor: activeFrameObj.id === 'none' ? cardBorder : undefined 
+                 borderColor: activeFrameObj.id === 'none' ? (user.cardStyle?.border || '#6366f1') : undefined 
                }}
              >
                <img 
                  src={avatar} 
-                 alt={nickname} 
+                 alt={user.nickname} 
                  className="w-full h-full object-cover transition-transform duration-300"
                  style={{
                    transform: `scale(${(activeAvatarObj.config as any)?.scale ?? 1}) translate(${(activeAvatarObj.config as any)?.x ?? 0}px, ${(activeAvatarObj.config as any)?.y ?? 0}px)`
@@ -135,8 +105,10 @@ export default function Profile({ user, onLogout }: ProfileProps) {
         <div className="relative z-10 flex-1 space-y-4 text-center md:text-left w-full mt-4 md:mt-0">
           <div className="space-y-2">
             <div className="flex items-center justify-center md:justify-start gap-2">
-              <Trophy className="w-5 h-5 text-brand-500" />
-              <p className="text-sm font-black uppercase tracking-widest text-brand-500">{user.rank} • LVL {user.level || 0}</p>
+              <Trophy className={cn("w-5 h-5", activeBgObj?.textColor === 'text-white' ? 'text-white/90' : 'text-brand-500')} />
+              <p className={cn("text-sm font-black uppercase tracking-widest", activeBgObj?.textColor === 'text-white' ? 'text-white/90' : 'text-brand-500')}>
+                {user.rank} • LVL {user.level || 0}
+              </p>
             </div>
             <div className="flex flex-wrap items-center justify-center md:justify-start gap-3">
               {activePrefix !== 'none' && (
@@ -144,16 +116,18 @@ export default function Profile({ user, onLogout }: ProfileProps) {
                   {activePrefixObj?.name}
                 </span>
               )}
-              <h1 className="text-4xl lg:text-5xl font-black text-slate-900 tracking-tighter truncate">{nickname}</h1>
+              <h1 className={cn("text-4xl lg:text-5xl font-black tracking-tighter truncate", activeBgObj?.textColor || "text-slate-900")}>
+                {user.nickname}
+              </h1>
             </div>
           </div>
           
           <div className="flex flex-col sm:flex-row items-stretch justify-center md:justify-start gap-4 w-full pt-2">
-            <div className="bg-white/60 backdrop-blur-md px-6 py-4 sm:py-3 rounded-2xl border border-slate-200 w-full sm:w-auto flex flex-col items-center sm:items-start shadow-sm">
+            <div className="bg-white/80 backdrop-blur-md px-6 py-4 sm:py-3 rounded-2xl border border-white/50 w-full sm:w-auto flex flex-col items-center sm:items-start shadow-sm">
               <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-0.5">Отыгрыш</p>
               <p className="text-xl font-black text-slate-900 leading-none">{(user.wagerRequirement || 0).toFixed(0)} CAT</p>
             </div>
-            <div className="bg-white/60 backdrop-blur-md px-6 py-4 sm:py-3 rounded-2xl border border-slate-200 w-full sm:w-auto flex flex-col items-center sm:items-start shadow-sm">
+            <div className="bg-white/80 backdrop-blur-md px-6 py-4 sm:py-3 rounded-2xl border border-white/50 w-full sm:w-auto flex flex-col items-center sm:items-start shadow-sm">
               <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-0.5">Опыт</p>
               <p className="text-xl font-black text-slate-900 leading-none">{user.xp?.toLocaleString() || 0} XP</p>
             </div>
@@ -168,9 +142,6 @@ export default function Profile({ user, onLogout }: ProfileProps) {
           <div className="bg-white p-2 rounded-2xl border border-slate-100 shadow-sm flex flex-wrap gap-2">
              <button onClick={() => setMainTab('inventory')} className={cn("flex-1 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2", mainTab === 'inventory' ? "bg-brand-50 text-brand-600 shadow-sm" : "text-slate-400 hover:bg-slate-50 hover:text-slate-600")}>
                <Package className="w-4 h-4" /> Инвентарь
-             </button>
-             <button onClick={() => setMainTab('profile')} className={cn("flex-1 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2", mainTab === 'profile' ? "bg-brand-50 text-brand-600 shadow-sm" : "text-slate-400 hover:bg-slate-50 hover:text-slate-600")}>
-               <User className="w-4 h-4" /> Профиль
              </button>
              <button onClick={() => setMainTab('settings')} className={cn("flex-1 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2", mainTab === 'settings' ? "bg-brand-50 text-brand-600 shadow-sm" : "text-slate-400 hover:bg-slate-50 hover:text-slate-600")}>
                <Settings className="w-4 h-4" /> Настройки
@@ -205,35 +176,50 @@ export default function Profile({ user, onLogout }: ProfileProps) {
                 <div className="min-h-[400px]">
                   
                   {invTab === 'avatars' && (
-                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
-                      {AVATARS.map((av) => {
-                        const unlocked = isAvatarUnlocked(av);
-                        const isEquipped = avatar === av.id;
-                        return (
-                          <div key={av.id} className="space-y-2">
-                            <button
-                              onClick={() => unlocked && setAvatar(av.id)}
-                              disabled={!unlocked}
-                              className={cn(
-                                "relative w-full aspect-square rounded-2xl overflow-hidden border-4 transition-all duration-300 group",
-                                isEquipped ? "border-brand-500 scale-105 shadow-xl shadow-brand-200 z-10" : unlocked ? "border-slate-100 hover:border-slate-300" : "border-slate-100 cursor-not-allowed"
-                              )}
-                            >
-                              <img 
-                                src={av.id} 
-                                alt="Avatar" 
-                                className={cn("w-full h-full object-cover bg-white transition-all duration-300", !unlocked && "grayscale opacity-30 blur-[2px]")} 
-                                style={{
-                                  transform: `scale(${(av.config as any)?.scale ?? 1}) translate(${(av.config as any)?.x ?? 0}px, ${(av.config as any)?.y ?? 0}px)`
-                                }}
-                              />
-                              {isEquipped && <div className="absolute inset-0 bg-brand-500/10 flex items-end p-2"><CheckCircle2 className="w-5 h-5 text-brand-600 drop-shadow-md" /></div>}
-                              {!unlocked && <div className="absolute inset-0 flex items-center justify-center bg-slate-900/10"><Lock className="w-6 h-6 text-slate-600 drop-shadow-lg" /></div>}
-                            </button>
-                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center truncate px-1" title={av.name}>{av.name}</p>
-                          </div>
-                        );
-                      })}
+                    <div className="space-y-6">
+                      <div className="flex items-center gap-4 bg-slate-50 p-2 rounded-2xl border border-slate-100">
+                        <div className="relative w-12 h-12 rounded-xl overflow-hidden shadow-sm shrink-0 border border-slate-200 flex items-center justify-center bg-white group">
+                          <PaintBucket className="w-5 h-5 text-brand-500 group-hover:scale-110 transition-transform" />
+                          <input type="color" value={cardBg} onChange={(e) => setCardBg(e.target.value)} className="absolute -inset-2 w-[150%] h-[150%] cursor-pointer opacity-0" />
+                        </div>
+                        <div className="flex-1">
+                           <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Цвет фона аватарки</p>
+                           <p className="font-black text-slate-700 uppercase tracking-widest text-sm">{cardBg}</p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
+                        {AVATARS.map((av) => {
+                          const unlocked = checkUnlocked(av.id, av.unlockType, (av as any).unlockValue, 'avatars');
+                          const isEquipped = avatar === av.id;
+                          return (
+                            <div key={av.id} className="space-y-2">
+                              <button
+                                onClick={() => unlocked && setAvatar(av.id)}
+                                disabled={!unlocked}
+                                className={cn(
+                                  "relative w-full aspect-square rounded-2xl overflow-hidden border-4 transition-all duration-300 group",
+                                  isEquipped ? "border-brand-500 scale-105 shadow-xl shadow-brand-200 z-10" : unlocked ? "border-slate-100 hover:border-slate-300" : "border-slate-100 cursor-not-allowed"
+                                )}
+                              >
+                                <img 
+                                  src={av.id} 
+                                  alt="Avatar" 
+                                  className={cn("w-full h-full object-cover bg-white transition-all duration-300", !unlocked && "grayscale opacity-30 blur-[2px]")} 
+                                  style={{ transform: `scale(${(av.config as any)?.scale ?? 1}) translate(${(av.config as any)?.x ?? 0}px, ${(av.config as any)?.y ?? 0}px)` }}
+                                />
+                                {isEquipped && <div className="absolute inset-0 bg-brand-500/10 flex items-end p-2"><CheckCircle2 className="w-5 h-5 text-brand-600 drop-shadow-md" /></div>}
+                                {!unlocked && (
+                                  <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-900/60 backdrop-blur-[2px] transition-all">
+                                    <Lock className="w-6 h-6 text-white/80 drop-shadow-lg" />
+                                  </div>
+                                )}
+                              </button>
+                              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center truncate px-1" title={av.name}>{av.name}</p>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
 
@@ -242,8 +228,8 @@ export default function Profile({ user, onLogout }: ProfileProps) {
                       {FRAMES.map((frame) => {
                         const reqLevel = frame.unlockType === 'level' ? (Number((frame as any).unlockValue) || 0) : 0;
                         const isAch = frame.unlockType === 'achievement';
-                        const hint = isAch ? 'За достижение' : (reqLevel > 0 ? `Уровень ${reqLevel}` : 'Базовое');
-                        const unlocked = reqLevel === 0 || isItemUnlocked(frame.id, reqLevel, 'frames', isAch);
+                        const hint = isAch ? 'За достижение' : (reqLevel > 0 ? `LVL ${reqLevel}` : 'Базовое');
+                        const unlocked = checkUnlocked(frame.id, frame.unlockType, (frame as any).unlockValue, 'frames');
                         const isEquipped = activeFrame === frame.id;
                         return (
                           <button
@@ -251,8 +237,8 @@ export default function Profile({ user, onLogout }: ProfileProps) {
                             onClick={() => unlocked && setActiveFrame(frame.id)}
                             disabled={!unlocked}
                             className={cn(
-                              "relative p-4 rounded-3xl border-2 transition-all flex flex-col items-center gap-4 group",
-                              isEquipped ? "border-brand-500 bg-brand-50 shadow-md" : unlocked ? "border-slate-100 bg-white hover:border-slate-300 hover:shadow-sm" : "border-slate-100 bg-slate-50 cursor-not-allowed opacity-70"
+                              "relative p-4 rounded-3xl border-2 transition-all flex flex-col items-center gap-4 group overflow-hidden",
+                              isEquipped ? "border-brand-500 bg-brand-50 shadow-md" : unlocked ? "border-slate-100 bg-white hover:border-slate-300 hover:shadow-sm" : "border-slate-100 bg-slate-50 cursor-not-allowed"
                             )}
                           >
                             <div className="relative w-16 h-16 flex items-center justify-center">
@@ -262,17 +248,27 @@ export default function Profile({ user, onLogout }: ProfileProps) {
                                   <img src={(frame as any).img} className="absolute w-[130%] h-[130%] object-contain pointer-events-none z-10" />
                                 </>
                               ) : (
-                                <div className={cn("w-full h-full rounded-3xl border-4 bg-slate-100", frame.css)} />
+                                <div className={cn("w-full h-full rounded-3xl border-4 bg-white", frame.css)} />
                               )}
                             </div>
                             
-                            <div className="text-center space-y-1">
+                            <div className="text-center space-y-1 relative z-10">
                               <p className="font-black text-sm text-slate-900 leading-tight">{frame.name}</p>
                               <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                                 {unlocked ? (isEquipped ? 'Надето' : 'Выбрать') : hint}
                               </p>
                             </div>
-                            {!unlocked && <Lock className="absolute top-3 right-3 w-4 h-4 text-slate-400" />}
+
+                            {!unlocked && (
+                              <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-900/40 backdrop-blur-[2px] transition-all">
+                                <div className="w-10 h-10 bg-slate-900/60 rounded-full flex items-center justify-center mb-1 shadow-lg border border-white/10">
+                                  <Lock className="w-5 h-5 text-white/80" />
+                                </div>
+                                <span className="text-[10px] font-black text-white uppercase tracking-widest drop-shadow-md px-2 text-center leading-tight">
+                                  {hint}
+                                </span>
+                              </div>
+                            )}
                           </button>
                         );
                       })}
@@ -284,8 +280,8 @@ export default function Profile({ user, onLogout }: ProfileProps) {
                       {PREFIXES.map((prefix) => {
                         const reqLevel = prefix.unlockType === 'level' ? (Number((prefix as any).unlockValue) || 0) : 0;
                         const isAch = prefix.unlockType === 'achievement';
-                        const hint = isAch ? 'За достижение' : (reqLevel > 0 ? `Уровень ${reqLevel}` : 'Базовое');
-                        const unlocked = reqLevel === 0 || isItemUnlocked(prefix.id, reqLevel, 'prefixes', isAch);
+                        const hint = isAch ? 'За достижение' : (reqLevel > 0 ? `LVL ${reqLevel}` : 'Базовое');
+                        const unlocked = checkUnlocked(prefix.id, prefix.unlockType, (prefix as any).unlockValue, 'prefixes');
                         const isEquipped = activePrefix === prefix.id;
                         return (
                           <button
@@ -293,21 +289,31 @@ export default function Profile({ user, onLogout }: ProfileProps) {
                             onClick={() => unlocked && setActivePrefix(prefix.id)}
                             disabled={!unlocked}
                             className={cn(
-                              "relative p-5 rounded-2xl border-2 transition-all flex items-center justify-between group",
-                              isEquipped ? "border-brand-500 bg-brand-50 shadow-md" : unlocked ? "border-slate-100 bg-white hover:border-slate-300" : "border-slate-100 bg-slate-50 cursor-not-allowed opacity-70"
+                              "relative p-5 rounded-2xl border-2 transition-all flex items-center justify-between group overflow-hidden",
+                              isEquipped ? "border-brand-500 bg-brand-50 shadow-md" : unlocked ? "border-slate-100 bg-white hover:border-slate-300" : "border-slate-100 bg-slate-50 cursor-not-allowed"
                             )}
                           >
-                            <div className="flex items-center gap-3">
-                               <div className={cn("px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest", (prefix as any).css, !unlocked && "grayscale opacity-50")}>
+                            <div className="flex items-center gap-3 relative z-10">
+                               <div className={cn("px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest bg-white shadow-sm", (prefix as any).css)}>
                                  {prefix.name}
                                </div>
                             </div>
-                            <div className="text-right">
+                            <div className="text-right relative z-10">
                               <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 max-w-[100px] truncate" title={hint}>
                                 {unlocked ? (isEquipped ? 'Надето' : 'Выбрать') : hint}
                               </p>
                             </div>
-                            {!unlocked && <Lock className="absolute top-1/2 -translate-y-1/2 right-4 w-4 h-4 text-slate-400 opacity-50" />}
+
+                            {!unlocked && (
+                              <div className="absolute inset-0 z-20 flex flex-row items-center justify-end pr-4 bg-slate-900/40 backdrop-blur-[2px] transition-all gap-2">
+                                <span className="text-[10px] font-black text-white uppercase tracking-widest drop-shadow-md leading-tight">
+                                  {hint}
+                                </span>
+                                <div className="w-8 h-8 bg-slate-900/60 rounded-full flex items-center justify-center shadow-lg border border-white/10">
+                                  <Lock className="w-4 h-4 text-white/80" />
+                                </div>
+                              </div>
+                            )}
                           </button>
                         );
                       })}
@@ -319,8 +325,8 @@ export default function Profile({ user, onLogout }: ProfileProps) {
                        {BACKGROUNDS.map((bg) => {
                         const reqLevel = bg.unlockType === 'level' ? (Number((bg as any).unlockValue) || 0) : 0;
                         const isAch = bg.unlockType === 'achievement';
-                        const hint = isAch ? 'За достижение' : (reqLevel > 0 ? `Уровень ${reqLevel}` : 'Базовое');
-                        const unlocked = reqLevel === 0 || isItemUnlocked(bg.id, reqLevel, 'backgrounds', isAch);
+                        const hint = isAch ? 'За достижение' : (reqLevel > 0 ? `LVL ${reqLevel}` : 'Базовое');
+                        const unlocked = checkUnlocked(bg.id, bg.unlockType, (bg as any).unlockValue, 'backgrounds');
                         const isEquipped = activeBg === bg.id;
                         return (
                           <button
@@ -329,13 +335,13 @@ export default function Profile({ user, onLogout }: ProfileProps) {
                             disabled={!unlocked}
                             className={cn(
                               "relative h-32 rounded-3xl border-2 transition-all flex flex-col justify-end p-4 overflow-hidden group text-left",
-                              isEquipped ? "border-brand-500 shadow-md ring-2 ring-brand-200" : unlocked ? "border-slate-200 hover:border-slate-400" : "border-slate-100 cursor-not-allowed grayscale opacity-60"
+                              isEquipped ? "border-brand-500 shadow-md ring-2 ring-brand-200" : unlocked ? "border-slate-200 hover:border-slate-400" : "border-slate-100 cursor-not-allowed grayscale opacity-60",
+                              bg.gradient
                             )}
                           >
-                            <div className={cn("absolute inset-0 bg-gradient-to-tr opacity-80", bg.gradient)} />
                             <div className="relative z-10">
-                              <p className="font-black text-lg text-slate-900 truncate pr-6" title={bg.name}>{bg.name}</p>
-                              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600 truncate">
+                              <p className={cn("font-black text-lg truncate pr-6 drop-shadow-md", (bg as any).textColor || "text-slate-900")} title={bg.name}>{bg.name}</p>
+                              <p className={cn("text-[10px] font-bold uppercase tracking-widest drop-shadow-md truncate", (bg as any).subTextColor || "text-slate-600")}>
                                 {unlocked ? (isEquipped ? 'Надето' : 'Доступно') : hint}
                               </p>
                             </div>
@@ -346,61 +352,6 @@ export default function Profile({ user, onLogout }: ProfileProps) {
                     </div>
                   )}
 
-                </div>
-              </motion.div>
-            )}
-
-            {mainTab === 'profile' && (
-              <motion.div key="profile" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="bg-white p-6 md:p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 space-y-8">
-                <h2 className="text-2xl font-black text-slate-900 flex items-center gap-3">
-                  <Palette className="w-6 h-6 text-brand-600" /> Базовые настройки
-                </h2>
-                
-                <div className="space-y-8">
-                  <div className="space-y-3">
-                    <label className="text-xs font-black uppercase tracking-widest text-slate-400">Никнейм</label>
-                    <input
-                      type="text"
-                      value={nickname}
-                      onChange={(e) => setNickname(e.target.value)}
-                      className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-6 py-4 font-bold text-slate-900 focus:border-brand-500 outline-none transition-all"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div className="space-y-3">
-                      <label className="text-xs font-black uppercase tracking-widest text-slate-400">Цвет фона аватарки</label>
-                      <div className="flex flex-wrap gap-2">
-                        {COLORS.map(c => (
-                          <button
-                            key={`bg-${c.id}`}
-                            onClick={() => setCardBg(c.value)}
-                            className={cn(
-                              "w-8 h-8 rounded-lg border-2 transition-all",
-                              cardBg === c.value ? "border-brand-600 scale-110 shadow-lg" : "border-transparent shadow-sm"
-                            )}
-                            style={{ backgroundColor: c.value }}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                    <div className="space-y-3">
-                      <label className="text-xs font-black uppercase tracking-widest text-slate-400">Цвет обводки аватарки</label>
-                      <div className="flex flex-wrap gap-2">
-                        {COLORS.map(c => (
-                          <button
-                            key={`border-${c.id}`}
-                            onClick={() => setCardBorder(c.value)}
-                            className={cn(
-                              "w-8 h-8 rounded-lg border-2 transition-all",
-                              cardBorder === c.value ? "border-brand-600 scale-110 shadow-lg" : "border-transparent shadow-sm"
-                            )}
-                            style={{ backgroundColor: c.value }}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  </div>
                 </div>
               </motion.div>
             )}
@@ -460,7 +411,7 @@ export default function Profile({ user, onLogout }: ProfileProps) {
             <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 px-2">Предпросмотр профиля</h3>
             
             <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden relative">
-              <div className={cn("absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] opacity-60", activeBgObj?.gradient)} />
+              <div className={cn("absolute inset-0", activeBgObj?.gradient)} />
               
               <div className="relative z-10 p-8 flex flex-col items-center text-center space-y-5">
                 
@@ -472,7 +423,7 @@ export default function Profile({ user, onLogout }: ProfileProps) {
                     )}
                     style={{ 
                       backgroundColor: cardBg, 
-                      borderColor: activeFrameObj.id === 'none' ? cardBorder : undefined 
+                      borderColor: activeFrameObj.id === 'none' ? (user.cardStyle?.border || '#6366f1') : undefined 
                     }}
                   >
                     <img 
@@ -501,11 +452,15 @@ export default function Profile({ user, onLogout }: ProfileProps) {
                        </span>
                      )}
                    </div>
-                   <p className="text-2xl font-black leading-none text-slate-900 truncate w-full px-4">{nickname}</p>
-                   <p className="text-[10px] uppercase tracking-widest font-black text-slate-400">LVL {user.level || 0} • {user.rank}</p>
+                   <p className={cn("text-2xl font-black leading-none drop-shadow-md truncate w-full px-4", activeBgObj?.textColor || "text-slate-900")}>
+                     {user.nickname}
+                   </p>
+                   <p className={cn("text-[10px] uppercase tracking-widest font-black drop-shadow-md", activeBgObj?.subTextColor || "text-slate-500")}>
+                     LVL {user.level || 0} • {user.rank}
+                   </p>
                 </div>
 
-                <div className="w-full bg-white/60 backdrop-blur-sm p-4 rounded-2xl border border-slate-200/50 shadow-sm">
+                <div className="w-full bg-white/80 backdrop-blur-md p-4 rounded-2xl border border-white/50 shadow-sm">
                    <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">
                      <span>Опыт</span>
                      <span className="text-brand-600">{user.xp?.toLocaleString() || 0} XP</span>
