@@ -5,7 +5,7 @@ import { db } from '../firebase';
 import { UserProfile } from '../types';
 import { Wallet, Menu, Plus, Minus, Bell, User } from 'lucide-react';
 import { useIsMobile, cn } from '../lib/utils'; 
-import { FRAMES } from '../lib/customization';
+import { FRAMES, AVATARS } from '../lib/customization';
 import { motion, AnimatePresence } from 'motion/react';
 
 const HEADER_AVATAR_CONFIG = {
@@ -39,6 +39,10 @@ export default function Header({ user, onMenuClick, onDepositClick, onWithdrawCl
   const activeFrameObj = user 
     ? FRAMES.find(f => f.id === (user.equippedFrame || 'none')) || FRAMES[0]
     : FRAMES[0];
+
+  const activeAvatarObj = user
+    ? AVATARS.find(a => a.id === user.avatar) || AVATARS[0]
+    : AVATARS[0];
 
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -150,14 +154,20 @@ export default function Header({ user, onMenuClick, onDepositClick, onWithdrawCl
           </div>
         ) : (
           <>
-            {/* АВАТАРКА ПРОФИЛЯ (ТЕПЕРЬ СЛЕВА ОТ КОЛОКОЛЬЧИКА) */}
             <Link to="/profile" className="flex items-center gap-2 sm:gap-3 hover:bg-slate-50 p-1 sm:pr-4 rounded-xl sm:rounded-2xl transition-all group">
               <div className="relative shrink-0 flex items-center justify-center" style={{ width: `${avatarCfg.size}px`, height: `${avatarCfg.size}px` }}>
                 <div className={cn("absolute inset-0 rounded-lg sm:rounded-xl overflow-hidden border-2 transition-all flex items-center justify-center group-hover:opacity-80", activeFrameObj.css)} style={{ backgroundColor: user.cardStyle.background, borderColor: activeFrameObj.id === 'none' ? user.cardStyle.border : undefined }}>
-                  <img src={user.avatar} alt={user.nickname} className="object-cover w-full h-full" />
+                  <img 
+                    src={user.avatar} 
+                    alt={user.nickname} 
+                    className="object-cover w-full h-full"
+                    style={{
+                      transform: `scale(${(activeAvatarObj.config as any)?.scale ?? 1}) translate(${(activeAvatarObj.config as any)?.x ?? 0}px, ${(activeAvatarObj.config as any)?.y ?? 0}px)`
+                    }} 
+                  />
                 </div>
-                {activeFrameObj.img && (
-                  <img src={activeFrameObj.img} className="absolute w-[125%] h-[125%] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-contain pointer-events-none z-10 drop-shadow-md" alt="frame" />
+                {(activeFrameObj as any).img && (
+                  <img src={(activeFrameObj as any).img} className="absolute w-[125%] h-[125%] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-contain pointer-events-none z-10 drop-shadow-md" alt="frame" />
                 )}
               </div>
               <div className="text-right hidden md:block">
@@ -166,7 +176,6 @@ export default function Header({ user, onMenuClick, onDepositClick, onWithdrawCl
               </div>
             </Link>
 
-            {/* КОЛОКОЛЬЧИК УВЕДОМЛЕНИЙ (ТЕПЕРЬ СПРАВА) */}
             <div className="relative" ref={notifRef}>
               <button 
                 onClick={handleBellClick}
