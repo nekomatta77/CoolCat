@@ -236,7 +236,7 @@ export default function Jackpot({ user }: JackpotProps) {
     const frameImage = (frameObj as any).img;
 
     return (
-      <div className={cn("relative flex-shrink-0 flex items-center justify-center group", sizeClass)}>
+      <div className={cn("relative shrink-0 flex items-center justify-center group", sizeClass)}>
         <div 
           className={cn(
             "absolute inset-0 overflow-hidden transition-all duration-300 shadow-md",
