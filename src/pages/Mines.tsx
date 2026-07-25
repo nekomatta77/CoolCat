@@ -32,7 +32,7 @@ export default function Mines({ user }: MinesProps) {
   const [revealed, setRevealed] = useState<boolean[]>(Array(25).fill(false));
   const [multiplier, setMultiplier] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [isRestoring, setIsRestoring] = useState(true); // Флаг восстановления игры
+  const [isRestoring, setIsRestoring] = useState(true); 
   const [unlockedAch, setUnlockedAch] = useState<string | null>(null);
 
   const isProcessing = useRef(false);
@@ -47,7 +47,6 @@ export default function Mines({ user }: MinesProps) {
     return mult;
   };
 
-  // ВОССТАНОВЛЕНИЕ ИГРЫ ПРИ ЗАГРУЗКЕ
   useEffect(() => {
     const restoreActiveGame = async () => {
       try {
@@ -148,7 +147,6 @@ export default function Mines({ user }: MinesProps) {
         status: 'playing'
       };
 
-      // Списываем баланс и одновременно сохраняем прогресс игры в базу!
       await updateDoc(doc(db, 'users', user.uid), {
         balance: increment(-bet),
         activeMinesGame: newGameData
@@ -170,16 +168,14 @@ export default function Mines({ user }: MinesProps) {
     if (gameState !== 'playing' || revealed[idx] || isProcessing.current) return;
     isProcessing.current = true;
 
-    // Мгновенное оптимистичное обновление UI
     const newRevealed = [...revealed];
     newRevealed[idx] = true;
     setRevealed(newRevealed);
 
     if (grid[idx]) {
       setGameState('lost');
-      // В фоне обновляем базу
       Promise.all([
-        updateDoc(doc(db, 'users', user.uid), { activeMinesGame: null }), // Очищаем сохраненную игру
+        updateDoc(doc(db, 'users', user.uid), { activeMinesGame: null }), 
         addDoc(collection(db, 'gameSessions'), {
           userId: user.uid, gameType: 'mines', bet, multiplier: 0, payout: 0, timestamp: new Date().toISOString()
         })
@@ -189,7 +185,6 @@ export default function Mines({ user }: MinesProps) {
       const newMult = calculateMultiplierPure(revealedCount, minesCount);
       setMultiplier(newMult);
       
-      // Фоновое сохранение шага
       updateDoc(doc(db, 'users', user.uid), {
         'activeMinesGame.revealed': newRevealed,
         'activeMinesGame.multiplier': newMult
@@ -257,7 +252,7 @@ export default function Mines({ user }: MinesProps) {
         updateDoc(doc(db, 'users', user.uid), { 
           balance: increment(payout), 
           xp: increment(bet / 10),
-          activeMinesGame: null // Очищаем игру после победы
+          activeMinesGame: null 
         }),
         addDoc(collection(db, 'gameSessions'), { userId: user.uid, gameType: 'mines', bet, multiplier, payout, timestamp: new Date().toISOString() }),
         ...updates.map(ach => updateDoc(doc(db, 'achievements', ach.id as string), { progress: ach.progress, completed: ach.completed })),
@@ -393,7 +388,7 @@ export default function Mines({ user }: MinesProps) {
           </div>
 
           <div className="mt-8 w-full max-w-sm hidden lg:block">
-            <div className="flex items-center justify-between bg-slate-50 border border-slate-100 p-4 rounded-[1.5rem] shadow-sm hover:shadow-md transition-all group">
+            <div className="flex items-center justify-between bg-slate-50 border border-slate-100 p-4 rounded-3xl shadow-sm hover:shadow-md transition-all group">
                <div className="flex items-center gap-3">
                  <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
                    <ShieldCheck className="w-5 h-5 text-emerald-500" />

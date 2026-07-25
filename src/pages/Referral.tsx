@@ -107,12 +107,12 @@ export default function Referral({ user }: ReferralProps) {
   );
 
   return (
-    <div className="max-w-[90rem] mx-auto space-y-6 md:space-y-8 pb-12 relative px-2 md:px-0">
+    <div className="max-w-360 mx-auto space-y-6 md:space-y-8 pb-12 relative px-2 md:px-0">
       
       {/* КРАСИВЫЙ ХЕДЕР ПАРТНЕРКИ */}
-      <header className="flex flex-col md:flex-row items-center justify-between gap-6 bg-white p-5 lg:p-8 rounded-[2rem] md:rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 max-w-7xl mx-auto">
+      <header className="flex flex-col md:flex-row items-center justify-between gap-6 bg-white p-5 lg:p-8 rounded-4xl md:rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 max-w-7xl mx-auto">
         <div className="flex flex-col md:flex-row items-center gap-4 md:gap-6 text-center md:text-left">
-          <div className="w-14 h-14 md:w-16 md:h-16 bg-gradient-to-br from-brand-400 to-brand-600 rounded-2xl md:rounded-3xl flex items-center justify-center shadow-xl shadow-brand-200 shrink-0">
+          <div className="w-14 h-14 md:w-16 md:h-16 bg-linear-to-br from-brand-400 to-brand-600 rounded-2xl md:rounded-3xl flex items-center justify-center shadow-xl shadow-brand-200 shrink-0">
             <Network className="w-7 h-7 md:w-8 md:h-8 text-white" />
           </div>
           <div>
@@ -155,7 +155,7 @@ export default function Referral({ user }: ReferralProps) {
           )}
 
           {refStatus === 'disabled' && (
-             <motion.div key="disabled" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white p-10 md:p-16 rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/50 text-center flex flex-col items-center justify-center min-h-[400px]">
+             <motion.div key="disabled" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white p-10 md:p-16 rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/50 text-center flex flex-col items-center justify-center min-h-100">
                 <div className="w-20 h-20 bg-red-50 text-red-500 rounded-3xl flex items-center justify-center mb-8 shadow-lg shadow-red-100"><Network className="w-10 h-10" /></div>
                 <h2 className="text-2xl md:text-3xl font-black text-slate-900 mb-4 tracking-tighter">Реферальная система отключена</h2>
                 <p className="text-slate-500 font-medium max-w-md mx-auto mb-8 leading-relaxed">На данный момент вам отключили реферальную систему. Обратитесь в поддержку.</p>
@@ -164,7 +164,7 @@ export default function Referral({ user }: ReferralProps) {
           )}
 
           {refStatus === 'pending' && (
-            <motion.div key="pending" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white p-10 md:p-16 rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/50 text-center flex flex-col items-center justify-center min-h-[400px]">
+            <motion.div key="pending" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white p-10 md:p-16 rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/50 text-center flex flex-col items-center justify-center min-h-100">
               <div className="w-24 h-24 bg-brand-50 rounded-full flex items-center justify-center mb-6 animate-pulse"><Clock className="w-10 h-10 text-brand-500" /></div>
               <h2 className="text-2xl md:text-3xl font-black text-slate-900 mb-3 tracking-tighter">Заявка на рассмотрении</h2>
               <p className="text-slate-500 font-medium max-w-md mx-auto">Мы изучаем ваши источники трафика. Обычно процесс занимает до 24 часов.</p>
@@ -174,7 +174,7 @@ export default function Referral({ user }: ReferralProps) {
           {refStatus === 'approved' && (
             <motion.div key="dashboard" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
               
-              <div className="bg-white p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 flex flex-col lg:flex-row gap-6">
+              <div className="bg-white p-6 md:p-8 rounded-4xl md:rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 flex flex-col lg:flex-row gap-6">
                 
                 {/* Ссылка */}
                 <div className="flex-1 w-full flex flex-col justify-center gap-3 lg:pr-6">
@@ -190,7 +190,7 @@ export default function Referral({ user }: ReferralProps) {
                 
                 {/* Стата и вывод */}
                 <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto shrink-0">
-                  <div className="bg-slate-50 rounded-[1.5rem] lg:rounded-[2.5rem] p-6 lg:p-10 border border-slate-100 flex-1 min-w-[140px] lg:min-w-[200px] flex flex-col justify-center relative overflow-hidden">
+                  <div className="bg-slate-50 rounded-3xl lg:rounded-[2.5rem] p-6 lg:p-10 border border-slate-100 flex-1 min-w-35 lg:min-w-50 flex flex-col justify-center relative overflow-hidden">
                     <div className="absolute -right-4 -bottom-4 w-20 h-20 bg-brand-100 rounded-full blur-2xl opacity-50" />
                     <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Рефералов</p>
                     <div className="flex items-end gap-2 relative z-10">
@@ -199,7 +199,7 @@ export default function Referral({ user }: ReferralProps) {
                     </div>
                   </div>
 
-                  <div className="bg-slate-900 rounded-[1.5rem] lg:rounded-[2.5rem] p-6 lg:p-10 flex-1 min-w-[200px] lg:min-w-[360px] flex flex-col justify-between relative overflow-hidden shadow-2xl shadow-slate-900/20 group">
+                  <div className="bg-slate-900 rounded-3xl lg:rounded-[2.5rem] p-6 lg:p-10 flex-1 min-w-50 lg:min-w-90 flex flex-col justify-between relative overflow-hidden shadow-2xl shadow-slate-900/20 group">
                     <div className="absolute -right-10 -top-10 w-48 h-48 bg-emerald-500/20 rounded-full blur-3xl group-hover:bg-emerald-500/30 transition-all duration-500" />
                     <div className="relative z-10 mb-8">
                       <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400 mb-2 lg:mb-3">Доступно для снятия</p>
@@ -216,7 +216,7 @@ export default function Referral({ user }: ReferralProps) {
               </div>
 
               {/* СПИСОК РЕФЕРАЛОВ С ПАГИНАЦИЕЙ И ПОИСКОМ */}
-              <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-100 shadow-lg shadow-slate-200/50">
+              <div className="bg-white p-6 md:p-8 rounded-4xl border border-slate-100 shadow-lg shadow-slate-200/50">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                   <div className="flex items-center gap-3">
                     <Users className="w-6 h-6 text-brand-500" />
@@ -291,7 +291,7 @@ export default function Referral({ user }: ReferralProps) {
 
               {/* Модели RevShare / Special */}
               {plan === 'revshare' && (
-                <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-100 shadow-lg shadow-slate-200/50">
+                <div className="bg-white p-6 md:p-8 rounded-4xl border border-slate-100 shadow-lg shadow-slate-200/50">
                   <div className="flex items-center gap-3 mb-6">
                     <TrendingUp className="w-6 h-6 text-brand-500" />
                     <h3 className="text-xl font-black text-slate-900">Модель RevShare</h3>
@@ -322,7 +322,7 @@ export default function Referral({ user }: ReferralProps) {
               )}
 
               {plan === 'special' && (
-                <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-100 shadow-lg shadow-slate-200/50">
+                <div className="bg-white p-6 md:p-8 rounded-4xl border border-slate-100 shadow-lg shadow-slate-200/50">
                   <div className="flex items-center gap-3 mb-6">
                     <Star className="w-6 h-6 text-amber-400" />
                     <h3 className="text-xl font-black text-slate-900">Особенная модель</h3>
@@ -361,9 +361,9 @@ export default function Referral({ user }: ReferralProps) {
             />
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} 
-              className="relative bg-white w-full max-w-sm md:max-w-md rounded-[2rem] md:rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col z-10"
+              className="relative bg-white w-full max-w-sm md:max-w-md rounded-4xl md:rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col z-10"
             >
-              <div className="h-28 md:h-32 bg-gradient-to-br from-brand-400 to-brand-600 relative flex items-center justify-center">
+              <div className="h-28 md:h-32 bg-linear-to-br from-brand-400 to-brand-600 relative flex items-center justify-center">
                  <button 
                    onClick={() => setSelectedRef(null)} 
                    className="absolute top-4 right-4 w-8 h-8 bg-black/20 hover:bg-black/30 text-white rounded-full flex items-center justify-center transition-colors"
@@ -404,7 +404,7 @@ export default function Referral({ user }: ReferralProps) {
                       <span className="text-lg md:text-xl font-black text-slate-900">{selectedRef.totalWithdrawals || 0} ₽</span>
                    </div>
                    
-                   <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-4 flex flex-col items-center text-center col-span-2 shadow-lg">
+                   <div className="bg-linear-to-br from-slate-800 to-slate-900 rounded-2xl p-4 flex flex-col items-center text-center col-span-2 shadow-lg">
                       <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Текущий баланс</span>
                       <div className="flex items-baseline gap-1.5">
                         <span className="text-2xl md:text-3xl font-black text-white">{selectedRef.balance?.toFixed(2) || 0}</span>
