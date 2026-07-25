@@ -16,7 +16,7 @@ export default function FAQ() {
     {
       icon: Wallet,
       title: 'Как пополнить счет?',
-      content: 'На мобильных устройствах в нижней панели есть кнопка плюса для перехода в пополнения. На десктопе в верхней панели — кнопки около вашего баланса. Укажите сумму, и вас перебросит на агрегатор для безопасной оплаты. Внутри CoolCat курс стабилен: 1 CAT = 1 RUB.'
+      content: 'На мобильных устройствах в нижней панели есть кнопка плюса для перехода в пополнения. На десктопе в верхней панели — нажмите на блок вашего баланса. Укажите сумму, и вас перебросит на агрегатор для безопасной оплаты. Внутри CoolCat курс стабилен: 1 CAT = 1 RUB.'
     },
     {
       icon: ShieldCheck,
@@ -26,7 +26,7 @@ export default function FAQ() {
     {
       icon: Users,
       title: 'Аккаунты и рефералы',
-      content: 'Разрешено иметь только 1 учетную запись. Создание мультиаккаунтов, регистрация по своей реферальной ссылке, сговоры с игроками и использование фейков строго запрещены. Нарушение ведет к блокировке всех связанных профилей.'
+      content: 'Разрешено иметь только 1 учетную запись. Создание мультиаккаунтов, регистрация по своей реферальной ссылке, сговоры с игроками и использование фейков строго запрещены. Нарушение ведет к блокировке всех связанных профилей. Если у вас более 1 аккаунта, обратитесь в поддержку.'
     },
     {
       icon: Zap,
@@ -51,15 +51,15 @@ export default function FAQ() {
     {
       icon: HelpCircle,
       title: 'Как начать играть?',
-      content: 'Просто войдите в аккаунт, получите начальный баланс и выберите любую игру на главной странице. Все игры основаны на криптографическом хешировании (Provably Fair), что гарантирует абсолютную честность каждого раунда.'
+      content: 'Войдите в аккаунт, ПОПОЛНИТЕ ИГРОВОЙ баланс и выберите любую игру на главной странице. Все игры основаны на криптографическом хешировании (Provably Fair), что гарантирует абсолютную честность каждого раунда.'
     }
   ];
 
   return (
     <div className="max-w-6xl mx-auto space-y-12 pb-12">
-      <header className="flex flex-col md:flex-row items-center justify-between gap-6 bg-white p-5 lg:p-8 rounded-[2rem] md:rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 max-w-7xl mx-auto mb-6 md:space-y-0">
+      <header className="flex flex-col md:flex-row items-center justify-between gap-6 bg-white p-5 lg:p-8 rounded-4xl md:rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 max-w-7xl mx-auto mb-6 md:space-y-0">
         <div className="flex flex-col md:flex-row items-center gap-4 md:gap-6 text-center md:text-left w-full">
-          <div className="w-14 h-14 md:w-16 md:h-16 bg-gradient-to-br from-brand-400 to-brand-600 rounded-2xl md:rounded-3xl flex items-center justify-center shadow-xl shadow-brand-200 shrink-0">
+          <div className="w-14 h-14 md:w-16 md:h-16 bg-linear-to-br from-brand-400 to-brand-600 rounded-2xl md:rounded-3xl flex items-center justify-center shadow-xl shadow-brand-200 shrink-0">
             <HelpCircle className="w-7 h-7 md:w-8 md:h-8 text-white" />
           </div>
           <div>

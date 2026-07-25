@@ -80,9 +80,9 @@ const renderCustomAvatar = (player: any, sizeClass: string) => {
 
   const avatarDef = AVATARS.find(a => a.id === safeAvatar);
   const imgConfig = avatarDef?.config || { x: 0, y: 0, scale: 1 };
-
-  // Обходим строгую типизацию TypeScript для опциональных картинок-рамок
+  
   const frameImage = (frameObj as any).img;
+  const frameConfig = (frameObj as any).config || { scale: 1.2, x: 0, y: 0 };
 
   return (
     <div className={cn("relative flex items-center justify-center", sizeClass)}>
@@ -101,7 +101,12 @@ const renderCustomAvatar = (player: any, sizeClass: string) => {
         />
       </div>
       {frameImage && (
-        <img src={frameImage} alt="frame" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[125%] h-[125%] object-contain pointer-events-none z-30 drop-shadow-lg" />
+        <img 
+          src={frameImage} 
+          alt="frame" 
+          className="absolute top-1/2 left-1/2 w-full h-full object-contain pointer-events-none z-30 drop-shadow-lg"
+          style={{ transform: `translate(calc(-50% + ${frameConfig.x}%), calc(-50% + ${frameConfig.y}%)) scale(${frameConfig.scale})` }}
+        />
       )}
     </div>
   );
@@ -599,7 +604,7 @@ export default function Arena({ user }: { user: UserProfile | null }) {
                  <Users className="w-5 h-5 text-slate-300" />
                </div>
                
-               <div className="space-y-3 max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
+               <div className="space-y-3 max-h-87.5 overflow-y-auto pr-2 custom-scrollbar">
                  <AnimatePresence>
                    {roomState?.players?.map((p) => (
                      <motion.div 
@@ -612,7 +617,7 @@ export default function Arena({ user }: { user: UserProfile | null }) {
                        <div className="flex items-center gap-3">
                          {renderCustomAvatar(p, "w-10 h-10")}
                          <div>
-                           <p className="font-bold text-slate-900 text-sm max-w-[100px] truncate">{p.nickname}</p>
+                           <p className="font-bold text-slate-900 text-sm max-w-25 truncate">{p.nickname}</p>
                            <p className="text-xs font-bold text-slate-400">{((p.betAmount / (roomState.totalPool || 1)) * 100).toFixed(1)}% шанс</p>
                          </div>
                        </div>

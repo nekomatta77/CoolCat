@@ -1,4 +1,3 @@
-// src/components/Chat.tsx
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { MessageCircle, X, Send, Lock, Cat } from 'lucide-react';
@@ -76,7 +75,7 @@ export default function Chat({ user, isOpen, setIsOpen }: ChatProps) {
       <button
         onClick={() => setIsOpen(true)}
         className={cn(
-          "fixed bottom-6 right-6 z-[90] hidden lg:flex items-center gap-3 bg-white px-5 py-3.5 rounded-full shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] border border-slate-100 transition-all duration-300 hover:shadow-[0_10px_40px_-10px_rgba(99,102,241,0.3)] hover:-translate-y-1 active:scale-95 group",
+          "fixed bottom-6 right-6 z-90 hidden lg:flex items-center gap-3 bg-white px-5 py-3.5 rounded-full shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] border border-slate-100 transition-all duration-300 hover:shadow-[0_10px_40px_-10px_rgba(99,102,241,0.3)] hover:-translate-y-1 active:scale-95 group",
           isOpen ? "opacity-0 pointer-events-none scale-75" : "opacity-100 scale-100"
         )}
       >
@@ -104,7 +103,7 @@ export default function Chat({ user, isOpen, setIsOpen }: ChatProps) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ duration: 0.2 }}
-            className="fixed bottom-0 right-0 lg:bottom-6 lg:right-6 z-[100] w-full lg:w-[400px] h-[80vh] lg:h-[600px] max-h-screen bg-white lg:rounded-[2rem] rounded-t-[2rem] shadow-2xl border border-slate-100 flex flex-col overflow-hidden"
+            className="fixed bottom-0 right-0 lg:bottom-6 lg:right-6 z-100 w-full lg:w-100 h-[80vh] lg:h-150 max-h-screen bg-white lg:rounded-4xl rounded-t-4xl shadow-2xl border border-slate-100 flex flex-col overflow-hidden"
           >
             <div className="bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between shrink-0 relative z-10 shadow-sm">
               <div className="flex items-center gap-3">
@@ -150,6 +149,7 @@ export default function Chat({ user, isOpen, setIsOpen }: ChatProps) {
                     messages.map((msg) => {
                       const msgFrameObj = FRAMES.find(f => f.id === msg.frame) || FRAMES[0];
                       const msgPrefixObj = PREFIXES.find(p => p.id === msg.prefix);
+                      const msgFrameConfig = (msgFrameObj as any).config || { scale: 1.25, x: 0, y: 0 };
 
                       return (
                         <div key={msg.id} className="flex gap-3 animate-in fade-in slide-in-from-bottom-2">
@@ -158,15 +158,20 @@ export default function Chat({ user, isOpen, setIsOpen }: ChatProps) {
                             <div className={cn("absolute inset-0 rounded-xl overflow-hidden border-2 shadow-sm", msgFrameObj.css, msgFrameObj.id === 'none' && 'border-slate-200')}>
                               <img src={msg.avatar || '/assets/avatars/ava1.webp'} alt="avatar" className="w-full h-full object-cover bg-white" />
                             </div>
-                            {msgFrameObj.img && (
-                               <img src={msgFrameObj.img} className="absolute w-[130%] h-[130%] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-contain pointer-events-none z-10" />
+                            {(msgFrameObj as any).img && (
+                               <img 
+                                 src={(msgFrameObj as any).img} 
+                                 alt="frame"
+                                 className="absolute top-1/2 left-1/2 w-full h-full object-contain pointer-events-none z-10 drop-shadow-md" 
+                                 style={{ transform: `translate(calc(-50% + ${msgFrameConfig.x}%), calc(-50% + ${msgFrameConfig.y}%)) scale(${msgFrameConfig.scale})` }}
+                               />
                             )}
                           </div>
                           
                           <div className="flex flex-col flex-1 min-w-0">
                             <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
                               {msgPrefixObj && msgPrefixObj.id !== 'none' && (
-                                <span className={cn("text-[8px] uppercase tracking-widest font-black px-1.5 py-0.5 rounded-md", msgPrefixObj.color)}>
+                                <span className={cn("text-[8px] uppercase tracking-widest font-black px-1.5 py-0.5 rounded-md", (msgPrefixObj as any)?.css)}>
                                   {msgPrefixObj.name}
                                 </span>
                               )}
@@ -183,7 +188,7 @@ export default function Chat({ user, isOpen, setIsOpen }: ChatProps) {
                             </div>
                             
                             <div className={cn(
-                              "px-4 py-2.5 rounded-2xl text-sm font-medium w-fit max-w-[280px] break-words shadow-sm border",
+                              "px-4 py-2.5 rounded-2xl text-sm font-medium w-fit max-w-70 wrap-break-word shadow-sm border",
                               msg.uid === user.uid 
                                 ? "bg-brand-600 text-white rounded-tr-sm border-brand-500" 
                                 : "bg-white text-slate-700 rounded-tl-sm border-slate-100"

@@ -44,6 +44,8 @@ export default function Header({ user, onMenuClick, onDepositClick, onWithdrawCl
     ? AVATARS.find(a => a.id === user.avatar) || AVATARS[0]
     : AVATARS[0];
 
+  const activeFrameConfig = (activeFrameObj as any).config || { scale: 1.25, x: 0, y: 0 };
+
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
   const [localRead, setLocalRead] = useState(false);
@@ -99,7 +101,7 @@ export default function Header({ user, onMenuClick, onDepositClick, onWithdrawCl
         
         {user && (
           <>
-            <div className="lg:hidden flex items-center bg-slate-50 border border-slate-100 rounded-2xl p-1 pl-1.5 gap-2.5 max-w-[180px] sm:max-w-[220px]">
+            <div className="lg:hidden flex items-center bg-slate-50 border border-slate-100 rounded-2xl p-1 pl-1.5 gap-2.5 max-w-45 sm:max-w-55">
               <div className="bg-white shadow-sm rounded-xl w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center shrink-0">
                 <Wallet className="w-5 h-5 text-brand-600" />
               </div>
@@ -115,7 +117,7 @@ export default function Header({ user, onMenuClick, onDepositClick, onWithdrawCl
               <div className="bg-white shadow-sm rounded-[0.9rem] p-2 flex items-center justify-center shrink-0">
                  <Wallet className="w-6 h-6 text-brand-600" />
               </div>
-              <div className="flex flex-col justify-center min-w-[100px]">
+              <div className="flex flex-col justify-center min-w-25">
                  <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest leading-none mb-1">Баланс котика</span>
                  <span className="font-black text-slate-800 text-lg tracking-tight leading-none whitespace-nowrap">
                    {formatBalance(user.balance)} <span className="text-brand-500 text-sm ml-0.5">CAT</span>
@@ -126,7 +128,7 @@ export default function Header({ user, onMenuClick, onDepositClick, onWithdrawCl
                    <Plus className="w-5 h-5" />
                  </button>
                  <button onClick={onWithdrawClick} className="w-8 h-8 bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 rounded-xl flex items-center justify-center transition-all active:scale-95 shadow-sm" title="Вывести">
-                   <Minus className="w-4 h-4 stroke-[3]" />
+                   <Minus className="w-4 h-4 stroke-3" />
                  </button>
               </div>
             </div>
@@ -167,7 +169,12 @@ export default function Header({ user, onMenuClick, onDepositClick, onWithdrawCl
                   />
                 </div>
                 {(activeFrameObj as any).img && (
-                  <img src={(activeFrameObj as any).img} className="absolute w-[125%] h-[125%] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-contain pointer-events-none z-10 drop-shadow-md" alt="frame" />
+                  <img 
+                    src={(activeFrameObj as any).img} 
+                    alt="frame" 
+                    className="absolute top-1/2 left-1/2 w-full h-full object-contain pointer-events-none z-10 drop-shadow-md"
+                    style={{ transform: `translate(calc(-50% + ${activeFrameConfig.x}%), calc(-50% + ${activeFrameConfig.y}%)) scale(${activeFrameConfig.scale})` }}
+                  />
                 )}
               </div>
               <div className="text-right hidden md:block">
@@ -191,12 +198,12 @@ export default function Header({ user, onMenuClick, onDepositClick, onWithdrawCl
 
               <AnimatePresence>
                 {isNotifOpen && (
-                   <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }} className="absolute top-full right-0 mt-2 w-[300px] sm:w-[350px] bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-50 origin-top-right">
+                   <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }} className="absolute top-full right-0 mt-2 w-75 sm:w-87.5 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-50 origin-top-right">
                      <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                         <span className="text-sm font-black text-slate-900">Уведомления</span>
                         {unreadCount > 0 && <span className="text-[10px] font-bold text-brand-600 bg-brand-50 px-2 py-0.5 rounded-md">{unreadCount} новых</span>}
                      </div>
-                     <div className="max-h-80 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                     <div className="max-h-80 overflow-y-auto scrollbar-none [&::-webkit-scrollbar]:hidden">
                         {notifications.length === 0 ? (
                           <div className="px-4 py-8 flex flex-col items-center justify-center text-center">
                             <Bell className="w-8 h-8 text-slate-200 mb-2" />

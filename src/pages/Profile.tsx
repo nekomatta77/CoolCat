@@ -64,6 +64,8 @@ export default function Profile({ user, onLogout }: ProfileProps) {
   const activeBgObj = BACKGROUNDS.find(b => b.id === activeBg) || BACKGROUNDS[0];
   const activeAvatarObj = AVATARS.find(a => a.id === avatar) || AVATARS[0];
 
+  const activeFrameConfig = (activeFrameObj as any).config || { scale: 1.25, x: 0, y: 0 };
+
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-12">
       
@@ -71,7 +73,7 @@ export default function Profile({ user, onLogout }: ProfileProps) {
         <div className={cn("absolute inset-0 transition-colors duration-700", activeBgObj?.gradient)} />
         
         <div className="relative z-10 flex items-center justify-center">
-          <div className="relative w-32 h-32 lg:w-40 lg:h-40 flex-shrink-0">
+          <div className="relative w-32 h-32 lg:w-40 lg:h-40 shrink-0">
              <div 
                className={cn(
                  "absolute inset-0 rounded-[2.5rem] overflow-hidden border-4 bg-white transition-all duration-500",
@@ -96,7 +98,8 @@ export default function Profile({ user, onLogout }: ProfileProps) {
                <img 
                  src={(activeFrameObj as any).img} 
                  alt="frame" 
-                 className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[125%] h-[125%] object-contain pointer-events-none z-20 drop-shadow-xl" 
+                 className="absolute top-1/2 left-1/2 w-full h-full object-contain pointer-events-none z-20 drop-shadow-xl" 
+                 style={{ transform: `translate(calc(-50% + ${activeFrameConfig.x}%), calc(-50% + ${activeFrameConfig.y}%)) scale(${activeFrameConfig.scale})` }}
                />
              )}
           </div>
@@ -173,7 +176,7 @@ export default function Profile({ user, onLogout }: ProfileProps) {
                   ))}
                 </div>
 
-                <div className="min-h-[400px]">
+                <div className="min-h-100">
                   
                   {invTab === 'avatars' && (
                     <div className="space-y-6">
@@ -231,6 +234,7 @@ export default function Profile({ user, onLogout }: ProfileProps) {
                         const hint = isAch ? 'За достижение' : (reqLevel > 0 ? `LVL ${reqLevel}` : 'Базовое');
                         const unlocked = checkUnlocked(frame.id, frame.unlockType, (frame as any).unlockValue, 'frames');
                         const isEquipped = activeFrame === frame.id;
+                        const modalFrameConfig = (frame as any).config || { scale: 1.25, x: 0, y: 0 };
                         return (
                           <button
                             key={frame.id}
@@ -245,7 +249,11 @@ export default function Profile({ user, onLogout }: ProfileProps) {
                               {(frame as any).img ? (
                                 <>
                                   <div className="absolute inset-0 rounded-3xl bg-slate-200 border-2 border-slate-300" />
-                                  <img src={(frame as any).img} className="absolute w-[130%] h-[130%] object-contain pointer-events-none z-10" />
+                                  <img 
+                                    src={(frame as any).img} 
+                                    className="absolute top-1/2 left-1/2 w-full h-full object-contain pointer-events-none z-10" 
+                                    style={{ transform: `translate(calc(-50% + ${modalFrameConfig.x}%), calc(-50% + ${modalFrameConfig.y}%)) scale(${modalFrameConfig.scale})` }}
+                                  />
                                 </>
                               ) : (
                                 <div className={cn("w-full h-full rounded-3xl border-4 bg-white", frame.css)} />
@@ -339,6 +347,7 @@ export default function Profile({ user, onLogout }: ProfileProps) {
                               bg.gradient
                             )}
                           >
+                            <div className={cn("absolute inset-0", bg.gradient)} />
                             <div className="relative z-10">
                               <p className={cn("font-black text-lg truncate pr-6 drop-shadow-md", (bg as any).textColor || "text-slate-900")} title={bg.name}>{bg.name}</p>
                               <p className={cn("text-[10px] font-bold uppercase tracking-widest drop-shadow-md truncate", (bg as any).subTextColor || "text-slate-600")}>
@@ -415,7 +424,7 @@ export default function Profile({ user, onLogout }: ProfileProps) {
               
               <div className="relative z-10 p-8 flex flex-col items-center text-center space-y-5">
                 
-                <div className="relative w-28 h-28 flex-shrink-0">
+                <div className="relative w-28 h-28 shrink-0">
                   <div 
                     className={cn(
                       "absolute inset-0 rounded-[2.5rem] overflow-hidden border-4 bg-white transition-all duration-500",
@@ -439,7 +448,8 @@ export default function Profile({ user, onLogout }: ProfileProps) {
                     <img 
                       src={(activeFrameObj as any).img} 
                       alt="frame preview" 
-                      className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[125%] h-[125%] object-contain pointer-events-none z-20 drop-shadow-xl" 
+                      className="absolute top-1/2 left-1/2 w-full h-full object-contain pointer-events-none z-20 drop-shadow-xl" 
+                      style={{ transform: `translate(calc(-50% + ${activeFrameConfig.x}%), calc(-50% + ${activeFrameConfig.y}%)) scale(${activeFrameConfig.scale})` }}
                     />
                   )}
                 </div>

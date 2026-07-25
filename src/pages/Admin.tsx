@@ -51,7 +51,6 @@ export default function Admin({ user }: AdminProps) {
   const [globalActionModal, setGlobalActionModal] = useState<'clear_history' | null>(null);
   const [referralApproveModal, setReferralApproveModal] = useState<UserProfile | null>(null);
   
-  // ИНВЕНТАРЬ
   const [inventoryModalUser, setInventoryModalUser] = useState<UserProfile | null>(null);
   const [tempInventory, setTempInventory] = useState<{avatars: string[], frames: string[], prefixes: string[], backgrounds: string[]}>({avatars:[], frames:[], prefixes:[], backgrounds:[]});
 
@@ -433,9 +432,9 @@ export default function Admin({ user }: AdminProps) {
                 <div key={idx} className="flex items-center justify-between bg-slate-50 border border-slate-100 p-3 rounded-xl">
                   <span className="text-xs md:text-sm font-black text-slate-400 uppercase tracking-widest">{c.label}</span>
                   <div className="flex items-center gap-2 font-black text-sm md:text-base">
-                    <span className="text-red-400 line-through truncate max-w-[80px] sm:max-w-xs">{c.oldVal}</span>
+                    <span className="text-red-400 line-through truncate max-w-20 sm:max-w-xs">{c.oldVal}</span>
                     <ArrowRight className="w-4 h-4 text-slate-300 shrink-0" />
-                    <span className="text-emerald-500 truncate max-w-[80px] sm:max-w-xs">{c.newVal}</span>
+                    <span className="text-emerald-500 truncate max-w-20 sm:max-w-xs">{c.newVal}</span>
                   </div>
                 </div>
               ))}
@@ -504,16 +503,16 @@ export default function Admin({ user }: AdminProps) {
   };
 
   return (
-    <div className="max-w-[90rem] mx-auto space-y-6 md:space-y-8 pb-12 relative px-2 md:px-0">
+    <div className="max-w-360 mx-auto space-y-6 md:space-y-8 pb-12 relative px-2 md:px-0">
       <AnimatePresence>
         {(userActionModal || editConfirmModal || globalActionModal || referralApproveModal || inventoryModalUser) && (
           <motion.div 
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-200 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4"
           >
             <motion.div 
               initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-              className={cn("bg-white rounded-[2.5rem] p-6 md:p-8 w-full shadow-2xl border border-slate-100 relative mx-4", inventoryModalUser ? "max-w-2xl" : "max-w-md")}
+              className={cn("bg-white rounded-4xl p-6 md:p-8 w-full shadow-2xl border border-slate-100 relative mx-4", inventoryModalUser ? "max-w-2xl" : "max-w-md")}
             >
               <button onClick={() => { setUserActionModal(null); setEditConfirmModal(null); setGlobalActionModal(null); setReferralApproveModal(null); setInventoryModalUser(null); }} className="absolute top-4 right-4 md:top-6 md:right-6 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all z-10"><X className="w-6 h-6" /></button>
               {getModalContent()}
@@ -522,7 +521,7 @@ export default function Admin({ user }: AdminProps) {
         )}
       </AnimatePresence>
 
-      <header className="flex flex-col lg:flex-row items-center justify-between gap-6 bg-white p-5 lg:p-8 rounded-[2rem] md:rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 max-w-7xl mx-auto">
+      <header className="flex flex-col lg:flex-row items-center justify-between gap-6 bg-white p-5 lg:p-8 rounded-4xl md:rounded-4xl border border-slate-100 shadow-xl shadow-slate-200/50 max-w-7xl mx-auto">
         <div className="flex flex-col md:flex-row items-center gap-4 md:gap-6 text-center md:text-left">
           <div className="w-14 h-14 md:w-16 md:h-16 bg-brand-600 rounded-2xl md:rounded-3xl flex items-center justify-center shadow-xl shadow-brand-200 shrink-0">
             <Cat className="w-7 h-7 md:w-8 md:h-8 text-white" />
@@ -535,7 +534,7 @@ export default function Admin({ user }: AdminProps) {
 
         <AnimatePresence>
           {notification && (
-            <motion.div initial={{ opacity: 0, y: -20, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -20, scale: 0.9 }} className={cn("fixed top-4 left-4 right-4 md:left-auto md:right-6 md:top-6 z-[100] px-4 md:px-6 py-3 md:py-4 rounded-2xl shadow-2xl flex items-center justify-center md:justify-start gap-3 border backdrop-blur-md max-w-full", notification.type === 'success' ? "bg-emerald-50/95 border-emerald-200 text-emerald-600" : "bg-red-50/95 border-red-200 text-red-600")}>
+            <motion.div initial={{ opacity: 0, y: -20, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -20, scale: 0.9 }} className={cn("fixed top-4 left-4 right-4 md:left-auto md:right-6 md:top-6 z-100 px-4 md:px-6 py-3 md:py-4 rounded-2xl shadow-2xl flex items-center justify-center md:justify-start gap-3 border backdrop-blur-md max-w-full", notification.type === 'success' ? "bg-emerald-50/95 border-emerald-200 text-emerald-600" : "bg-red-50/95 border-red-200 text-red-600")}>
               {notification.type === 'success' ? <CheckCircle2 className="w-5 h-5 shrink-0" /> : <AlertCircle className="w-5 h-5 shrink-0" />}
               <span className="font-bold text-xs md:text-sm truncate">{notification.message}</span>
             </motion.div>
@@ -556,7 +555,7 @@ export default function Admin({ user }: AdminProps) {
           <motion.div key="referrals" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-6 max-w-7xl mx-auto">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {referralUsers.map(u => (
-                <div key={u.uid} className="bg-white rounded-[2rem] border border-slate-100 p-6 flex flex-col relative overflow-hidden group shadow-sm hover:shadow-xl transition-all">
+                <div key={u.uid} className="bg-white rounded-4xl border border-slate-100 p-6 flex flex-col relative overflow-hidden group shadow-sm hover:shadow-xl transition-all">
                   <div className="flex items-center gap-4 mb-4">
                     <img src={u.avatar} className="w-14 h-14 rounded-2xl border-2 border-slate-50 object-cover" alt="" />
                     <div className="flex-1 min-w-0">
@@ -604,7 +603,7 @@ export default function Admin({ user }: AdminProps) {
               ))}
               
               {referralUsers.length === 0 && (
-                <div className="col-span-full text-center py-12 bg-white rounded-[2rem] border border-slate-100">
+                <div className="col-span-full text-center py-12 bg-white rounded-4xl border border-slate-100">
                   <Network className="w-12 h-12 text-slate-200 mx-auto mb-4" />
                   <p className="text-slate-400 font-bold">Нет активных или ожидающих заявок</p>
                 </div>
@@ -613,15 +612,16 @@ export default function Admin({ user }: AdminProps) {
           </motion.div>
         )}
 
+        {/* Остальные вкладки */}
         {activeTab === 'global' && (
           <motion.div key="global" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-6 md:space-y-8 max-w-7xl mx-auto">
-            <div className="bg-white p-5 md:p-8 lg:p-12 rounded-[2rem] md:rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/50">
+            <div className="bg-white p-5 md:p-8 lg:p-12 rounded-4xl md:rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/50">
               <div className="mb-6 md:mb-8 text-center md:text-left">
                 <h2 className="text-xl md:text-3xl font-black text-slate-900 tracking-tighter">Глобальные настройки</h2>
                 <p className="text-slate-500 text-xs md:text-sm font-medium mt-2">Управление системными данными.</p>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                <div className="bg-slate-50 p-6 md:p-8 rounded-[1.5rem] md:rounded-[2rem] border border-slate-100 flex flex-col justify-between group hover:border-red-200 transition-colors">
+                <div className="bg-slate-50 p-6 md:p-8 rounded-[1.5rem] md:rounded-4xl border border-slate-100 flex flex-col justify-between group hover:border-red-200 transition-colors">
                   <div className="mb-6 md:mb-8">
                     <div className="w-12 h-12 bg-red-100 rounded-2xl flex items-center justify-center mb-4 text-red-500 group-hover:scale-110 transition-transform">
                       <Trash2 className="w-6 h-6" />
@@ -638,7 +638,7 @@ export default function Admin({ user }: AdminProps) {
 
         {activeTab === 'users' && (
            <motion.div key="users" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-4 md:space-y-6">
-            <div className="max-w-7xl mx-auto bg-white p-3 md:p-4 rounded-[1.5rem] md:rounded-[2rem] border border-slate-100 shadow-lg shadow-slate-200/50 flex items-center gap-3 md:gap-4 focus-within:border-brand-300 transition-colors">
+            <div className="max-w-7xl mx-auto bg-white p-3 md:p-4 rounded-[1.5rem] md:rounded-4xl border border-slate-100 shadow-lg shadow-slate-200/50 flex items-center gap-3 md:gap-4 focus-within:border-brand-300 transition-colors">
               <div className="w-10 h-10 md:w-12 md:h-12 bg-slate-50 rounded-xl md:rounded-2xl flex items-center justify-center shrink-0">
                 <Search className="w-4 h-4 md:w-5 md:h-5 text-slate-400" />
               </div>
@@ -650,7 +650,7 @@ export default function Admin({ user }: AdminProps) {
                 const currentEdit = editingUsers[u.uid];
                 const hasChanges = currentEdit && ((currentEdit.balance !== undefined && currentEdit.balance !== u.balance) || (currentEdit.level !== undefined && currentEdit.level !== (u.level ?? 0)) || (currentEdit.rank !== undefined && currentEdit.rank !== (u.rank || 'user')));
                 return (
-                <div key={u.uid} className="bg-white p-5 md:p-6 rounded-[2rem] md:rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-xl shadow-slate-200/40 transition-all flex flex-col gap-5 md:gap-6 group relative overflow-hidden">
+                <div key={u.uid} className="bg-white p-5 md:p-6 rounded-[2.5rem] md:rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-xl shadow-slate-200/40 transition-all flex flex-col gap-5 md:gap-6 group relative overflow-hidden">
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between w-full gap-4 pb-5 border-b border-slate-100">
                     <div className="flex items-center gap-4 min-w-0">
                       <div className="relative shrink-0">
@@ -689,7 +689,7 @@ export default function Admin({ user }: AdminProps) {
                       <input type="number" value={editingUsers[u.uid]?.balance ?? u.balance} onChange={(e) => setEditingUsers({...editingUsers, [u.uid]: {...(editingUsers[u.uid]||{}), balance: Number(e.target.value)}})} className="w-full bg-slate-50 hover:bg-slate-100 focus:bg-white border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-3 font-black text-slate-900 text-sm md:text-base outline-none transition-all shadow-inner" />
                     </div>
                     <div className="space-y-2">
-                      <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400 pl-1 text-brand-500">Отыгрыш</p>
+                      <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-brand-500 pl-1">Отыгрыш</p>
                       <input type="number" key={`wager-${u.uid}-${u.wagerRequirement}`} defaultValue={u.wagerRequirement || 0} onBlur={(e) => handleUpdateUser(u.uid, { wagerRequirement: Number(e.target.value) })} className="w-full bg-brand-50/50 hover:bg-brand-50 focus:bg-white border-2 border-transparent focus:border-brand-500 rounded-xl px-4 py-3 font-black text-brand-700 text-sm md:text-base outline-none transition-all shadow-inner" />
                     </div>
                     <div className="space-y-2">
@@ -698,25 +698,25 @@ export default function Admin({ user }: AdminProps) {
                     </div>
                     <div className="space-y-2 col-span-2 md:col-span-1">
                       <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400 pl-1">Статистика</p>
-                      <div className="flex flex-row items-center gap-4 text-xs md:text-sm font-black text-slate-500 bg-slate-50 border border-slate-100 px-4 py-3 rounded-xl w-full h-[46px] md:h-[52px]"><span className="text-emerald-500 flex items-center gap-1">+ {u.totalDeposits || 0}</span><span className="text-slate-300">|</span><span className="text-red-400 flex items-center gap-1">- {u.totalWithdrawals || 0}</span></div>
+                      <div className="flex flex-row items-center gap-4 text-xs md:text-sm font-black text-slate-500 bg-slate-50 border border-slate-100 px-4 py-3 rounded-xl w-full h-11.5 md:h-13"><span className="text-emerald-500 flex items-center gap-1">+ {u.totalDeposits || 0}</span><span className="text-slate-300">|</span><span className="text-red-400 flex items-center gap-1">- {u.totalWithdrawals || 0}</span></div>
                     </div>
                   </div>
                 </div>
               )})}
-              {filteredUsers.length === 0 && <div className="text-center py-12 bg-white rounded-[2rem] border border-slate-100 max-w-7xl mx-auto w-full"><Search className="w-12 h-12 text-slate-200 mx-auto mb-4" /><p className="text-slate-400 font-bold">Игроки не найдены</p></div>}
+              {filteredUsers.length === 0 && <div className="text-center py-12 bg-white rounded-4xl border border-slate-100 max-w-7xl mx-auto w-full"><Search className="w-12 h-12 text-slate-200 mx-auto mb-4" /><p className="text-slate-400 font-bold">Игроки не найдены</p></div>}
             </div>
           </motion.div>
         )}
 
         {activeTab === 'promo' && (
           <motion.div key="promo" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-6 md:space-y-8 max-w-7xl mx-auto">
-             <div className="grid grid-cols-3 md:flex bg-white p-1.5 rounded-[1.5rem] md:rounded-[2rem] border border-slate-100 shadow-lg shadow-slate-200/50 w-full md:w-fit gap-1 md:gap-2">
+             <div className="grid grid-cols-3 md:flex bg-white p-1.5 rounded-3xl md:rounded-[2rem] border border-slate-100 shadow-lg shadow-slate-200/50 w-full md:w-fit gap-1 md:gap-2">
               <button onClick={() => setPromoTab('create')} className={cn("px-2 md:px-8 py-3 rounded-xl font-black text-[9px] md:text-xs uppercase tracking-widest transition-all flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2", promoTab === 'create' ? 'bg-brand-50 text-brand-600' : 'text-slate-400 hover:text-brand-600')}><Plus className="w-4 h-4 md:w-4 md:h-4" /> <span className="truncate w-full text-center">Создать</span></button>
               <button onClick={() => setPromoTab('list')} className={cn("px-2 md:px-8 py-3 rounded-xl font-black text-[9px] md:text-xs uppercase tracking-widest transition-all flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2", promoTab === 'list' ? 'bg-brand-50 text-brand-600' : 'text-slate-400 hover:text-brand-600')}><List className="w-4 h-4 md:w-4 md:h-4" /> <span className="truncate w-full text-center">Список</span></button>
               <button onClick={() => setPromoTab('generator')} className={cn("px-2 md:px-8 py-3 rounded-xl font-black text-[9px] md:text-xs uppercase tracking-widest transition-all flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2", promoTab === 'generator' ? 'bg-brand-50 text-brand-600' : 'text-slate-400 hover:text-brand-600')}><Zap className="w-4 h-4 md:w-4 md:h-4" /> <span className="truncate w-full text-center">Генератор</span></button>
             </div>
 
-            <div className="bg-white p-5 md:p-8 lg:p-12 rounded-[2rem] md:rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/50">
+            <div className="bg-white p-5 md:p-8 lg:p-12 rounded-4xl md:rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/50">
               {promoTab === 'create' && (
                 <div className="max-w-3xl mx-auto space-y-6 md:space-y-8">
                   <div className="text-center space-y-2 mb-6 md:mb-8"><h2 className="text-xl md:text-2xl font-black text-slate-900">Новый промокод</h2><p className="text-slate-400 font-medium text-xs md:text-sm">Укажите параметры для ручного создания</p></div>

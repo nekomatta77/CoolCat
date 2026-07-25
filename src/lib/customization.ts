@@ -49,7 +49,8 @@ export const FRAMES = [
   { id: 'gold', name: 'Золотая', css: 'border-amber-400 shadow-amber-400/50', unlockType: 'level', unlockValue: 7 },
   { id: 'platinum', name: 'Платиновая', css: 'border-cyan-300 shadow-cyan-300/50', unlockType: 'level', unlockValue: 10 },
   { id: 'legend', name: 'Легенда', css: 'border-rose-500 shadow-rose-500/50', unlockType: 'level', unlockValue: 15 },
-  { id: 'dice_frame', name: 'Рамка DICE', css: 'border-transparent', img: '/assets/frame/dice_frame.webp', unlockType: 'achievement', unlockValue: 'dice_cat_sense' },
+  // Добавлен объект config (scale, x, y) для точной настройки картинки поверх аватарки
+  { id: 'dice_frame', name: 'Рамка DICE', css: 'border-transparent', img: '/assets/frame/dice_frame.webp', config: { scale: 1, x: 0, y: 0 }, unlockType: 'achievement', unlockValue: 'dice_cat_sense' },
 ];
 
 export const BACKGROUNDS = [
