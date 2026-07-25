@@ -5,7 +5,7 @@ import { db } from '../firebase';
 import { UserProfile } from '../types';
 import { Wallet, Menu, Plus, Minus, Bell, User } from 'lucide-react';
 import { useIsMobile, cn } from '../lib/utils'; 
-import { FRAMES, AVATARS } from '../lib/customization';
+import { FRAMES, AVATARS, PREFIXES } from '../lib/customization';
 import { motion, AnimatePresence } from 'motion/react';
 
 const HEADER_AVATAR_CONFIG = {
@@ -43,6 +43,10 @@ export default function Header({ user, onMenuClick, onDepositClick, onWithdrawCl
   const activeAvatarObj = user
     ? AVATARS.find(a => a.id === user.avatar) || AVATARS[0]
     : AVATARS[0];
+
+  const activePrefixObj = user
+    ? PREFIXES.find(p => p.id === (user.equippedPrefix || 'none')) || PREFIXES[0]
+    : PREFIXES[0];
 
   const activeFrameConfig = (activeFrameObj as any).config || { scale: 1.25, x: 0, y: 0 };
 
@@ -178,7 +182,17 @@ export default function Header({ user, onMenuClick, onDepositClick, onWithdrawCl
                 )}
               </div>
               <div className="text-right hidden md:block">
-                <p className="text-sm font-bold text-slate-800 leading-none mb-1">{user.nickname}</p>
+                <div className="flex items-center justify-end gap-2 mb-1.5">
+                  {activePrefixObj && activePrefixObj.id !== 'none' && (
+                    <span className={cn(
+                      "text-xs font-black uppercase tracking-widest px-2 py-0.5 rounded-lg bg-white shadow-sm border border-slate-100", 
+                      activePrefixObj.css
+                    )}>
+                      {activePrefixObj.name}
+                    </span>
+                  )}
+                  <p className="text-base font-black text-slate-800 leading-none">{user.nickname}</p>
+                </div>
                 <p className="text-[10px] uppercase tracking-widest font-black text-brand-400 leading-none">{user.rank} • LVL {user.level || 0}</p>
               </div>
             </Link>

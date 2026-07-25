@@ -47,7 +47,7 @@ export default function ProvablyFairModal({ isOpen, onClose, gameId, hashData }:
           initial={{ opacity: 0, scale: 0.95, y: 20 }} 
           animate={{ opacity: 1, scale: 1, y: 0 }} 
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="relative w-full max-w-lg bg-white rounded-[2rem] shadow-2xl overflow-hidden z-10 font-mono"
+          className="relative w-full max-w-lg bg-white rounded-4xl shadow-2xl overflow-hidden z-10 font-mono"
         >
           {/* Header */}
           <div className="flex justify-between items-center p-5 border-b border-slate-100 bg-slate-50/50">

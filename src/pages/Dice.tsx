@@ -242,7 +242,7 @@ export default function Dice({ user }: DiceProps) {
 
   const provablyFairBlock = (
     <div className="w-full mt-4 sm:mt-6 flex flex-col gap-2">
-      <div className="flex items-center justify-between bg-slate-50 border border-slate-100 p-4 rounded-[1.5rem] shadow-sm hover:shadow-md transition-all group">
+      <div className="flex items-center justify-between bg-slate-50 border border-slate-100 p-4 rounded-3xl shadow-sm hover:shadow-md transition-all group">
          <div className="flex items-center gap-3">
            <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
              <ShieldCheck className="w-5 h-5 text-emerald-500" />
@@ -257,7 +257,7 @@ export default function Dice({ user }: DiceProps) {
       {/* Кликабельный блок с хэшем для вызова модального окна */}
       <div 
         onClick={() => setIsModalOpen(true)}
-        className="bg-slate-50 hover:bg-slate-100 p-3 rounded-[1rem] border border-slate-100 flex items-center justify-between gap-3 shadow-inner cursor-pointer transition-colors group/hash"
+        className="bg-slate-50 hover:bg-slate-100 p-3 rounded-2xl border border-slate-100 flex items-center justify-between gap-3 shadow-inner cursor-pointer transition-colors group/hash"
       >
          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0">Hash:</span>
          <div className="flex items-center gap-2 overflow-hidden w-full justify-end">
@@ -283,7 +283,7 @@ export default function Dice({ user }: DiceProps) {
 
       <AnimatePresence>
         {unlockedAch && (
-          <motion.div initial={{ opacity: 0, y: -50, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -50, scale: 0.9 }} className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] bg-white px-6 py-4 rounded-3xl shadow-2xl border-2 border-brand-200 flex items-center gap-4 min-w-[300px]">
+          <motion.div initial={{ opacity: 0, y: -50, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -50, scale: 0.9 }} className="fixed top-24 left-1/2 -translate-x-1/2 z-100 bg-white px-6 py-4 rounded-3xl shadow-2xl border-2 border-brand-200 flex items-center gap-4 min-w-75">
             <div className="w-12 h-12 bg-brand-100 rounded-xl flex items-center justify-center shrink-0">
               <Trophy className="w-6 h-6 text-brand-600" />
             </div>
@@ -297,7 +297,7 @@ export default function Dice({ user }: DiceProps) {
 
       <AnimatePresence>
         {betError && (
-          <motion.div initial={{ opacity: 0, y: -50, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -50, scale: 0.9 }} className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] bg-white px-6 py-4 rounded-3xl shadow-2xl border-2 border-rose-200 flex items-center gap-4 min-w-[300px]">
+          <motion.div initial={{ opacity: 0, y: -50, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -50, scale: 0.9 }} className="fixed top-24 left-1/2 -translate-x-1/2 z-100 bg-white px-6 py-4 rounded-3xl shadow-2xl border-2 border-rose-200 flex items-center gap-4 min-w-75">
             <div className="w-12 h-12 bg-rose-100 rounded-xl flex items-center justify-center shrink-0">
               <AlertCircle className="w-6 h-6 text-rose-500" />
             </div>
@@ -334,7 +334,7 @@ export default function Dice({ user }: DiceProps) {
             <div className="lg:col-span-5 flex flex-col gap-5">
               <div className="grid grid-cols-2 lg:grid-cols-1 gap-3 sm:gap-5">
                 <div className="flex flex-col gap-2">
-                  <div className="bg-slate-50 p-3 sm:p-5 rounded-2xl sm:rounded-[1.5rem] border border-slate-100 focus-within:border-brand-300 transition-colors">
+                  <div className="bg-slate-50 p-3 sm:p-5 rounded-2xl sm:rounded-3xl border border-slate-100 focus-within:border-brand-300 transition-colors">
                     <div className="flex justify-between items-center mb-2 sm:mb-3">
                       <span className="text-[9px] sm:text-xs font-black uppercase text-slate-400 tracking-wider">Ставка</span>
                       <span className="text-[9px] sm:text-xs font-black uppercase text-brand-500 tracking-widest bg-brand-100/50 px-2 sm:px-2.5 py-1 rounded-md sm:rounded-lg hidden sm:block">
@@ -373,7 +373,7 @@ export default function Dice({ user }: DiceProps) {
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  <div className="bg-slate-50 p-3 sm:p-5 rounded-2xl sm:rounded-[1.5rem] border border-slate-100 focus-within:border-brand-300 transition-colors">
+                  <div className="bg-slate-50 p-3 sm:p-5 rounded-2xl sm:rounded-3xl border border-slate-100 focus-within:border-brand-300 transition-colors">
                     <div className="flex justify-between items-center mb-2 sm:mb-3">
                       <span className="text-[9px] sm:text-xs font-black uppercase text-slate-400 tracking-wider">Шанс %</span>
                       <span className="text-[9px] sm:text-xs font-black uppercase text-slate-500 tracking-widest bg-slate-200/50 px-2 sm:px-2.5 py-1 rounded-md sm:rounded-lg hidden sm:block">
@@ -428,7 +428,7 @@ export default function Dice({ user }: DiceProps) {
                   <div className="text-center text-xs sm:text-sm font-bold text-slate-400 pb-1">
                     0 - {underTarget}
                   </div>
-                  <button onClick={() => handlePlay('under')} disabled={loading || bet > user.balance || bet < 1} className="relative overflow-hidden bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white py-2.5 sm:py-3 px-4 rounded-[1rem] sm:rounded-[1.2rem] transition-all shadow-md shadow-brand-200 active:scale-[0.98] flex flex-row items-center justify-center gap-1.5 sm:gap-2">
+                  <button onClick={() => handlePlay('under')} disabled={loading || bet > user.balance || bet < 1} className="relative overflow-hidden bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white py-2.5 sm:py-3 px-4 rounded-2xl sm:rounded-[1.2rem] transition-all shadow-md shadow-brand-200 active:scale-[0.98] flex flex-row items-center justify-center gap-1.5 sm:gap-2">
                     <ArrowDownCircle className="w-4 h-4 sm:w-5 sm:h-5 opacity-80" />
                     <span className="text-xs sm:text-sm font-black uppercase tracking-widest mt-0.5">Меньше</span>
                   </button>
@@ -438,14 +438,14 @@ export default function Dice({ user }: DiceProps) {
                   <div className="text-center text-xs sm:text-sm font-bold text-slate-400 pb-1">
                     {overTarget} - 999999
                   </div>
-                  <button onClick={() => handlePlay('over')} disabled={loading || bet > user.balance || bet < 1} className="relative overflow-hidden bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white py-2.5 sm:py-3 px-4 rounded-[1rem] sm:rounded-[1.2rem] transition-all shadow-md shadow-slate-300 active:scale-[0.98] flex flex-row items-center justify-center gap-1.5 sm:gap-2">
+                  <button onClick={() => handlePlay('over')} disabled={loading || bet > user.balance || bet < 1} className="relative overflow-hidden bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white py-2.5 sm:py-3 px-4 rounded-2xl sm:rounded-[1.2rem] transition-all shadow-md shadow-slate-300 active:scale-[0.98] flex flex-row items-center justify-center gap-1.5 sm:gap-2">
                     <span className="text-xs sm:text-sm font-black uppercase tracking-widest mt-0.5">Больше</span>
                     <ArrowUpCircle className="w-4 h-4 sm:w-5 sm:h-5 opacity-80" />
                   </button>
                 </div>
               </div>
 
-              <div className="w-full min-h-[50px] sm:min-h-[60px]">
+              <div className="w-full min-h-12.5 sm:min-h-15">
                 <AnimatePresence mode="wait">
                   {result !== null && (
                     <motion.div
@@ -455,7 +455,7 @@ export default function Dice({ user }: DiceProps) {
                       exit={{ opacity: 0, scale: 0.95, y: -10 }}
                       transition={{ duration: 0.15 }}
                       className={cn(
-                        "w-full py-3.5 sm:py-5 rounded-[1.2rem] sm:rounded-[1.5rem] flex items-center justify-center text-sm sm:text-base uppercase tracking-widest font-black shadow-xl text-white transition-all",
+                        "w-full py-3.5 sm:py-5 rounded-[1.2rem] sm:rounded-3xl flex items-center justify-center text-sm sm:text-base uppercase tracking-widest font-black shadow-xl text-white transition-all",
                         win ? "bg-emerald-500 shadow-emerald-200/50" : "bg-rose-500 shadow-rose-200/50"
                       )}
                     >
@@ -473,7 +473,7 @@ export default function Dice({ user }: DiceProps) {
       )}
 
       {diceMode === 'switch' && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white p-4 sm:p-8 rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/50 w-full flex flex-col">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white p-4 sm:p-8 rounded-4xl border border-slate-100 shadow-xl shadow-slate-200/50 w-full flex flex-col">
           <div className="flex flex-col items-center justify-center text-center mb-6 sm:mb-8 mt-2">
             <span className="font-black text-slate-900 text-4xl sm:text-5xl tracking-tight relative z-10 mb-1">{formatBalance(potentialWinAmount, true)}</span>
             <span className="text-[10px] sm:text-[11px] font-black uppercase text-slate-400 tracking-widest relative z-10 flex items-center gap-1 sm:gap-2">
@@ -481,7 +481,7 @@ export default function Dice({ user }: DiceProps) {
             </span>
           </div>
 
-          <div className="flex flex-col items-center justify-center min-h-[80px] mb-8 relative">
+          <div className="flex flex-col items-center justify-center min-h-20 mb-8 relative">
               <motion.div className={cn("text-[4rem] sm:text-[6rem] font-black tracking-tighter leading-none transition-colors", win === true ? 'text-emerald-500 drop-shadow-md' : win === false ? 'text-rose-500 drop-shadow-md' : 'text-slate-300')}>
                 {result !== null ? result.toFixed(2) : '00.00'}
               </motion.div>
@@ -501,7 +501,7 @@ export default function Dice({ user }: DiceProps) {
             </div>
             <input type="range" min="1" max="95" value={activeChance} disabled={loading} onChange={(e) => setChance(Number(e.target.value))} className="absolute inset-x-0 top-8 w-full h-3 opacity-0 cursor-pointer z-20 disabled:opacity-50 disabled:cursor-not-allowed" />
             
-            <div className="absolute top-[38px] -translate-y-1/2 w-8 h-8 bg-white border-[4px] border-slate-900 rounded-full shadow-lg pointer-events-none transition-all duration-300 ease-out z-10 flex items-center justify-center" style={{ left: `calc(${activeChance}% - 16px)` }}>
+            <div className="absolute top-9.5 -translate-y-1/2 w-8 h-8 bg-white border-4 border-slate-900 rounded-full shadow-lg pointer-events-none transition-all duration-300 ease-out z-10 flex items-center justify-center" style={{ left: `calc(${activeChance}% - 16px)` }}>
               <div className="w-1.5 h-1.5 bg-slate-900 rounded-full" />
             </div>
 
@@ -528,7 +528,7 @@ export default function Dice({ user }: DiceProps) {
 
           <div className="max-w-md mx-auto w-full mt-6 mb-6">
             <div className="flex flex-col gap-2 sm:gap-3">
-              <div className="bg-slate-50 px-4 py-2 sm:px-5 sm:py-3 rounded-[1rem] sm:rounded-[1.5rem] border border-slate-100 focus-within:border-brand-300 transition-colors flex flex-col justify-center">
+              <div className="bg-slate-50 px-4 py-2 sm:px-5 sm:py-3 rounded-2xl sm:rounded-3xl border border-slate-100 focus-within:border-brand-300 transition-colors flex flex-col justify-center">
                 <div className="flex justify-between items-center mb-1 sm:mb-2">
                   <span className="text-[10px] sm:text-xs font-black uppercase text-slate-400 tracking-wider">Ставка</span>
                   <span className="text-[10px] sm:text-xs font-black uppercase text-brand-500 tracking-widest bg-brand-100/50 px-2.5 py-0.5 rounded-md">
@@ -568,7 +568,7 @@ export default function Dice({ user }: DiceProps) {
           </div>
 
           <div className="max-w-md mx-auto w-full">
-            <button onClick={() => handlePlay('under')} disabled={loading || bet > user.balance || bet < 1} className="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-black py-5 rounded-[1.5rem] transition-all shadow-lg shadow-brand-200 uppercase tracking-widest text-sm flex items-center justify-center gap-2 active:scale-[0.98]">
+            <button onClick={() => handlePlay('under')} disabled={loading || bet > user.balance || bet < 1} className="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-black py-5 rounded-3xl transition-all shadow-lg shadow-brand-200 uppercase tracking-widest text-sm flex items-center justify-center gap-2 active:scale-[0.98]">
               СДЕЛАТЬ СТАВКУ
             </button>
           </div>
@@ -578,4 +578,4 @@ export default function Dice({ user }: DiceProps) {
       )}
     </div>
   );
-} 
+}

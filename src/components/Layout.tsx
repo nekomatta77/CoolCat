@@ -59,13 +59,13 @@ export default function Layout({ children, user, onLogout, onLogin, onRegister }
 
       {isSidebarOpen && (
         <div 
-          className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[60] lg:hidden"
+          className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-60 lg:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
       <div className={cn(
-        "fixed inset-y-0 left-0 w-64 bg-white z-[70] transform transition-transform duration-300 ease-in-out lg:hidden",
+        "fixed inset-y-0 left-0 w-64 bg-white z-70 transform transition-transform duration-300 ease-in-out lg:hidden",
         isSidebarOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <Sidebar user={user} onClose={() => setIsSidebarOpen(false)} />
@@ -102,9 +102,9 @@ export default function Layout({ children, user, onLogout, onLogin, onRegister }
           <div className="absolute inset-0 bg-brand-500 rounded-full blur-xl opacity-40" />
           <button 
             onClick={handleDepositClick}
-            className="relative bg-gradient-to-tr from-brand-600 to-brand-400 text-white p-4 rounded-full border-[6px] border-slate-50 shadow-lg transform transition-all active:scale-95 hover:-translate-y-1"
+            className="relative bg-linear-to-tr from-brand-600 to-brand-400 text-white p-4 rounded-full border-[6px] border-slate-50 shadow-lg transform transition-all active:scale-95 hover:-translate-y-1"
           >
-            <Plus className="w-6 h-6 stroke-[3]" />
+            <Plus className="w-6 h-6 stroke-3" />
           </button>
         </div>
 
@@ -116,7 +116,7 @@ export default function Layout({ children, user, onLogout, onLogin, onRegister }
         </button>
       </nav>
 
-      {user && <DepositModal isOpen={modalType !== null} type={modalType || 'deposit'} onClose={() => setModalType(null)} />}
+      {user && <DepositModal isOpen={modalType !== null} initialTab={modalType || 'deposit'} onClose={() => setModalType(null)} user={user} />}
       {user && <Chat user={user} isOpen={isChatOpen} setIsOpen={setIsChatOpen} />}
 
     </div>

@@ -125,9 +125,9 @@ export default function Level({ user }: { user: any }) {
 
   return (
     <div className="max-w-6xl mx-auto space-y-12 pb-12">
-      <header className="flex flex-col md:flex-row items-center justify-between gap-6 bg-white p-5 lg:p-8 rounded-[2rem] md:rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 max-w-7xl mx-auto mb-6 md:space-y-0">
+      <header className="flex flex-col md:flex-row items-center justify-between gap-6 bg-white p-5 lg:p-8 rounded-4xl md:rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 max-w-7xl mx-auto mb-6 md:space-y-0">
         <div className="flex flex-col md:flex-row items-center gap-4 md:gap-6 text-center md:text-left w-full">
-          <div className="w-14 h-14 md:w-16 md:h-16 bg-gradient-to-br from-brand-400 to-brand-600 rounded-2xl md:rounded-3xl flex items-center justify-center shadow-xl shadow-brand-200 shrink-0">
+          <div className="w-14 h-14 md:w-16 md:h-16 bg-linear-to-br from-brand-400 to-brand-600 rounded-2xl md:rounded-3xl flex items-center justify-center shadow-xl shadow-brand-200 shrink-0">
             <TrendingUp className="w-7 h-7 md:w-8 md:h-8 text-white" />
           </div>
           <div>
@@ -160,7 +160,7 @@ export default function Level({ user }: { user: any }) {
                   initial={{ width: 0 }}
                   animate={{ width: `${xpProgressPercent}%` }}
                   transition={{ duration: 1, ease: "easeOut" }}
-                  className="absolute top-0 left-0 h-full bg-gradient-to-r from-brand-400 to-brand-600 rounded-full"
+                  className="absolute top-0 left-0 h-full bg-linear-to-r from-brand-400 to-brand-600 rounded-full"
                 />
               </div>
             </div>
@@ -175,7 +175,7 @@ export default function Level({ user }: { user: any }) {
                   initial={{ width: 0 }}
                   animate={{ width: `${depProgressPercent}%` }}
                   transition={{ duration: 1, ease: "easeOut", delay: 0.2 }}
-                  className="absolute top-0 left-0 h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full"
+                  className="absolute top-0 left-0 h-full bg-linear-to-r from-emerald-400 to-emerald-500 rounded-full"
                 />
               </div>
             </div>
@@ -263,7 +263,7 @@ export default function Level({ user }: { user: any }) {
                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Рейкбек</p>
                      <p className="text-2xl font-black text-slate-900">{activeRank.rakeback}%</p>
                   </div>
-                  <div className="col-span-2 bg-gradient-to-br from-brand-50 to-indigo-50 p-4 md:p-5 rounded-2xl border border-brand-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="col-span-2 bg-linear-to-br from-brand-50 to-indigo-50 p-4 md:p-5 rounded-2xl border border-brand-100 flex flex-col sm:flex-row items-center justify-between gap-4">
                      <div className="flex items-center gap-4 w-full">
                        <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shrink-0 shadow-sm border border-brand-100">
                          <Coins className="w-6 h-6 text-brand-500" />

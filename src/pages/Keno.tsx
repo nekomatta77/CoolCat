@@ -254,7 +254,7 @@ export default function Keno({ user }: KenoProps) {
         {unlockedAch && (
           <motion.div
             initial={{ opacity: 0, y: -50, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -50, scale: 0.9 }}
-            className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] bg-white px-6 py-4 rounded-3xl shadow-2xl border-2 border-brand-200 flex items-center gap-4 min-w-[300px]"
+            className="fixed top-24 left-1/2 -translate-x-1/2 z-100 bg-white px-6 py-4 rounded-3xl shadow-2xl border-2 border-brand-200 flex items-center gap-4 min-w-75"
           >
             <div className="w-12 h-12 bg-brand-100 rounded-xl flex items-center justify-center shrink-0">
               <Trophy className="w-6 h-6 text-brand-600" />
@@ -281,7 +281,7 @@ export default function Keno({ user }: KenoProps) {
 
       <div className="flex flex-col lg:grid lg:grid-cols-12 gap-4 lg:gap-8 flex-1">
         
-        <div className="order-1 lg:order-2 lg:col-span-8 bg-white sm:rounded-[3rem] sm:border border-slate-100 sm:shadow-xl sm:shadow-slate-200/50 p-4 sm:p-6 lg:p-10 flex flex-col items-center relative overflow-hidden h-fit">
+        <div className="order-1 lg:order-2 lg:col-span-8 bg-white sm:rounded-4xl sm:border border-slate-100 sm:shadow-xl sm:shadow-slate-200/50 p-4 sm:p-6 lg:p-10 flex flex-col items-center relative overflow-hidden h-fit">
           
           <AnimatePresence>
             {showResultModal && gameState === 'finished' && payout > 0 && (
@@ -294,12 +294,12 @@ export default function Keno({ user }: KenoProps) {
                   initial={fastMode ? false : { scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }} transition={{ duration: fastMode ? 0 : 0.3 }}
                   onClick={(e) => e.stopPropagation()} 
                   className={cn(
-                    "relative overflow-hidden w-full max-w-[200px] sm:max-w-[320px] rounded-[1.5rem] sm:rounded-[2rem] p-4 sm:p-6 text-center border backdrop-blur-md",
+                    "relative overflow-hidden w-full max-w-50 sm:max-w-[320px] rounded-3xl sm:rounded-4xl p-4 sm:p-6 text-center border backdrop-blur-md",
                     fastMode ? "" : "transition-all duration-300",
                     "bg-slate-900/40 border-emerald-500/30 shadow-[0_0_40px_-10px_rgba(16,185,129,0.3)] ring-1 ring-emerald-500/20"
                   )}
                 >
-                  <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-white/10 to-transparent opacity-30 pointer-events-none" />
+                  <div className="absolute top-0 left-0 w-full h-full bg-linear-to-b from-white/10 to-transparent opacity-30 pointer-events-none" />
                   
                   <div className="relative z-10 flex flex-col items-center gap-2 sm:gap-3">
                     <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-emerald-500/20 flex items-center justify-center border border-emerald-500/40 shadow-[inset_0_0_20px_rgba(16,185,129,0.3)]">
@@ -319,7 +319,7 @@ export default function Keno({ user }: KenoProps) {
             )}
           </AnimatePresence>
 
-          <div className="w-full min-h-[70px] sm:min-h-[80px] lg:min-h-[140px] mb-4 sm:mb-6 border-b border-slate-100 pb-2 sm:pb-3 lg:pb-5 flex flex-col justify-end relative z-20">
+          <div className="w-full min-h-17.5 sm:min-h-20 lg:min-h-35 mb-4 sm:mb-6 border-b border-slate-100 pb-2 sm:pb-3 lg:pb-5 flex flex-col justify-end relative z-20">
             {selected.length > 0 && (
               <div className="relative w-full group flex items-center">
                 <button 
@@ -331,7 +331,7 @@ export default function Keno({ user }: KenoProps) {
 
                 <div 
                   ref={ribbonScrollRef}
-                  className="flex items-end justify-start gap-1.5 sm:gap-2 lg:gap-4 overflow-x-auto w-full pr-4 lg:pr-12 pt-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden scroll-smooth"
+                  className="flex items-end justify-start gap-1.5 sm:gap-2 lg:gap-4 overflow-x-auto w-full pr-4 lg:pr-12 pt-4 pb-2 scrollbar-none [&::-webkit-scrollbar]:hidden scroll-smooth"
                 >
                   {MULTIPLIERS[difficulty][selected.length as keyof typeof MULTIPLIERS['medium']].slice(1).map((mult, idx) => {
                     const matchTarget = idx + 1; 
@@ -339,13 +339,13 @@ export default function Keno({ user }: KenoProps) {
                     const isCurrent = (gameState === 'drawing' || gameState === 'finished') && matchTarget === currentMatchesCount;
                     
                     return (
-                      <div key={matchTarget} className="flex flex-col items-center justify-end min-w-[36px] sm:min-w-[44px] lg:min-w-[80px] shrink-0">
-                        <div className="flex items-center justify-center h-[36px] lg:h-[80px] mb-1 lg:mb-2">
+                      <div key={matchTarget} className="flex flex-col items-center justify-end min-w-9 sm:min-w-11 lg:min-w-20 shrink-0">
+                        <div className="flex items-center justify-center h-9 lg:h-20 mb-1 lg:mb-2">
                           <img 
                             src={isCompleted ? "/assets/keno/keno_paw.webp" : "/assets/keno/grey_paw_keno.webp"} 
                             alt="multiplier paw" 
                             className={cn(
-                              "drop-shadow-sm w-6 h-6 lg:w-[60px] lg:h-[60px] origin-bottom", 
+                              "drop-shadow-sm w-6 h-6 lg:w-15 lg:h-15 origin-bottom", 
                               fastMode ? "" : "transition-all duration-300"
                             )}
                             style={{
@@ -413,7 +413,7 @@ export default function Keno({ user }: KenoProps) {
           </div>
 
           <div className="mt-8 w-full max-w-sm hidden lg:block">
-            <div className="flex items-center justify-between bg-slate-50 border border-slate-100 p-4 rounded-[1.5rem] shadow-sm hover:shadow-md transition-all group">
+            <div className="flex items-center justify-between bg-slate-50 border border-slate-100 p-4 rounded-3xl shadow-sm hover:shadow-md transition-all group">
                <div className="flex items-center gap-3">
                  <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
                    <ShieldCheck className="w-5 h-5 text-emerald-500" />
@@ -428,7 +428,7 @@ export default function Keno({ user }: KenoProps) {
 
         </div>
 
-        <div className="order-2 lg:order-1 lg:col-span-4 bg-white sm:bg-white/100 rounded-t-[2rem] sm:rounded-[3rem] border-t sm:border border-slate-200 sm:border-slate-100 shadow-[0_-15px_40px_-15px_rgba(0,0,0,0.15)] sm:shadow-xl sm:shadow-slate-200/50 p-4 sm:p-6 lg:p-8 flex flex-col gap-4 sm:gap-6 justify-between sticky bottom-0 z-50 max-h-[60vh] sm:max-h-none overflow-y-auto sm:overflow-visible transition-all [scrollbar-width:none]">
+        <div className="order-2 lg:order-1 lg:col-span-4 bg-white sm:bg-white rounded-t-4xl sm:rounded-[3rem] border-t sm:border border-slate-200 sm:border-slate-100 shadow-[0_-15px_40px_-15px_rgba(0,0,0,0.15)] sm:shadow-xl sm:shadow-slate-200/50 p-4 sm:p-6 lg:p-8 flex flex-col gap-4 sm:gap-6 justify-between sticky bottom-0 z-50 max-h-[60vh] sm:max-h-none overflow-y-auto sm:overflow-visible transition-all scrollbar-none">
           
           <div className="space-y-4 lg:space-y-6">
             
@@ -443,7 +443,7 @@ export default function Keno({ user }: KenoProps) {
               </div>
               
               <div className="flex gap-2 lg:gap-3 items-stretch">
-                <div className="flex-1 bg-slate-50 border-2 border-slate-100 rounded-[1.2rem] sm:rounded-[1.5rem] p-1.5 sm:p-2 flex items-center focus-within:border-brand-300 transition-colors">
+                <div className="flex-1 bg-slate-50 border-2 border-slate-100 rounded-[1.2rem] sm:rounded-3xl p-1.5 sm:p-2 flex items-center focus-within:border-brand-300 transition-colors">
                   <input
                     type="text"
                     inputMode="decimal"
@@ -473,7 +473,7 @@ export default function Keno({ user }: KenoProps) {
                   onClick={() => setFastMode(!fastMode)}
                   disabled={gameState === 'drawing'}
                   className={cn(
-                    "shrink-0 w-14 sm:w-[68px] rounded-[1.2rem] sm:rounded-[1.5rem] flex items-center justify-center transition-all border-2 disabled:opacity-50",
+                    "shrink-0 w-14 sm:w-17 rounded-[1.2rem] sm:rounded-3xl flex items-center justify-center transition-all border-2 disabled:opacity-50",
                     fastMode ? "bg-brand-50 border-brand-300 shadow-[inset_0_4px_10px_rgba(0,0,0,0.05)]" : "bg-slate-50 border-slate-100 hover:border-slate-200 shadow-sm"
                   )}
                 >
@@ -512,7 +512,7 @@ export default function Keno({ user }: KenoProps) {
             <button
               onClick={handlePlay}
               disabled={loading || bet > user.balance || bet < 1 || selected.length === 0 || gameState === 'drawing'}
-              className="w-full bg-gradient-to-r from-purple-500 to-purple-600 shadow-lg shadow-purple-500/30 disabled:opacity-50 text-white font-black rounded-[1.2rem] sm:rounded-[1.5rem] transition-all uppercase tracking-widest text-sm sm:text-base flex items-center justify-center gap-2 py-3.5 sm:py-5 active:scale-95"
+              className="w-full bg-linear-to-r from-purple-500 to-purple-600 shadow-lg shadow-purple-500/30 disabled:opacity-50 text-white font-black rounded-[1.2rem] sm:rounded-3xl transition-all uppercase tracking-widest text-sm sm:text-base flex items-center justify-center gap-2 py-3.5 sm:py-5 active:scale-95"
             >
               {gameState === 'drawing' ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -523,7 +523,7 @@ export default function Keno({ user }: KenoProps) {
           </div>
           
           <div className="mt-4 w-full block lg:hidden">
-            <div className="flex items-center justify-between bg-slate-50 border border-slate-100 p-4 rounded-[1.5rem] shadow-sm hover:shadow-md transition-all group">
+            <div className="flex items-center justify-between bg-slate-50 border border-slate-100 p-4 rounded-3xl shadow-sm hover:shadow-md transition-all group">
                <div className="flex items-center gap-3">
                  <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
                    <ShieldCheck className="w-5 h-5 text-emerald-500" />

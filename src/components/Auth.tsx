@@ -121,11 +121,11 @@ export default function Auth({ isOpen, onClose, initialView = 'login' }: AuthPro
     <AnimatePresence>
       {isOpen && (
         <motion.div 
-          key="modal-overlay" // ИСПРАВЛЕНИЕ: Добавлен уникальный ключ для AnimatePresence
+          key="modal-overlay"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
+          className="fixed inset-0 z-100 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
           onClick={onClose}
         >
           <motion.div 
@@ -136,7 +136,6 @@ export default function Auth({ isOpen, onClose, initialView = 'login' }: AuthPro
             className="w-full max-w-md relative z-10 my-4"
             onClick={e => e.stopPropagation()}
           >
-            {/* ИСПРАВЛЕНИЕ: Уменьшены паддинги с p-8 lg:p-10 на p-6 sm:p-8 */}
             <div className="bg-white/95 backdrop-blur-xl rounded-[2.5rem] shadow-2xl border border-white p-6 sm:p-8 relative overflow-hidden">
               
               <button 
@@ -149,7 +148,6 @@ export default function Auth({ isOpen, onClose, initialView = 'login' }: AuthPro
               <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-indigo-100 rounded-full blur-[80px] opacity-60 pointer-events-none" />
               <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-brand-100 rounded-full blur-[80px] opacity-60 pointer-events-none" />
 
-              {/* ИСПРАВЛЕНИЕ: Уменьшены размеры логотипа и отступы */}
               <div className="flex flex-col items-center mb-6 relative z-10">
                 <div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-xl shadow-indigo-200 mb-3">
                   <Cat className="w-8 h-8 text-white" />
@@ -182,19 +180,18 @@ export default function Auth({ isOpen, onClose, initialView = 'login' }: AuthPro
               <AnimatePresence mode="wait">
                 {error && (
                   <motion.div 
-                    key="error-alert" // ИСПРАВЛЕНИЕ: Добавлен уникальный ключ
+                    key="error-alert"
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
                     exit={{ opacity: 0, height: 0 }}
                     className="mb-5 p-3 bg-red-50 border border-red-100 text-red-600 text-xs font-bold rounded-xl flex items-start gap-2.5 overflow-hidden relative z-10"
                   >
-                    <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                     <span className="leading-snug">{error}</span>
                   </motion.div>
                 )}
               </AnimatePresence>
 
-              {/* ИСПРАВЛЕНИЕ: space-y-4 заменен на space-y-3 для компактности */}
               <form onSubmit={handleEmailAuth} className="space-y-3 relative z-10">
                 {!isLogin && (
                   <div className="space-y-1.5">
@@ -214,7 +211,6 @@ export default function Auth({ isOpen, onClose, initialView = 'login' }: AuthPro
                   </div>
                 </div>
 
-                {/* ИСПРАВЛЕНИЕ КОМПАКТНОСТИ: Если регистрация, выводим пароли в две колонки на ПК/планшетах */}
                 {isLogin ? (
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Пароль</label>
@@ -248,9 +244,9 @@ export default function Auth({ isOpen, onClose, initialView = 'login' }: AuthPro
               </form>
 
               <div className="my-6 flex items-center gap-4 relative z-10">
-                <div className="h-[1px] flex-1 bg-slate-100" />
+                <div className="h-px flex-1 bg-slate-100" />
                 <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Или через</span>
-                <div className="h-[1px] flex-1 bg-slate-100" />
+                <div className="h-px flex-1 bg-slate-100" />
               </div>
 
               <div className="grid grid-cols-3 gap-3 relative z-10">

@@ -58,7 +58,7 @@ export default function Contacts() {
             initial={{ opacity: 0, y: -20, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -20, scale: 0.9 }}
-            className="fixed top-4 left-4 right-4 md:left-1/2 md:-translate-x-1/2 md:w-auto z-[100] px-6 py-4 rounded-2xl shadow-2xl flex items-center justify-center gap-3 border backdrop-blur-md bg-emerald-50/95 border-emerald-200 text-emerald-600"
+            className="fixed top-4 left-4 right-4 md:left-1/2 md:-translate-x-1/2 md:w-auto z-100 px-6 py-4 rounded-2xl shadow-2xl flex items-center justify-center gap-3 border backdrop-blur-md bg-emerald-50/95 border-emerald-200 text-emerald-600"
           >
             <CheckCircle2 className="w-5 h-5 shrink-0" />
             <span className="font-bold text-sm">{notification}</span>
@@ -66,9 +66,9 @@ export default function Contacts() {
         )}
       </AnimatePresence>
 
-      <header className="flex flex-col md:flex-row items-center justify-between gap-6 bg-white p-5 lg:p-8 rounded-[2rem] md:rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 max-w-7xl mx-auto mb-6 md:space-y-0">
+      <header className="flex flex-col md:flex-row items-center justify-between gap-6 bg-white p-5 lg:p-8 rounded-4xl md:rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 max-w-7xl mx-auto mb-6 md:space-y-0">
         <div className="flex flex-col md:flex-row items-center gap-4 md:gap-6 text-center md:text-left w-full">
-          <div className="w-14 h-14 md:w-16 md:h-16 bg-gradient-to-br from-brand-400 to-brand-600 rounded-2xl md:rounded-3xl flex items-center justify-center shadow-xl shadow-brand-200 shrink-0">
+          <div className="w-14 h-14 md:w-16 md:h-16 bg-linear-to-br from-brand-400 to-brand-600 rounded-2xl md:rounded-3xl flex items-center justify-center shadow-xl shadow-brand-200 shrink-0">
             <Phone className="w-7 h-7 md:w-8 md:h-8 text-white" />
           </div>
           <div>
@@ -97,8 +97,7 @@ export default function Contacts() {
             </div>
             <div className="w-full">
               <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{contact.label}</p>
-              {/* Убрали truncate, теперь текст переносится и полностью виден */}
-              <p className="text-lg xl:text-xl font-black text-slate-900 tracking-tight group-hover:text-brand-600 transition-colors break-words">
+              <p className="text-lg xl:text-xl font-black text-slate-900 tracking-tight group-hover:text-brand-600 transition-colors wrap-break-word">
                 {contact.value}
               </p>
             </div>

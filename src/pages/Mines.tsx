@@ -297,7 +297,7 @@ export default function Mines({ user }: MinesProps) {
         {unlockedAch && (
           <motion.div
             initial={{ opacity: 0, y: -50, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -50, scale: 0.9 }}
-            className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] bg-white px-6 py-4 rounded-3xl shadow-2xl border-2 border-brand-200 flex items-center gap-4 min-w-[300px]"
+            className="fixed top-24 left-1/2 -translate-x-1/2 z-100 bg-white px-6 py-4 rounded-3xl shadow-2xl border-2 border-brand-200 flex items-center gap-4 min-w-75"
           >
             <div className="w-12 h-12 bg-brand-100 rounded-xl flex items-center justify-center shrink-0">
               <Trophy className="w-6 h-6 text-brand-600" />
@@ -312,7 +312,7 @@ export default function Mines({ user }: MinesProps) {
 
       <header className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 lg:gap-6 shrink-0 pt-4 sm:pt-0 px-4 sm:px-0">
         <div className="flex items-center gap-4 lg:gap-6">
-          <div className="w-12 h-12 lg:w-16 lg:h-16 bg-brand-600 rounded-[1.2rem] lg:rounded-[2rem] flex items-center justify-center shadow-lg shadow-brand-200 shrink-0">
+          <div className="w-12 h-12 lg:w-16 lg:h-16 bg-brand-600 rounded-[1.2rem] lg:rounded-4xl flex items-center justify-center shadow-lg shadow-brand-200 shrink-0">
             <Grid3X3 className="w-6 h-6 lg:w-8 lg:h-8 text-white" />
           </div>
           <div>
@@ -324,11 +324,11 @@ export default function Mines({ user }: MinesProps) {
 
       <div className="flex flex-col lg:grid lg:grid-cols-12 gap-4 lg:gap-8 flex-1">
         
-        <div className="order-1 lg:order-2 lg:col-span-8 bg-white sm:rounded-[3rem] sm:border border-slate-100 sm:shadow-xl sm:shadow-slate-200/50 p-4 sm:p-8 flex flex-col items-center justify-center relative overflow-hidden min-h-[400px] lg:min-h-[500px]">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-brand-50/30 via-transparent to-transparent opacity-50 pointer-events-none hidden sm:block" />
+        <div className="order-1 lg:order-2 lg:col-span-8 bg-white sm:rounded-4xl sm:border border-slate-100 sm:shadow-xl sm:shadow-slate-200/50 p-4 sm:p-8 flex flex-col items-center justify-center relative overflow-hidden min-h-100 lg:min-h-125">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,var(--tw-gradient-stops))] from-brand-50/30 via-transparent to-transparent opacity-50 pointer-events-none hidden sm:block" />
           
-          <div className="w-full max-w-[320px] sm:max-w-[450px] lg:max-w-[550px] mb-4 sm:mb-8 shrink-0 relative z-20">
-            <div ref={ribbonRef} className="flex gap-2 sm:gap-3 overflow-x-auto px-2 sm:px-4 pb-4 pt-2 snap-x items-center [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:[scrollbar-width:thin] lg:[&::-webkit-scrollbar]:block lg:[&::-webkit-scrollbar]:h-2 lg:[&::-webkit-scrollbar-track]:bg-slate-50 lg:[&::-webkit-scrollbar-track]:rounded-full lg:[&::-webkit-scrollbar-thumb]:bg-slate-300 lg:[&::-webkit-scrollbar-thumb]:rounded-full">
+          <div className="w-full max-w-[320px] sm:max-w-112.5 lg:max-w-137.5 mb-4 sm:mb-8 shrink-0 relative z-20">
+            <div ref={ribbonRef} className="flex gap-2 sm:gap-3 overflow-x-auto px-2 sm:px-4 pb-4 pt-2 snap-x items-center scrollbar-none lg:scrollbar-thin lg:[&::-webkit-scrollbar]:h-2 lg:[&::-webkit-scrollbar-track]:bg-slate-50 lg:[&::-webkit-scrollbar-track]:rounded-full lg:[&::-webkit-scrollbar-thumb]:bg-slate-300 lg:[&::-webkit-scrollbar-thumb]:rounded-full">
               {multipliersList.map((m, idx) => {
                  const isPassed = idx < revealedCount - 1;
                  const isCurrent = idx === revealedCount - 1 && gameState === 'playing';
@@ -338,7 +338,7 @@ export default function Mines({ user }: MinesProps) {
                    <div 
                      key={idx} 
                      className={cn(
-                       "shrink-0 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl sm:rounded-2xl font-black text-xs sm:text-sm transition-all duration-300 snap-center border-2",
+                       "shrink-0 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl sm:rounded-3xl font-black text-xs sm:text-sm transition-all duration-300 snap-center border-2",
                        isCurrent ? "bg-emerald-500 text-white border-emerald-500 shadow-[0_8px_20px_rgba(16,185,129,0.3)] scale-110 mx-2 is-current" :
                        isPassed ? "bg-emerald-50 border-emerald-100 text-emerald-500 opacity-60" :
                        isNext ? "bg-brand-50 border-brand-300 text-brand-600 shadow-sm scale-105 mx-1 is-next" :
@@ -352,7 +352,7 @@ export default function Mines({ user }: MinesProps) {
             </div>
           </div>
 
-          <div className="w-full max-w-[280px] sm:max-w-[380px] lg:max-w-[420px] mx-auto relative z-10 mb-6 sm:mb-0">
+          <div className="w-full max-w-70 sm:max-w-95 lg:max-w-105 mx-auto relative z-10 mb-6 sm:mb-0">
             <div className="grid grid-cols-5 grid-rows-5 gap-2 sm:gap-3 w-full aspect-square">
               {grid.map((isMine, i) => (
                 <motion.button
@@ -385,7 +385,7 @@ export default function Mines({ user }: MinesProps) {
                   </AnimatePresence>
                   
                   {!revealed[i] && gameState === 'playing' && (
-                    <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="absolute inset-0 bg-linear-to-br from-white/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                   )}
                 </motion.button>
               ))}
@@ -408,19 +408,21 @@ export default function Mines({ user }: MinesProps) {
 
         </div>
 
-        <div className="order-2 lg:order-1 lg:col-span-4 bg-white sm:bg-white/100 rounded-t-[2rem] sm:rounded-[3rem] border-t sm:border border-slate-200 sm:border-slate-100 shadow-[0_-15px_40px_-15px_rgba(0,0,0,0.15)] sm:shadow-xl sm:shadow-slate-200/50 p-4 sm:p-6 lg:p-8 flex flex-col gap-4 sm:gap-6 justify-between sticky bottom-0 z-50 max-h-[60vh] sm:max-h-none overflow-y-auto sm:overflow-visible transition-all [scrollbar-width:none]">
+        <div className="order-2 lg:order-1 lg:col-span-4 bg-white sm:bg-white rounded-t-4xl sm:rounded-[3rem] border-t sm:border border-slate-200 sm:border-slate-100 shadow-[0_-15px_40px_-15px_rgba(0,0,0,0.15)] sm:shadow-xl sm:shadow-slate-200/50 p-4 sm:p-6 lg:p-8 flex flex-col gap-4 sm:gap-6 justify-between sticky bottom-0 z-50 max-h-[60vh] sm:max-h-none overflow-y-auto sm:overflow-visible transition-all scrollbar-none">
           
           <div className="space-y-4 lg:space-y-8">
             <div className="flex flex-col gap-2">
               <div className="flex justify-between items-center px-1">
-                <label className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-slate-400">Ставка</label>
+                <label className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+                  <Coins className="w-3 h-3" /> Ставка
+                </label>
                 <span className="text-[10px] font-black text-brand-500 uppercase bg-brand-50 px-2 py-0.5 rounded-md hidden sm:block">
                   Баланс: {user?.balance?.toFixed(2) || '0.00'}
                 </span>
               </div>
               
               <div className="flex gap-2 lg:gap-3 items-stretch">
-                <div className="flex-1 bg-slate-50 border-2 border-slate-100 rounded-[1.2rem] sm:rounded-[1.5rem] p-1.5 sm:p-2 flex items-center focus-within:border-brand-300 transition-colors">
+                <div className="flex-1 bg-slate-50 border-2 border-slate-100 rounded-[1.2rem] sm:rounded-3xl p-1.5 sm:p-2 flex items-center focus-within:border-brand-300 transition-colors">
                   <Coins className="w-5 h-5 sm:w-6 sm:h-6 text-slate-400 mx-2 shrink-0 hidden sm:block" />
                   <input
                     type="text"
@@ -478,14 +480,14 @@ export default function Mines({ user }: MinesProps) {
             <AnimatePresence mode="popLayout">
               {gameState === 'playing' ? (
                 <motion.div key="playing" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="flex flex-col gap-3">
-                  <div className="w-full bg-brand-50 rounded-[1.2rem] sm:rounded-[1.5rem] border border-brand-100 flex flex-row items-center justify-between px-6 py-3 sm:py-4">
+                  <div className="w-full bg-brand-50 rounded-[1.2rem] sm:rounded-3xl border border-brand-100 flex flex-row items-center justify-between px-6 py-3 sm:py-4">
                     <span className="text-[10px] sm:text-xs uppercase font-black tracking-widest text-brand-400">Множитель</span>
                     <span className="text-xl sm:text-3xl font-black text-brand-600 leading-none">x{multiplier.toFixed(2)}</span>
                   </div>
                   <button
                     onClick={cashout}
                     disabled={loading || revealed.filter((r, i) => r && !grid[i]).length === 0}
-                    className="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 disabled:opacity-50 text-white font-black rounded-[1.2rem] sm:rounded-[1.5rem] transition-all shadow-lg shadow-emerald-500/30 uppercase tracking-widest text-sm sm:text-base flex items-center justify-center gap-2 py-3.5 sm:py-5 active:scale-95"
+                    className="w-full bg-linear-to-r from-emerald-500 to-emerald-600 disabled:opacity-50 text-white font-black rounded-[1.2rem] sm:rounded-3xl transition-all shadow-lg shadow-emerald-500/30 uppercase tracking-widest text-sm sm:text-base flex items-center justify-center gap-2 py-3.5 sm:py-5 active:scale-95"
                   >
                     {loading ? <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <>Забрать <span className="opacity-90 ml-1">{(bet * multiplier).toFixed(2)} CAT</span></>}
                   </button>
@@ -524,7 +526,7 @@ export default function Mines({ user }: MinesProps) {
                   <button
                     onClick={startGame}
                     disabled={bet > user.balance || bet < 1 || isProcessing.current}
-                    className="w-full bg-gradient-to-r from-brand-500 to-brand-600 disabled:opacity-50 text-white font-black rounded-[1.2rem] sm:rounded-[1.5rem] transition-all shadow-lg shadow-brand-500/30 uppercase tracking-[0.2em] text-sm sm:text-base flex items-center justify-center gap-3 py-3.5 sm:py-5 active:scale-95"
+                    className="w-full bg-linear-to-r from-brand-500 to-brand-600 disabled:opacity-50 text-white font-black rounded-[1.2rem] sm:rounded-3xl transition-all shadow-lg shadow-brand-500/30 uppercase tracking-[0.2em] text-sm sm:text-base flex items-center justify-center gap-3 py-3.5 sm:py-5 active:scale-95"
                   >
                     {gameState === 'idle' ? 'Начать игру' : 'Играть снова'} <Play className="w-5 h-5 fill-current" />
                   </button>
@@ -533,7 +535,7 @@ export default function Mines({ user }: MinesProps) {
             </AnimatePresence>
             
             <div className="mt-4 w-full block lg:hidden">
-              <div className="flex items-center justify-between bg-slate-50 border border-slate-100 p-4 rounded-[1.5rem] shadow-sm hover:shadow-md transition-all group">
+              <div className="flex items-center justify-between bg-slate-50 border border-slate-100 p-4 rounded-3xl shadow-sm hover:shadow-md transition-all group">
                  <div className="flex items-center gap-3">
                    <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
                      <ShieldCheck className="w-5 h-5 text-emerald-500" />

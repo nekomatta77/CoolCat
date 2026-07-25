@@ -115,7 +115,10 @@ export default function Profile({ user, onLogout }: ProfileProps) {
             </div>
             <div className="flex flex-wrap items-center justify-center md:justify-start gap-3">
               {activePrefix !== 'none' && (
-                <span className={cn("px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest", (activePrefixObj as any)?.css)}>
+                <span className={cn(
+                  "px-4 py-1.5 rounded-2xl text-sm lg:text-base font-black uppercase tracking-widest bg-white shadow-md border border-slate-100", 
+                  (activePrefixObj as any)?.css
+                )}>
                   {activePrefixObj?.name}
                 </span>
               )}
@@ -213,8 +216,10 @@ export default function Profile({ user, onLogout }: ProfileProps) {
                                 />
                                 {isEquipped && <div className="absolute inset-0 bg-brand-500/10 flex items-end p-2"><CheckCircle2 className="w-5 h-5 text-brand-600 drop-shadow-md" /></div>}
                                 {!unlocked && (
-                                  <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-900/60 backdrop-blur-[2px] transition-all">
-                                    <Lock className="w-6 h-6 text-white/80 drop-shadow-lg" />
+                                  <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-900/50 backdrop-blur-[3px] transition-all">
+                                    <div className="w-10 h-10 bg-slate-900/80 rounded-full flex items-center justify-center shadow-xl border border-white/10">
+                                      <Lock className="w-5 h-5 text-white/90 drop-shadow-md" />
+                                    </div>
                                   </div>
                                 )}
                               </button>
@@ -268,11 +273,11 @@ export default function Profile({ user, onLogout }: ProfileProps) {
                             </div>
 
                             {!unlocked && (
-                              <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-900/40 backdrop-blur-[2px] transition-all">
-                                <div className="w-10 h-10 bg-slate-900/60 rounded-full flex items-center justify-center mb-1 shadow-lg border border-white/10">
-                                  <Lock className="w-5 h-5 text-white/80" />
+                              <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-900/50 backdrop-blur-[3px] transition-all">
+                                <div className="w-10 h-10 bg-slate-900/80 rounded-full flex items-center justify-center mb-1.5 shadow-xl border border-white/10">
+                                  <Lock className="w-5 h-5 text-white/90" />
                                 </div>
-                                <span className="text-[10px] font-black text-white uppercase tracking-widest drop-shadow-md px-2 text-center leading-tight">
+                                <span className="text-[9px] font-black text-white/90 uppercase tracking-widest drop-shadow-md px-2 text-center leading-tight">
                                   {hint}
                                 </span>
                               </div>
@@ -307,18 +312,18 @@ export default function Profile({ user, onLogout }: ProfileProps) {
                                </div>
                             </div>
                             <div className="text-right relative z-10">
-                              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 max-w-[100px] truncate" title={hint}>
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 max-w-25 truncate" title={hint}>
                                 {unlocked ? (isEquipped ? 'Надето' : 'Выбрать') : hint}
                               </p>
                             </div>
 
                             {!unlocked && (
-                              <div className="absolute inset-0 z-20 flex flex-row items-center justify-end pr-4 bg-slate-900/40 backdrop-blur-[2px] transition-all gap-2">
-                                <span className="text-[10px] font-black text-white uppercase tracking-widest drop-shadow-md leading-tight">
+                              <div className="absolute inset-0 z-20 flex flex-row items-center justify-end pr-4 bg-slate-900/40 backdrop-blur-[2px] transition-all gap-3">
+                                <span className="text-[9px] font-black text-white/90 uppercase tracking-widest drop-shadow-md leading-tight">
                                   {hint}
                                 </span>
-                                <div className="w-8 h-8 bg-slate-900/60 rounded-full flex items-center justify-center shadow-lg border border-white/10">
-                                  <Lock className="w-4 h-4 text-white/80" />
+                                <div className="w-8 h-8 bg-slate-900/80 rounded-full flex items-center justify-center shadow-xl border border-white/10">
+                                  <Lock className="w-4 h-4 text-white/90" />
                                 </div>
                               </div>
                             )}
@@ -454,14 +459,15 @@ export default function Profile({ user, onLogout }: ProfileProps) {
                   )}
                 </div>
                 
-                <div className="space-y-1">
-                   <div className="flex justify-center mb-2 h-5">
-                     {activePrefix !== 'none' && (
-                       <span className={cn("px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest", (activePrefixObj as any)?.css)}>
-                         {activePrefixObj?.name}
-                       </span>
-                     )}
-                   </div>
+                <div className="space-y-2 flex flex-col items-center">
+                   {activePrefix !== 'none' && (
+                     <span className={cn(
+                       "px-3 py-1 rounded-xl text-xs font-black uppercase tracking-widest bg-white shadow-sm border border-slate-100", 
+                       (activePrefixObj as any)?.css
+                     )}>
+                       {activePrefixObj?.name}
+                     </span>
+                   )}
                    <p className={cn("text-2xl font-black leading-none drop-shadow-md truncate w-full px-4", activeBgObj?.textColor || "text-slate-900")}>
                      {user.nickname}
                    </p>

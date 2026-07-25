@@ -94,7 +94,7 @@ export default function Achievements({ user }: AchievementsProps) {
     { id: 'jackpot_ticket1', category: 'jackpot', title: 'Билет в высшее общество', desc: 'Сыграть 10 раз (ставка от 100 CAT)', target: 10, rewardCat: 150, rewardXp: 100 },
     { id: 'jackpot_ticket2', category: 'jackpot', title: 'Билет в высшее общество II', desc: 'Сыграть 25 раз (ставка от 250 CAT)', target: 25, rewardCat: 300, rewardXp: 200 },
     { id: 'jackpot_ticket3', category: 'jackpot', title: 'Билет в высшее общество III', desc: 'Сыграть 50 раз (ставка от 1000 CAT)', target: 50, rewardCat: 500, rewardXp: 500, bonus: 'Фон "Любимец общества"', itemRewards: { backgrounds: ['society_bg'] } },
-    { id: 'jackpot_predator', category: 'jackpot', title: 'Азартный хищник', desc: 'Выиграть 5 раз ПОДРЯД', target: 5, rewardCat: 300, rewardXp: 250, bonus: 'Аватар "Tiger"', itemRewards: { avatars: ['/assets/avatars/tiger.webp'] } }, // Оставил tiger, если он есть, иначе можно заменить
+    { id: 'jackpot_predator', category: 'jackpot', title: 'Азартный хищник', desc: 'Выиграть 5 раз ПОДРЯД', target: 5, rewardCat: 300, rewardXp: 250, bonus: 'Аватар "Tiger"', itemRewards: { avatars: ['/assets/avatars/tiger.webp'] } }, 
     { id: 'jackpot_big_catch', category: 'jackpot', title: 'Большой куш', desc: 'Выиграть за раз более 10,000 CAT', target: 1, rewardCat: 1000, rewardXp: 1500 },
     
     // --- ARENA ---
@@ -175,9 +175,9 @@ export default function Achievements({ user }: AchievementsProps) {
 
   return (
     <div className="max-w-4xl mx-auto space-y-12 pb-12 px-4 md:px-0">
-      <header className="flex flex-col md:flex-row items-center justify-between gap-6 bg-white p-5 lg:p-8 rounded-[2rem] md:rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 max-w-7xl mx-auto mb-6 md:space-y-0">
+      <header className="flex flex-col md:flex-row items-center justify-between gap-6 bg-white p-5 lg:p-8 rounded-4xl md:rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 max-w-7xl mx-auto mb-6 md:space-y-0">
         <div className="flex flex-col md:flex-row items-center gap-4 md:gap-6 text-center md:text-left w-full">
-          <div className="w-14 h-14 md:w-16 md:h-16 bg-gradient-to-br from-brand-400 to-brand-600 rounded-2xl md:rounded-3xl flex items-center justify-center shadow-xl shadow-brand-200 shrink-0">
+          <div className="w-14 h-14 md:w-16 md:h-16 bg-linear-to-br from-brand-400 to-brand-600 rounded-2xl md:rounded-3xl flex items-center justify-center shadow-xl shadow-brand-200 shrink-0">
             <Trophy className="w-7 h-7 md:w-8 md:h-8 text-white" />
           </div>
           <div>
@@ -237,7 +237,7 @@ export default function Achievements({ user }: AchievementsProps) {
                       dragElastic={0.2}
                       onDragEnd={(e, info) => handleDragEnd(cat.id, catAchievements.length - 1, e, info)}
                       className={cn(
-                        "bg-white p-6 md:p-8 rounded-[2.5rem] border-2 transition-all duration-300 flex flex-col justify-between group relative overflow-hidden min-h-[320px] cursor-grab active:cursor-grabbing",
+                        "bg-white p-6 md:p-8 rounded-[2.5rem] border-2 transition-all duration-300 flex flex-col justify-between group relative overflow-hidden min-h-80 cursor-grab active:cursor-grabbing",
                         isCompleted 
                           ? "border-brand-300 shadow-2xl shadow-brand-200/50" 
                           : "border-slate-100 shadow-xl shadow-slate-200/50"
@@ -280,7 +280,7 @@ export default function Achievements({ user }: AchievementsProps) {
                               animate={{ width: `${Math.min(progress, 100)}%` }}
                               className={cn(
                                 "absolute top-0 left-0 h-full rounded-full transition-all duration-1000",
-                                isCompleted ? "bg-gradient-to-r from-brand-400 to-brand-600 shadow-sm" : "bg-slate-300"
+                                isCompleted ? "bg-linear-to-r from-brand-400 to-brand-600 shadow-sm" : "bg-slate-300"
                               )} 
                             />
                           </div>

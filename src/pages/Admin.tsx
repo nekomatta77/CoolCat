@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { UserProfile, PromoCode } from '../types';
 import { doc, updateDoc, getDocs, query, collection, addDoc, deleteDoc, orderBy, setDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Users, Ticket, Plus, List, Zap, Search, Ban, Trash2, Cat, CheckCircle2, AlertCircle, Copy, X, ShieldAlert, RefreshCw, ArrowRight, RotateCcw, Globe, Network, Star, Package } from 'lucide-react';
+import { Users, Ticket, Plus, List, Zap, Search, Ban, Trash2, Cat, CheckCircle2, AlertCircle, Copy, X, ShieldAlert, RefreshCw, ArrowRight, RotateCcw, Globe, Network, Star, Package, Image as ImageIcon, MessageSquare, Frame, Palette } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { AVATARS, FRAMES, PREFIXES, BACKGROUNDS } from '../lib/customization';
@@ -52,6 +52,7 @@ export default function Admin({ user }: AdminProps) {
   const [referralApproveModal, setReferralApproveModal] = useState<UserProfile | null>(null);
   
   const [inventoryModalUser, setInventoryModalUser] = useState<UserProfile | null>(null);
+  const [adminInvTab, setAdminInvTab] = useState<'avatars' | 'frames' | 'prefixes' | 'backgrounds'>('avatars');
   const [tempInventory, setTempInventory] = useState<{avatars: string[], frames: string[], prefixes: string[], backgrounds: string[]}>({avatars:[], frames:[], prefixes:[], backgrounds:[]});
 
   const [editingUsers, setEditingUsers] = useState<Record<string, { balance?: number; level?: number; rank?: 'user'|'vip'|'admin' }>>({});
@@ -310,57 +311,103 @@ export default function Admin({ user }: AdminProps) {
   const getModalContent = () => {
     if (inventoryModalUser) {
       return (
-        <div className="flex flex-col space-y-4 md:space-y-6 max-h-[80vh]">
+        <div className="flex flex-col space-y-4 md:space-y-6 h-[85vh] sm:h-[80vh]">
           <div className="text-center space-y-2 border-b border-slate-100 pb-4 shrink-0">
             <h3 className="text-xl md:text-2xl font-black text-slate-900">Инвентарь: {inventoryModalUser.nickname}</h3>
             <p className="text-slate-500 font-medium text-sm">Управляйте разблокированными предметами</p>
           </div>
           
-          <div className="overflow-y-auto custom-scrollbar pr-2 space-y-6 flex-1">
-             <div>
-                <h4 className="font-black text-slate-400 uppercase tracking-widest text-[10px] mb-3">Аватарки</h4>
-                <div className="grid grid-cols-4 gap-2">
-                  {AVATARS.filter(a => a.unlockType !== 'default').map(item => (
-                    <button key={item.id} onClick={() => toggleInventoryItem('avatars', item.id)} className={cn("p-2 rounded-xl border-2 transition-all flex flex-col items-center gap-1", tempInventory.avatars.includes(item.id) ? "border-brand-500 bg-brand-50" : "border-slate-100 hover:border-brand-300 bg-white")}>
-                      <img src={item.id} className="w-8 h-8 object-cover rounded-lg" />
-                      <span className="text-[8px] font-bold uppercase truncate w-full text-center">{item.name}</span>
-                    </button>
-                  ))}
+          <div className="flex overflow-x-auto pb-2 gap-2 border-b border-slate-100 scrollbar-hide shrink-0">
+            {[
+              { id: 'avatars', name: 'Аватарки', icon: ImageIcon },
+              { id: 'frames', name: 'Рамки', icon: Frame },
+              { id: 'backgrounds', name: 'Фоны', icon: Palette },
+              { id: 'prefixes', name: 'Префиксы', icon: MessageSquare }
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setAdminInvTab(tab.id as any)}
+                className={cn(
+                  "whitespace-nowrap px-4 py-2.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2",
+                  adminInvTab === tab.id ? "bg-brand-50 text-brand-600 shadow-sm border border-brand-100" : "bg-white border-transparent text-slate-400 hover:text-slate-600 hover:bg-slate-50"
+                )}
+              >
+                <tab.icon className="w-4 h-4" /> {tab.name}
+              </button>
+            ))}
+          </div>
+
+          <div className="overflow-y-auto custom-scrollbar pr-2 flex-1 pt-2">
+             {adminInvTab === 'avatars' && (
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                  {AVATARS.filter(a => a.unlockType !== 'default').map(item => {
+                    const isSelected = tempInventory.avatars.includes(item.id);
+                    return (
+                      <button key={item.id} onClick={() => toggleInventoryItem('avatars', item.id)} className={cn("relative p-2 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 overflow-hidden group", isSelected ? "border-brand-500 bg-brand-50 shadow-md" : "border-slate-100 hover:border-brand-300 bg-white")}>
+                        <div className="relative w-12 h-12 rounded-xl overflow-hidden bg-white border border-slate-200">
+                          <img src={item.id} className="w-full h-full object-cover" />
+                        </div>
+                        <span className="text-[9px] font-bold uppercase tracking-widest truncate w-full text-center text-slate-600">{item.name}</span>
+                        {isSelected && <div className="absolute top-2 right-2 bg-brand-500 text-white rounded-full p-0.5 shadow-sm"><CheckCircle2 className="w-3 h-3" /></div>}
+                      </button>
+                    );
+                  })}
                 </div>
-             </div>
+             )}
              
-             <div>
-                <h4 className="font-black text-slate-400 uppercase tracking-widest text-[10px] mb-3">Рамки</h4>
-                <div className="grid grid-cols-3 gap-2">
-                  {FRAMES.filter(a => a.unlockType !== 'default').map(item => (
-                    <button key={item.id} onClick={() => toggleInventoryItem('frames', item.id)} className={cn("p-2 rounded-xl border-2 transition-all flex flex-col items-center gap-1", tempInventory.frames.includes(item.id) ? "border-brand-500 bg-brand-50" : "border-slate-100 hover:border-brand-300 bg-white")}>
-                      <span className="text-[9px] font-bold uppercase truncate w-full text-center">{item.name}</span>
-                    </button>
-                  ))}
+             {adminInvTab === 'frames' && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {FRAMES.filter(a => a.unlockType !== 'default').map(item => {
+                    const isSelected = tempInventory.frames.includes(item.id);
+                    return (
+                      <button key={item.id} onClick={() => toggleInventoryItem('frames', item.id)} className={cn("relative p-3 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 overflow-hidden group", isSelected ? "border-brand-500 bg-brand-50 shadow-md" : "border-slate-100 hover:border-brand-300 bg-white")}>
+                        <div className="relative w-12 h-12 flex items-center justify-center mb-1">
+                          {(item as any).img ? (
+                            <img src={(item as any).img} className="absolute top-1/2 left-1/2 w-[140%] h-[140%] object-contain pointer-events-none -translate-x-1/2 -translate-y-1/2" />
+                          ) : (
+                            <div className={cn("w-full h-full rounded-2xl border-4 bg-slate-50", item.css)} />
+                          )}
+                        </div>
+                        <span className="text-[9px] font-bold uppercase tracking-widest truncate w-full text-center text-slate-600">{item.name}</span>
+                        {isSelected && <div className="absolute top-2 right-2 bg-brand-500 text-white rounded-full p-0.5 shadow-sm"><CheckCircle2 className="w-3 h-3" /></div>}
+                      </button>
+                    );
+                  })}
                 </div>
-             </div>
+             )}
 
-             <div>
-                <h4 className="font-black text-slate-400 uppercase tracking-widest text-[10px] mb-3">Префиксы</h4>
-                <div className="flex flex-wrap gap-2">
-                  {PREFIXES.filter(a => a.unlockType !== 'default').map(item => (
-                    <button key={item.id} onClick={() => toggleInventoryItem('prefixes', item.id)} className={cn("px-3 py-1.5 rounded-lg border-2 transition-all text-[10px] font-black uppercase", tempInventory.prefixes.includes(item.id) ? "border-brand-500 bg-brand-50 text-brand-600" : "border-slate-100 hover:border-brand-300 bg-white text-slate-500")}>
-                      {item.name}
-                    </button>
-                  ))}
+             {adminInvTab === 'prefixes' && (
+                <div className="flex flex-col gap-2">
+                  {PREFIXES.filter(a => a.unlockType !== 'default').map(item => {
+                    const isSelected = tempInventory.prefixes.includes(item.id);
+                    return (
+                      <button key={item.id} onClick={() => toggleInventoryItem('prefixes', item.id)} className={cn("relative p-4 rounded-2xl border-2 transition-all flex items-center justify-between group", isSelected ? "border-brand-500 bg-brand-50 shadow-md" : "border-slate-100 hover:border-brand-300 bg-white")}>
+                        <div className={cn("px-3 py-1 rounded-xl text-xs font-black uppercase tracking-widest bg-white shadow-sm", (item as any).css)}>
+                           {item.name}
+                        </div>
+                        {isSelected && <div className="bg-brand-500 text-white rounded-full p-0.5 shadow-sm shrink-0"><CheckCircle2 className="w-4 h-4" /></div>}
+                      </button>
+                    );
+                  })}
                 </div>
-             </div>
+             )}
 
-             <div>
-                <h4 className="font-black text-slate-400 uppercase tracking-widest text-[10px] mb-3">Фоны профиля</h4>
-                <div className="grid grid-cols-2 gap-2">
-                  {BACKGROUNDS.filter(a => a.unlockType !== 'default').map(item => (
-                    <button key={item.id} onClick={() => toggleInventoryItem('backgrounds', item.id)} className={cn("p-2 rounded-xl border-2 transition-all flex flex-col items-center gap-1", tempInventory.backgrounds.includes(item.id) ? "border-brand-500 bg-brand-50" : "border-slate-100 hover:border-brand-300 bg-white")}>
-                      <span className="text-[10px] font-bold uppercase truncate w-full text-center">{item.name}</span>
-                    </button>
-                  ))}
+             {adminInvTab === 'backgrounds' && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {BACKGROUNDS.filter(a => a.unlockType !== 'default').map(item => {
+                    const isSelected = tempInventory.backgrounds.includes(item.id);
+                    return (
+                      <button key={item.id} onClick={() => toggleInventoryItem('backgrounds', item.id)} className={cn("relative h-24 rounded-2xl border-2 transition-all flex flex-col justify-end p-3 overflow-hidden group text-left", isSelected ? "border-brand-500 shadow-md ring-2 ring-brand-200" : "border-slate-200 hover:border-slate-400", item.gradient)}>
+                        <div className={cn("absolute inset-0", item.gradient)} />
+                        <div className="relative z-10">
+                           <p className={cn("font-black text-sm truncate pr-6 drop-shadow-md", (item as any).textColor || "text-slate-900")}>{item.name}</p>
+                        </div>
+                        {isSelected && <div className="absolute top-2 right-2 bg-brand-500 text-white rounded-full p-0.5 shadow-sm z-20"><CheckCircle2 className="w-4 h-4" /></div>}
+                      </button>
+                    );
+                  })}
                 </div>
-             </div>
+             )}
           </div>
 
           <div className="flex flex-col-reverse md:flex-row gap-3 w-full pt-4 border-t border-slate-100 shrink-0">
@@ -621,7 +668,7 @@ export default function Admin({ user }: AdminProps) {
                 <p className="text-slate-500 text-xs md:text-sm font-medium mt-2">Управление системными данными.</p>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                <div className="bg-slate-50 p-6 md:p-8 rounded-[1.5rem] md:rounded-4xl border border-slate-100 flex flex-col justify-between group hover:border-red-200 transition-colors">
+                <div className="bg-slate-50 p-6 md:p-8 rounded-3xl md:rounded-4xl border border-slate-100 flex flex-col justify-between group hover:border-red-200 transition-colors">
                   <div className="mb-6 md:mb-8">
                     <div className="w-12 h-12 bg-red-100 rounded-2xl flex items-center justify-center mb-4 text-red-500 group-hover:scale-110 transition-transform">
                       <Trash2 className="w-6 h-6" />
@@ -638,7 +685,7 @@ export default function Admin({ user }: AdminProps) {
 
         {activeTab === 'users' && (
            <motion.div key="users" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-4 md:space-y-6">
-            <div className="max-w-7xl mx-auto bg-white p-3 md:p-4 rounded-[1.5rem] md:rounded-4xl border border-slate-100 shadow-lg shadow-slate-200/50 flex items-center gap-3 md:gap-4 focus-within:border-brand-300 transition-colors">
+            <div className="max-w-7xl mx-auto bg-white p-3 md:p-4 rounded-3xl md:rounded-4xl border border-slate-100 shadow-lg shadow-slate-200/50 flex items-center gap-3 md:gap-4 focus-within:border-brand-300 transition-colors">
               <div className="w-10 h-10 md:w-12 md:h-12 bg-slate-50 rounded-xl md:rounded-2xl flex items-center justify-center shrink-0">
                 <Search className="w-4 h-4 md:w-5 md:h-5 text-slate-400" />
               </div>
@@ -710,10 +757,10 @@ export default function Admin({ user }: AdminProps) {
 
         {activeTab === 'promo' && (
           <motion.div key="promo" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-6 md:space-y-8 max-w-7xl mx-auto">
-             <div className="grid grid-cols-3 md:flex bg-white p-1.5 rounded-3xl md:rounded-[2rem] border border-slate-100 shadow-lg shadow-slate-200/50 w-full md:w-fit gap-1 md:gap-2">
-              <button onClick={() => setPromoTab('create')} className={cn("px-2 md:px-8 py-3 rounded-xl font-black text-[9px] md:text-xs uppercase tracking-widest transition-all flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2", promoTab === 'create' ? 'bg-brand-50 text-brand-600' : 'text-slate-400 hover:text-brand-600')}><Plus className="w-4 h-4 md:w-4 md:h-4" /> <span className="truncate w-full text-center">Создать</span></button>
-              <button onClick={() => setPromoTab('list')} className={cn("px-2 md:px-8 py-3 rounded-xl font-black text-[9px] md:text-xs uppercase tracking-widest transition-all flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2", promoTab === 'list' ? 'bg-brand-50 text-brand-600' : 'text-slate-400 hover:text-brand-600')}><List className="w-4 h-4 md:w-4 md:h-4" /> <span className="truncate w-full text-center">Список</span></button>
-              <button onClick={() => setPromoTab('generator')} className={cn("px-2 md:px-8 py-3 rounded-xl font-black text-[9px] md:text-xs uppercase tracking-widest transition-all flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2", promoTab === 'generator' ? 'bg-brand-50 text-brand-600' : 'text-slate-400 hover:text-brand-600')}><Zap className="w-4 h-4 md:w-4 md:h-4" /> <span className="truncate w-full text-center">Генератор</span></button>
+             <div className="grid grid-cols-3 md:flex bg-white p-1.5 rounded-3xl md:rounded-4xl border border-slate-100 shadow-lg shadow-slate-200/50 w-full md:w-fit gap-1 md:gap-2">
+              <button onClick={() => setPromoTab('create')} className={cn("px-2 md:px-8 py-3 rounded-xl font-black text-[9px] md:text-xs uppercase tracking-widest transition-all flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2", promoTab === 'create' ? 'bg-brand-50 text-brand-600' : 'text-slate-400 hover:text-brand-600')}><Plus className="w-4 h-4 md:w-5 md:h-5" /> <span className="truncate w-full text-center">Создать</span></button>
+              <button onClick={() => setPromoTab('list')} className={cn("px-2 md:px-8 py-3 rounded-xl font-black text-[9px] md:text-xs uppercase tracking-widest transition-all flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2", promoTab === 'list' ? 'bg-brand-50 text-brand-600' : 'text-slate-400 hover:text-brand-600')}><List className="w-4 h-4 md:w-5 md:h-5" /> <span className="truncate w-full text-center">Список</span></button>
+              <button onClick={() => setPromoTab('generator')} className={cn("px-2 md:px-8 py-3 rounded-xl font-black text-[9px] md:text-xs uppercase tracking-widest transition-all flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2", promoTab === 'generator' ? 'bg-brand-50 text-brand-600' : 'text-slate-400 hover:text-brand-600')}><Zap className="w-4 h-4 md:w-5 md:h-5" /> <span className="truncate w-full text-center">Генератор</span></button>
             </div>
 
             <div className="bg-white p-5 md:p-8 lg:p-12 rounded-4xl md:rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/50">
@@ -732,8 +779,8 @@ export default function Admin({ user }: AdminProps) {
               {promoTab === 'list' && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                   {promoCodes.map((p) => (
-                    <div key={p.id} onClick={() => copyToClipboard(p.code)} className={cn("relative overflow-hidden flex flex-col p-5 md:p-6 rounded-[1.5rem] md:rounded-[2rem] border-2 border-dashed transition-all duration-500 cursor-pointer group", newPromoId === p.id ? "bg-brand-50 border-brand-500 shadow-xl shadow-brand-200 scale-105 z-10" : "bg-white border-slate-200 hover:border-brand-400 hover:shadow-xl hover:shadow-brand-100")}>
-                      <div className="absolute top-4 right-4 text-slate-300 group-hover:text-brand-500 transition-colors"><Copy className="w-4 h-4 md:w-5 h-5" /></div>
+                    <div key={p.id} onClick={() => copyToClipboard(p.code)} className={cn("relative overflow-hidden flex flex-col p-5 md:p-6 rounded-3xl md:rounded-4xl border-2 border-dashed transition-all duration-500 cursor-pointer group", newPromoId === p.id ? "bg-brand-50 border-brand-500 shadow-xl shadow-brand-200 scale-105 z-10" : "bg-white border-slate-200 hover:border-brand-400 hover:shadow-xl hover:shadow-brand-100")}>
+                      <div className="absolute top-4 right-4 text-slate-300 group-hover:text-brand-500 transition-colors"><Copy className="w-4 h-4 md:w-5 md:h-5" /></div>
                       <div className="mb-4 pr-6"><p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Промокод</p><p className="text-xl md:text-2xl font-black text-slate-900 tracking-tighter group-hover:text-brand-600 transition-colors truncate">{p.code}</p></div>
                       <div className="grid grid-cols-2 gap-3 md:gap-4 mt-auto pt-4 border-t border-slate-100 w-full">
                         <div className="w-full"><p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400">Награда</p><p className="font-bold text-slate-900 text-sm md:text-base">{p.amount} CAT</p></div>
@@ -748,7 +795,7 @@ export default function Admin({ user }: AdminProps) {
               )}
               {promoTab === 'generator' && (
                 <div className="max-w-md mx-auto text-center space-y-6 md:space-y-8 py-4 md:py-8">
-                  <div className="w-24 h-24 md:w-32 md:h-32 bg-brand-50 rounded-[2rem] md:rounded-[3rem] flex items-center justify-center mx-auto border-4 border-dashed border-brand-200 relative"><div className="absolute inset-0 bg-brand-400 rounded-[2rem] md:rounded-[3rem] blur-xl md:blur-2xl opacity-20 animate-pulse" /><Zap className="w-10 h-10 md:w-14 md:h-14 text-brand-500 relative z-10" /></div>
+                  <div className="w-24 h-24 md:w-32 md:h-32 bg-brand-50 rounded-4xl md:rounded-[3rem] flex items-center justify-center mx-auto border-4 border-dashed border-brand-200 relative"><div className="absolute inset-0 bg-brand-400 rounded-4xl md:rounded-[3rem] blur-xl md:blur-2xl opacity-20 animate-pulse" /><Zap className="w-10 h-10 md:w-14 md:h-14 text-brand-500 relative z-10" /></div>
                   <div className="space-y-2 md:space-y-3"><h3 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tighter">Генератор</h3><p className="text-slate-500 font-medium text-xs md:text-sm px-4">Создаст уникальный код со следующими параметрами:</p><div className="flex items-center justify-center gap-2 md:gap-3 pt-2"><span className="px-2 md:px-3 py-1 bg-slate-50 rounded-lg text-[10px] md:text-xs font-black text-slate-600">30 CAT</span><span className="text-slate-300">•</span><span className="px-2 md:px-3 py-1 bg-slate-50 rounded-lg text-[10px] md:text-xs font-black text-slate-600">80 Акт.</span><span className="text-slate-300">•</span><span className="px-2 md:px-3 py-1 bg-slate-50 rounded-lg text-[10px] md:text-xs font-black text-slate-600">x15 Вагер</span></div></div>
                   <button onClick={generatePromo} className="w-full bg-brand-600 hover:bg-brand-700 text-white py-4 md:py-5 rounded-2xl font-black text-xs md:text-sm uppercase tracking-widest transition-all shadow-xl shadow-brand-200 flex items-center justify-center gap-2 mt-4"><Zap className="w-4 h-4 md:w-5 md:h-5" /> Сгенерировать</button>
                 </div>

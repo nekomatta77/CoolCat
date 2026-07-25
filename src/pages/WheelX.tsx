@@ -1,362 +1,517 @@
 // src/pages/WheelX.tsx
 import { useState, useEffect, useRef } from 'react';
 import { UserProfile } from '../types';
-import { Users, Coins, AlertCircle, ShieldCheck, Disc } from 'lucide-react';
-import { motion, AnimatePresence, useMotionValue, useTransform, animate } from 'motion/react';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-import { vpsSocket } from '../lib/vpsSocket';
-
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
+import { doc, updateDoc, collection, addDoc, onSnapshot, getDoc, getDocs, query, where, increment } from 'firebase/firestore';
+import { db } from '../firebase';
+import { Aperture, Trophy, Users, ShieldCheck, History, Clock, ArrowRight, X, Copy, CheckCircle2, AlertTriangle, AlertCircle, Info } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { cn } from '../lib/utils';
+import { vpsSocket as socket } from '../lib/vpsSocket';
+import ProvablyFairModal from '../components/ProvablyFairModal';
 
 interface WheelXProps {
   user: UserProfile;
 }
 
-interface BetData {
+interface MutableAchievement {
+  id?: string;
   userId: string;
-  nickname: string;
-  avatar: string;
-  black: number;
-  blue: number;
-  pink: number;
-  orange: number;
+  type: string;
+  category: string;
+  progress: number;
+  completed: boolean;
+  rewarded: boolean;
 }
 
-const PAW_CONFIG_PC = { scale: 1.8, x: 0, y: -5, baseRotation: 0 };
-const PAW_CONFIG_MOBILE = { scale: 1.8, x: 0, y: 10, baseRotation: 0 };
-const MASK_CONFIG_PC = { width: 800, height: 40, x: 0, y: -33 };
-const MASK_CONFIG_MOBILE = { width: 360, height: 30, x: 0, y: -20 };
-const WHEEL_CONFIG_PC = { size: 680, scale: 1.015, x: 0, y: '50%' };
-const WHEEL_CONFIG_MOBILE = { size: 320, scale: 1, x: 0, y: '50%' };
-const CENTER_CONFIG_PC = { timerScale: 1, timerX: 0, timerY: -25, textScale: 1, textX: 0, textY: -20 };
-const CENTER_CONFIG_MOBILE = { timerScale: 1, timerX: 0, timerY: -15, textScale: 0.85, textX: 0, textY: -15 };
-const LOGO_COLOR_COOL = "#feb1d1";
+const formatBalance = (val: number) => {
+  const truncated = Math.floor(val * 100) / 100;
+  const isInteger = truncated === Math.floor(truncated);
+  const fixed = isInteger ? truncated.toString() : truncated.toFixed(2);
+  const parts = fixed.split('.');
+  const formattedInt = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  return parts.length > 1 ? `${formattedInt}.${parts[1]}` : formattedInt;
+};
 
-const WHEEL_PATTERN = [
-  { type: 'pink', mult: 5, color: 'url(#gradPink)' }, { type: 'orange', mult: 30, color: 'url(#gradOrange)' },
-  { type: 'pink', mult: 5, color: 'url(#gradPink)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
-  { type: 'blue', mult: 3, color: 'url(#gradBlue)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
-  { type: 'blue', mult: 3, color: 'url(#gradBlue)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
-  { type: 'blue', mult: 3, color: 'url(#gradBlue)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
-  { type: 'pink', mult: 5, color: 'url(#gradPink)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
-  { type: 'pink', mult: 5, color: 'url(#gradPink)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
-  { type: 'blue', mult: 3, color: 'url(#gradBlue)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
-  { type: 'blue', mult: 3, color: 'url(#gradBlue)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
-  { type: 'blue', mult: 3, color: 'url(#gradBlue)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
-  { type: 'blue', mult: 3, color: 'url(#gradBlue)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
-  { type: 'pink', mult: 5, color: 'url(#gradPink)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
-  { type: 'pink', mult: 5, color: 'url(#gradPink)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
-  { type: 'blue', mult: 3, color: 'url(#gradBlue)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
-  { type: 'blue', mult: 3, color: 'url(#gradBlue)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' },
-  { type: 'blue', mult: 3, color: 'url(#gradBlue)' }, { type: 'black', mult: 2, color: 'url(#gradBlack)' }
+const WHEEL_SEGMENTS = [
+  { mult: 2, color: 'bg-slate-300', hex: '#cbd5e1', weight: 30 },
+  { mult: 3, color: 'bg-emerald-400', hex: '#34d399', weight: 15 },
+  { mult: 5, color: 'bg-brand-500', hex: '#6366f1', weight: 8 },
+  { mult: 30, color: 'bg-amber-400', hex: '#fbbf24', weight: 1 },
 ];
 
 export default function WheelX({ user }: WheelXProps) {
-  const [globalBet, setGlobalBet] = useState('10');
-  const currentBetNum = parseFloat(globalBet.replace(',', '.')) || 0;
-
-  const [allBets, setAllBets] = useState<BetData[]>([]);
-  const [myBets, setMyBets] = useState({ black: 0, blue: 0, pink: 0, orange: 0 });
-  const [history, setHistory] = useState<number[]>([]);
-  
-  const [gameState, setGameState] = useState<'betting' | 'spinning'>('betting');
+  const [gameState, setGameState] = useState<'betting' | 'spinning' | 'finished'>('betting');
   const [timeLeft, setTimeLeft] = useState(20);
-  const [rotation, setRotation] = useState(0);
-  const [lastWinInfo, setLastWinInfo] = useState<{ mult: number, payout: number } | null>(null);
-  
-  const [betError, setBetError] = useState<string | null>(null);
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
-  
-  const historyContainerRef = useRef<HTMLDivElement>(null);
-  const [maxHistory, setMaxHistory] = useState(10);
-  const hasSpunRef = useRef(false);
-
-  useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 640);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  const activePawConfig = isMobile ? PAW_CONFIG_MOBILE : PAW_CONFIG_PC;
-  const activeMaskConfig = isMobile ? MASK_CONFIG_MOBILE : MASK_CONFIG_PC;
-  const activeWheelConfig = isMobile ? WHEEL_CONFIG_MOBILE : WHEEL_CONFIG_PC;
-  const activeCenterConfig = isMobile ? CENTER_CONFIG_MOBILE : CENTER_CONFIG_PC;
-
-  const wheelRotValue = useMotionValue(0);
-  const pawFlick = useTransform(wheelRotValue, (r) => {
-    const sliceAngle = 360 / 32;
-    const normalizedRot = (Math.abs(r) % sliceAngle);
-    const progress = normalizedRot / sliceAngle;
-    let flickRotation = 0;
-    if (progress < 0.85) flickRotation = (progress / 0.85) * 22; 
-    else flickRotation = 22 * (1 - (progress - 0.85) / 0.15); 
-    return flickRotation;
+  const [history, setHistory] = useState<any[]>([]);
+  const [bets, setBets] = useState<Record<string, { total: number, users: any[] }>>({
+    '2': { total: 0, users: [] },
+    '3': { total: 0, users: [] },
+    '5': { total: 0, users: [] },
+    '30': { total: 0, users: [] },
   });
-  const pawRotation = useTransform(pawFlick, (flick) => activePawConfig.baseRotation + flick);
+
+  const [betAmounts, setBetAmounts] = useState<Record<string, string>>({
+    '2': '10', '3': '10', '5': '10', '30': '10'
+  });
+
+  const [wheelRotation, setWheelRotation] = useState(0);
+  const [targetMultiplier, setTargetMultiplier] = useState<number | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [unlockedAch, setUnlockedAch] = useState<string | null>(null);
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [gameHash, setGameHash] = useState('');
+  const [verificationData, setVerificationData] = useState({
+    gameId: '---',
+    hashData: {
+      hash: '',
+      salt1: 'Ожидание завершения...',
+      number: '---',
+      salt2: 'Ожидание завершения...',
+      amount: 0,
+      percent: 'N/A',
+      result: 0
+    }
+  });
+
+  const spinTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const gameIdRef = useRef('');
 
   useEffect(() => {
-    const handleState = (data: any) => {
-      setGameState(data.gameState);
-      setTimeLeft(data.timeLeft);
-      setHistory(data.history);
-      setAllBets(data.bets);
+    socket.emit('joinWheel');
 
-      const myCurrent = data.bets.find((b: BetData) => b.userId === user.uid);
-      if (myCurrent) {
-        setMyBets({ black: myCurrent.black, blue: myCurrent.blue, pink: myCurrent.pink, orange: myCurrent.orange });
-      } else {
-        setMyBets({ black: 0, blue: 0, pink: 0, orange: 0 });
-      }
+    socket.on('wheelState', (state) => {
+      setGameState(state.gameState);
+      setTimeLeft(state.timeLeft);
+      setHistory(state.history || []);
+      setGameHash(state.hash || '');
+      gameIdRef.current = state.gameId || '---';
 
-      if (data.gameState === 'betting') {
-        hasSpunRef.current = false;
-        setLastWinInfo(null);
-      }
-    };
-
-    const handleSpin = (data: { winningIndex: number }) => {
-      if (!hasSpunRef.current) {
-        hasSpunRef.current = true;
-        const slice = WHEEL_PATTERN[data.winningIndex];
-        
-        setRotation(prev => {
-            const currentSpins = Math.floor(prev / 360);
-            return ((currentSpins + 20) * 360) + (data.winningIndex * (360 / 32));
-        });
-
-        setTimeout(() => {
-          setHistory(prev => [slice.mult, ...prev].slice(0, 30));
-          
-          const myBetOnWinColor = myBets[slice.type as keyof typeof myBets] || 0;
-          if (myBetOnWinColor > 0) {
-             setLastWinInfo({ mult: slice.mult, payout: myBetOnWinColor * slice.mult });
-          } else {
-             setLastWinInfo(null);
+      if (state.gameState === 'betting') {
+        setTargetMultiplier(null);
+        setWheelRotation(0);
+        setVerificationData(prev => ({
+          ...prev,
+          gameId: gameIdRef.current,
+          hashData: {
+            hash: state.hash || '',
+            salt1: 'Скрыто до конца раунда',
+            number: '---',
+            salt2: 'Скрыто до конца раунда',
+            amount: 0,
+            percent: 'N/A',
+            result: 0
           }
-        }, 8000); 
+        }));
       }
-    };
 
-    const handleBetError = (msg: string) => {
-      setBetError(msg);
-      setTimeout(() => setBetError(null), 3500);
-    };
+      const formattedBets: Record<string, { total: number, users: any[] }> = {
+        '2': { total: 0, users: [] },
+        '3': { total: 0, users: [] },
+        '5': { total: 0, users: [] },
+        '30': { total: 0, users: [] }
+      };
 
-    vpsSocket.on('wheelState', handleState);
-    vpsSocket.on('wheelSpin', handleSpin);
-    vpsSocket.on('betError', handleBetError);
+      if (state.bets) {
+        state.bets.forEach((b: any) => {
+          const mult = b.multiplier.toString();
+          if (formattedBets[mult]) {
+            formattedBets[mult].total += b.amount;
+            formattedBets[mult].users.push(b);
+          }
+        });
+      }
+      setBets(formattedBets);
+    });
+
+    socket.on('wheelSpin', async ({ result, salt1, salt2, randomNum }) => {
+      setGameState('spinning');
+      setTargetMultiplier(result);
+      
+      const extraSpins = 5 * 360; 
+      let targetDeg = 0;
+      if (result === 2) targetDeg = 45;
+      if (result === 3) targetDeg = 135;
+      if (result === 5) targetDeg = 225;
+      if (result === 30) targetDeg = 315;
+      
+      const offset = (Math.random() - 0.5) * 60; 
+      const finalRotation = extraSpins + targetDeg + offset;
+      
+      setWheelRotation(finalRotation);
+
+      setVerificationData({
+        gameId: gameIdRef.current,
+        hashData: {
+          hash: gameHash,
+          salt1: salt1,
+          number: randomNum.toFixed(4),
+          salt2: salt2,
+          amount: 0, 
+          percent: 'N/A',
+          result: result
+        }
+      });
+
+      if (spinTimeoutRef.current) clearTimeout(spinTimeoutRef.current);
+      spinTimeoutRef.current = setTimeout(async () => {
+        setGameState('finished');
+        
+        try {
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (!userDoc.exists()) return;
+          const uData = userDoc.data();
+          
+          const myBets = [2, 3, 5, 30].filter(m => 
+            bets[m.toString()]?.users.some(u => u.uid === user.uid)
+          );
+
+          if (myBets.length > 0) {
+            const achQuery = query(collection(db, 'achievements'), where('userId', '==', user.uid), where('category', '==', 'wheelx'));
+            const achSnapshot = await getDocs(achQuery);
+            const userAchs: MutableAchievement[] = achSnapshot.docs.map((d: any) => ({ id: d.id, ...d.data() } as MutableAchievement));
+
+            const getAch = (type: string): MutableAchievement => {
+              const existing = userAchs.find(a => a.type === type);
+              return existing ? { ...existing } : { type, category: 'wheelx', progress: 0, completed: false, rewarded: false, userId: user.uid };
+            };
+
+            const updates: MutableAchievement[] = [];
+            const newAchsToCreate: MutableAchievement[] = [];
+            let newlyUnlocked: string | null = null;
+            let currentSequence = uData.wxSequence || [];
+
+            const processAch = (type: string, target: number, progressFn: (a: MutableAchievement) => MutableAchievement, title: string) => {
+              let ach = getAch(type);
+              if (ach.completed) return;
+              const oldProg = ach.progress;
+              ach = progressFn({ ...ach });
+              if (ach.progress >= target) {
+                ach.progress = target; ach.completed = true; newlyUnlocked = title; 
+              }
+              if (ach.progress !== oldProg || ach.completed) {
+                if (ach.id) {
+                  const existingIdx = updates.findIndex(u => u.id === ach.id);
+                  if (existingIdx >= 0) updates[existingIdx] = ach; else updates.push(ach);
+                } else {
+                  const existingIdx = newAchsToCreate.findIndex(u => u.type === ach.type);
+                  if (existingIdx >= 0) newAchsToCreate[existingIdx] = ach; else newAchsToCreate.push(ach);
+                }
+              }
+            };
+
+            const wonAmount = myBets.includes(result) ? bets[result.toString()].users.find(u => u.uid === user.uid).amount * result : 0;
+            const totalBetRound = myBets.reduce((sum, m) => sum + bets[m.toString()].users.find(u => u.uid === user.uid).amount, 0);
+
+            if (result === 30 && myBets.includes(30) && bets['30'].users.find(u => u.uid === user.uid).amount >= 50) {
+              processAch('wx_greedy', 30, a => { a.progress++; return a; }, 'Жадный');
+            }
+            if (myBets.length === 4 && totalBetRound >= 100) {
+              processAch('wx_safe', 1, a => { a.progress = 1; return a; }, 'Надежный выигрыш');
+            }
+            if (wonAmount > 10000) {
+              processAch('wx_more', 1, a => { a.progress = 1; return a; }, 'Мне нужно больше');
+            }
+
+            if (myBets.includes(result) && bets[result.toString()].users.find(u => u.uid === user.uid).amount >= 10) {
+              if (result === 2 && currentSequence.length === 0) currentSequence = [2];
+              else if (result === 3 && currentSequence.length === 1 && currentSequence[0] === 2) currentSequence.push(3);
+              else if (result === 5 && currentSequence.length === 2 && currentSequence[1] === 3) currentSequence.push(5);
+              else if (result === 30 && currentSequence.length === 3 && currentSequence[2] === 5) {
+                currentSequence.push(30);
+                processAch('wx_why_not', 1, a => { a.progress = 1; return a; }, 'Почему бы и нет?');
+              } else {
+                currentSequence = [];
+              }
+            } else {
+              currentSequence = [];
+            }
+
+            await updateDoc(doc(db, 'users', user.uid), { wxSequence: currentSequence });
+
+            if (updates.length > 0 || newAchsToCreate.length > 0) {
+              await Promise.all([
+                ...updates.map(ach => updateDoc(doc(db, 'achievements', ach.id as string), { progress: ach.progress, completed: ach.completed })),
+                ...newAchsToCreate.map(ach => { const { id, ...data } = ach; return addDoc(collection(db, 'achievements'), data); })
+              ]);
+            }
+
+            if (newlyUnlocked) {
+              setUnlockedAch(newlyUnlocked);
+              setTimeout(() => setUnlockedAch(null), 4000);
+            }
+          }
+        } catch (error) {
+          console.error('Achievement processing error:', error);
+        }
+      }, 7000); 
+    });
+
+    socket.on('wheelError', (msg) => {
+      setErrorMsg(msg);
+      setTimeout(() => setErrorMsg(null), 3000);
+      setLoading(false);
+    });
 
     return () => {
-      vpsSocket.off('wheelState', handleState);
-      vpsSocket.off('wheelSpin', handleSpin);
-      vpsSocket.off('betError', handleBetError);
+      socket.emit('leaveWheel');
+      socket.off('wheelState');
+      socket.off('wheelSpin');
+      socket.off('wheelError');
+      if (spinTimeoutRef.current) clearTimeout(spinTimeoutRef.current);
     };
-  }, [user.uid, myBets]);
+  }, [user.uid, bets, gameHash]);
 
-  useEffect(() => {
-    if (gameState === 'spinning' && hasSpunRef.current) {
-        animate(wheelRotValue, -rotation, { duration: 8, type: "tween", ease: [0.05, 0.95, 0.1, 1] });
+  const handleBet = async (multiplier: number) => {
+    if (gameState !== 'betting' || loading) return;
+    
+    const amountStr = betAmounts[multiplier.toString()];
+    const amount = parseFloat(amountStr.replace(',', '.')) || 0;
+    
+    if (amount < 1) {
+      setErrorMsg('Мин. ставка 1 CAT');
+      setTimeout(() => setErrorMsg(null), 3000);
+      return;
     }
-  }, [rotation, gameState, wheelRotValue]);
 
-  const handleHalfBet = () => {
-    if (gameState !== 'betting') return;
-    let next = currentBetNum / 2;
-    if (next < 1) next = 1;
-    setGlobalBet(Number(next.toFixed(2)).toString());
-  };
+    if (amount > user.balance) {
+      setErrorMsg('Недостаточно средств');
+      setTimeout(() => setErrorMsg(null), 3000);
+      return;
+    }
 
-  const handleDoubleBet = () => {
-    if (gameState !== 'betting') return;
-    let next = currentBetNum * 2;
-    if (next > user.balance) next = user.balance;
-    if (next < 1) next = 1;
-    setGlobalBet(Number(next.toFixed(2)).toString());
-  };
-
-  const handleMinBet = () => { if (gameState !== 'betting') return; setGlobalBet('1'); };
-  const handleMaxBet = () => { if (gameState !== 'betting') return; setGlobalBet(Math.max(1, Number(user.balance.toFixed(2))).toString()); };
-
-  const placeBet = (color: 'black' | 'blue' | 'pink' | 'orange') => {
-    if (gameState !== 'betting' || currentBetNum < 1 || currentBetNum > user.balance) return;
-    vpsSocket.emit('placeBet', {
-      userId: user.uid, nickname: user.nickname, avatar: user.avatar, color: color, amount: currentBetNum
+    setLoading(true);
+    socket.emit('placeWheelBet', {
+      userId: user.uid,
+      nickname: user.nickname,
+      avatar: user.avatar,
+      amount,
+      multiplier
     });
+    setTimeout(() => setLoading(false), 500); 
   };
 
-  const getWinPanelStyle = (mult: number) => {
-    switch(mult) {
-      case 30: return { bg: 'bg-gradient-to-br from-orange-400 to-orange-600', shadow: 'shadow-orange-500/50', border: 'border-orange-300/50' };
-      case 5: return { bg: 'bg-gradient-to-br from-pink-400 to-pink-600', shadow: 'shadow-pink-500/50', border: 'border-pink-300/50' };
-      case 3: return { bg: 'bg-gradient-to-br from-blue-400 to-blue-600', shadow: 'shadow-blue-500/50', border: 'border-blue-300/50' };
-      default: return { bg: 'bg-gradient-to-br from-slate-700 to-slate-900', shadow: 'shadow-slate-900/50', border: 'border-slate-500/50' };
-    }
-  };
+  const updateBetAmount = (multiplier: number, action: 'min' | 'half' | 'double' | 'max' | string) => {
+    if (gameState !== 'betting') return;
+    const currentStr = betAmounts[multiplier.toString()];
+    let current = parseFloat(currentStr.replace(',', '.')) || 0;
+    
+    if (action === 'min') current = 1;
+    else if (action === 'half') current = Math.max(1, current / 2);
+    else if (action === 'double') current = Math.min(user.balance, current * 2);
+    else if (action === 'max') current = Math.max(1, user.balance);
+    else current = parseFloat(action) || 0;
 
-  const BetCard = ({ type, mult, titleColor, btnClass }: { type: 'black'|'blue'|'pink'|'orange', mult: number, titleColor: string, btnClass: string }) => {
-    const playersList = allBets.filter(b => (b[type as keyof BetData] as number) > 0).map(b => ({ nick: b.nickname, avatar: b.avatar, bet: b[type as keyof BetData] as number })).sort((a, b) => b.bet - a.bet); 
-    const currentPool = playersList.reduce((sum, p) => sum + p.bet, 0);
-
-    return (
-      <div className="bg-white rounded-2xl p-3 sm:p-4 flex flex-col gap-3 sm:gap-4 border border-slate-100 shadow-md h-[220px] sm:h-[280px]">
-        <div className="flex justify-between items-center px-1">
-            <span className={cn("text-2xl sm:text-4xl font-black leading-none", titleColor)}>{mult}x</span>
-            <div className="text-slate-400 text-[10px] sm:text-xs font-bold flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-md border border-slate-100"><Users className="w-3 h-3 sm:w-3.5 sm:h-3.5" />{playersList.length}</div>
-        </div>
-        <button disabled={gameState !== 'betting'} onClick={() => placeBet(type)} className={cn("w-full py-2.5 sm:py-3.5 rounded-xl flex items-center justify-center disabled:opacity-50", btnClass)}>
-          ПОСТАВИТЬ
-        </button>
-        <div className="flex justify-between items-center px-2 bg-slate-50 rounded-lg py-1.5 border border-slate-100">
-            <Coins className="w-3.5 h-3.5 text-brand-500" /><span className="text-xs sm:text-sm font-black text-slate-700">{currentPool.toFixed(0)}</span>
-        </div>
-        <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
-          {playersList.map((p, i) => (
-            <div key={i} className="flex items-center justify-between hover:bg-slate-50 p-1 rounded-md transition-colors">
-              <div className="flex items-center gap-2 overflow-hidden">
-                <img src={p.avatar} alt="ava" className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-slate-200" />
-                <span className="text-[10px] sm:text-xs font-bold text-slate-600 truncate max-w-[60px] sm:max-w-[80px]">{p.nick}</span>
-              </div>
-              <span className="text-[10px] sm:text-xs font-black text-slate-900">{p.bet.toFixed(0)}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
+    setBetAmounts(prev => ({ ...prev, [multiplier.toString()]: Number(current.toFixed(2)).toString() }));
   };
 
   return (
-    <div className="max-w-[1200px] mx-auto space-y-6 sm:space-y-8 pb-12 overflow-visible relative px-2 sm:px-0">
-      
+    <div className="max-w-6xl mx-auto space-y-4 sm:space-y-8 pb-0 sm:pb-12 relative min-h-[calc(100vh-120px)] flex flex-col">
+      <ProvablyFairModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        gameId={verificationData.gameId} 
+        hashData={verificationData.hashData} 
+      />
+
       <AnimatePresence>
-        {betError && (
-          <motion.div initial={{ opacity: 0, y: -50, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -50, scale: 0.9 }} className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] bg-white px-6 py-4 rounded-3xl shadow-2xl border-2 border-rose-200 flex items-center gap-4 min-w-[300px]">
-            <div className="w-12 h-12 bg-rose-100 rounded-xl flex items-center justify-center shrink-0"><AlertCircle className="w-6 h-6 text-rose-500" /></div>
-            <div><p className="text-[10px] font-black uppercase tracking-widest text-rose-500 mb-0.5">Ошибка ставки</p><p className="text-sm sm:text-base font-black text-slate-900 leading-tight">{betError}</p></div>
+        {unlockedAch && (
+          <motion.div initial={{ opacity: 0, y: -50, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -50, scale: 0.9 }} className="fixed top-24 left-1/2 -translate-x-1/2 z-100 bg-white px-6 py-4 rounded-3xl shadow-2xl border-2 border-brand-200 flex items-center gap-4 min-w-75">
+            <div className="w-12 h-12 bg-brand-100 rounded-xl flex items-center justify-center shrink-0">
+              <Trophy className="w-6 h-6 text-brand-600" />
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-brand-500 mb-0.5">Достижение открыто!</p>
+              <p className="text-lg font-black text-slate-900 leading-tight">{unlockedAch}</p>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <header className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 lg:gap-6 shrink-0 pt-4 sm:pt-0 px-4 sm:px-0 mb-6">
+      <AnimatePresence>
+        {errorMsg && (
+          <motion.div initial={{ opacity: 0, y: -50, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -50, scale: 0.9 }} className="fixed top-24 left-1/2 -translate-x-1/2 z-100 bg-white px-6 py-4 rounded-3xl shadow-2xl border-2 border-rose-200 flex items-center gap-4 min-w-75">
+            <div className="w-12 h-12 bg-rose-100 rounded-xl flex items-center justify-center shrink-0">
+              <AlertTriangle className="w-6 h-6 text-rose-500" />
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-rose-500 mb-0.5">Ошибка ставки</p>
+              <p className="text-sm sm:text-base font-black text-slate-900 leading-tight">{errorMsg}</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <header className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 lg:gap-6 shrink-0 pt-4 sm:pt-0 px-4 sm:px-0">
         <div className="flex items-center gap-4 lg:gap-6">
-          <div className="w-12 h-12 lg:w-16 lg:h-16 bg-brand-500 rounded-[1.2rem] lg:rounded-3xl flex items-center justify-center shadow-lg shadow-brand-200 shrink-0">
-            <Disc className="w-6 h-6 lg:w-8 lg:h-8 text-white" />
+          <div className="w-12 h-12 lg:w-16 lg:h-16 bg-brand-600 rounded-2xl lg:rounded-4xl flex items-center justify-center shadow-lg shadow-brand-200 shrink-0">
+            <Aperture className="w-6 h-6 lg:w-8 lg:h-8 text-white" />
           </div>
           <div>
             <h1 className="text-3xl lg:text-4xl font-black text-slate-900 tracking-tighter leading-none mb-1">WheelX</h1>
-            <p className="text-slate-400 font-medium text-xs lg:text-base hidden sm:block">Лайв-рулетка. Крути колесо вместе с другими игроками.</p>
+            <p className="text-slate-400 font-medium text-xs lg:text-base hidden sm:block">Делай ставки на цвета. Больше риск — больше куш!</p>
           </div>
         </div>
       </header>
 
-      <div className="bg-white rounded-[2rem] sm:rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/50 pt-8 sm:pt-12 relative overflow-visible flex flex-col">
-        <div className="relative w-full max-w-[800px] mx-auto h-[220px] sm:h-[350px] flex justify-center" style={{ clipPath: 'polygon(-50% -200%, 150% -200%, 150% 100%, -50% 100%)' }}>
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 z-[45] pointer-events-none">
-              <motion.div className="bg-white" style={{ width: activeMaskConfig.width, height: activeMaskConfig.height, x: activeMaskConfig.x, y: activeMaskConfig.y }} />
-          </div>
+      <div className="flex flex-col lg:flex-row gap-4 lg:gap-8 flex-1 w-full">
+        
+        <div className="lg:w-1/3 flex flex-col gap-4 lg:gap-6 order-1">
+          <div className="bg-white rounded-4xl sm:rounded-4xl p-4 sm:p-8 shadow-xl shadow-slate-200/50 border border-slate-100 flex flex-col items-center justify-center relative overflow-hidden h-55 sm:h-70 w-full shrink-0">
+            <div className="absolute inset-0 bg-slate-900">
+               <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,var(--tw-gradient-stops))] from-brand-500/20 via-transparent to-transparent" />
+            </div>
 
-          <motion.img src="/assets/wheelx/paw_wheel.webp" alt="Pointer" style={{ rotate: pawRotation, originY: 0.2, originX: 0.5, x: activePawConfig.x, y: activePawConfig.y, scale: activePawConfig.scale }} className="absolute top-0 w-16 sm:w-24 drop-shadow-2xl z-40 transition-transform duration-300" />
+            <div className="absolute top-4 left-4 z-10 flex items-center gap-2 bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-1.5 backdrop-blur-sm">
+               <Clock className="w-3.5 h-3.5 text-brand-400 animate-pulse" />
+               <span className="text-[10px] font-black text-slate-200 uppercase tracking-widest">{gameState === 'betting' ? `00:${timeLeft.toString().padStart(2, '0')}` : 'ROLL'}</span>
+            </div>
 
-          <motion.div style={{ rotate: wheelRotValue, width: activeWheelConfig.size, height: activeWheelConfig.size, x: activeWheelConfig.x, y: activeWheelConfig.y, scale: activeWheelConfig.scale }} className="absolute bottom-0 rounded-full bg-slate-900 border-[16px] sm:border-[24px] border-slate-800 z-10">
-            <svg viewBox="0 0 100 100" className="absolute inset-0 w-full h-full">
-              <defs>
-                <linearGradient id="gradOrange" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#fb923c" /><stop offset="100%" stopColor="#c2410c" /></linearGradient>
-                <linearGradient id="gradPink" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#f472b6" /><stop offset="100%" stopColor="#be185d" /></linearGradient>
-                <linearGradient id="gradBlue" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#60a5fa" /><stop offset="100%" stopColor="#1d4ed8" /></linearGradient>
-                <linearGradient id="gradBlack" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#334155" /><stop offset="100%" stopColor="#0f172a" /></linearGradient>
-              </defs>
-              <g transform="translate(50,50)">
-                {WHEEL_PATTERN.map((slice, i) => (<path key={`slice-${i}`} d="M0,0 L-4.89,-49.76 A50,50 0 0,1 4.89,-49.76 Z" fill={slice.color} stroke="rgba(0,0,0,0.2)" strokeWidth="0.4" transform={`rotate(${i * 11.25})`} />))}
-                {WHEEL_PATTERN.map((slice, i) => (<text key={`txt-${i}`} x="0" y="-35" fill="#ffffff" fontSize="4.5" fontWeight="900" textAnchor="middle" transform={`rotate(${i * 11.25})`} className="font-sans" style={{ letterSpacing: '-0.2px', textShadow: '0px 1px 2px rgba(0,0,0,0.7)' }}>{slice.mult === 2 ? "" : `${slice.mult}x`}</text>))}
-                {WHEEL_PATTERN.map((_, i) => (<circle key={`pin-${i}`} cx="0" cy="-47.5" r="1.2" fill="#cbd5e1" stroke="#1e293b" strokeWidth="0.4" transform={`rotate(${i * 11.25})`} className="shadow-inner" />))}
-              </g>
-            </svg>
-          </motion.div>
+            <div 
+              onClick={() => setIsModalOpen(true)}
+              className="absolute top-4 right-4 z-10 flex items-center gap-1.5 bg-slate-800/80 hover:bg-slate-700 border border-slate-700 rounded-xl px-3 py-1.5 backdrop-blur-sm cursor-pointer transition-colors max-w-15 sm:max-w-20"
+            >
+               <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+               <span className="text-[10px] font-mono text-slate-300 truncate">{gameHash || '---'}</span>
+            </div>
+            
+            <div className="relative w-full max-w-300 aspect-square flex items-center justify-center -mb-20 sm:-mb-24 mt-4">
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 z-100">
+                <div className="w-0 h-0 border-l-12 sm:border-l-16 border-l-transparent border-r-12 sm:border-r-16 border-r-transparent border-t-20 sm:border-t-28 border-t-white drop-shadow-[0_4px_10px_rgba(0,0,0,0.8)]" />
+              </div>
 
-          <div className="absolute bottom-0 translate-y-1/2 w-28 h-28 sm:w-48 sm:h-48 bg-white rounded-full z-30 border-[6px] sm:border-[10px] border-slate-100 flex flex-col items-center justify-start pt-3 sm:pt-6">
-            {gameState === 'betting' ? (
-              <motion.div style={{ scale: activeCenterConfig.timerScale, x: activeCenterConfig.timerX, y: activeCenterConfig.timerY }} className="flex items-center justify-center h-full pb-6 sm:pb-12"><span className="text-4xl sm:text-6xl font-black text-slate-800 leading-none tracking-tighter">{timeLeft}</span></motion.div>
-            ) : (
-              <motion.div animate={{ scale: [activeCenterConfig.textScale, activeCenterConfig.textScale * 1.05, activeCenterConfig.textScale] }} transition={{ repeat: Infinity, duration: 1 }} style={{ x: activeCenterConfig.textX, y: activeCenterConfig.textY }} className="flex items-center justify-center h-full pb-6 sm:pb-12"><span className="text-2xl sm:text-4xl font-black tracking-tighter block relative"><span className="absolute inset-0 z-0 drop-shadow-sm" style={{ WebkitTextStroke: '6px #5c2f3c', color: 'transparent' }} aria-hidden="true">CoolCat</span><span className="relative z-10"><span style={{ color: LOGO_COLOR_COOL }}>Cool</span><span className="text-white">Cat</span></span></span></motion.div>
-            )}
-          </div>
+              <div className="w-full h-full rounded-full border-16 sm:border-24 border-slate-800 relative overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)] bg-slate-900">
+                <motion.div 
+                  className="w-full h-full rounded-full absolute inset-0"
+                  animate={{ rotate: wheelRotation }}
+                  transition={{ 
+                    type: "tween", 
+                    duration: gameState === 'spinning' ? 7 : 0, 
+                    ease: gameState === 'spinning' ? [0.1, 0.85, 0.15, 1] : "linear" 
+                  }}
+                  style={{ 
+                    background: 'conic-gradient(#cbd5e1 0deg 180deg, #34d399 180deg 270deg, #6366f1 270deg 315deg, #fbbf24 315deg 360deg)',
+                    willChange: 'transform'
+                  }}
+                />
+                <div className="absolute inset-10 sm:inset-12 bg-slate-900 rounded-full shadow-[inset_0_0_30px_rgba(0,0,0,0.8)] border-4 sm:border-10 border-slate-800 flex flex-col items-center justify-center z-20">
+                  <span className="text-[10px] sm:text-xs font-black uppercase text-slate-400 tracking-widest mt-1">Пул</span>
+                  <span className="text-xl sm:text-3xl font-black text-white leading-none my-1">
+                    {Object.values(bets).reduce((a,b) => a + b.total, 0).toFixed(0)}
+                  </span>
+                  <span className="text-[9px] font-black uppercase text-slate-500 tracking-widest">CAT</span>
+                </div>
+              </div>
 
-          <AnimatePresence mode="wait">
-              {lastWinInfo && (
-                <motion.div initial={{ scale: 0, opacity: 0, y: 0 }} animate={{ scale: 1, opacity: 1, y: -40 }} exit={{ scale: 0.5, opacity: 0, y: -60 }} transition={{ type: "spring", damping: 14, stiffness: 120 }} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[60] pointer-events-none flex flex-col items-center">
-                  <div className={cn("absolute inset-0 blur-3xl opacity-60 rounded-full", getWinPanelStyle(lastWinInfo.mult).bg)} />
-                  <div className={cn("relative px-10 py-3 sm:px-14 sm:py-5 rounded-[2rem] sm:rounded-[2.5rem] border-[3px] shadow-2xl flex flex-row items-center gap-6 sm:gap-10 min-w-[280px] sm:min-w-[380px] justify-center", getWinPanelStyle(lastWinInfo.mult).bg, getWinPanelStyle(lastWinInfo.mult).border, getWinPanelStyle(lastWinInfo.mult).shadow)}>
-                      <div className="flex flex-col items-start">
-                          <p className="text-[10px] sm:text-[12px] font-black text-white/80 uppercase tracking-[0.2em] mb-0.5 drop-shadow-md">Победа</p>
-                          <span className="text-4xl sm:text-6xl font-black text-white drop-shadow-[0_4px_4px_rgba(0,0,0,0.3)] leading-none">{lastWinInfo.mult}x</span>
-                      </div>
-                      {lastWinInfo.payout > 0 && (
-                          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.2, type: "spring" }} className="bg-black/25 backdrop-blur-sm rounded-[1rem] sm:rounded-2xl px-4 py-2 sm:px-6 sm:py-3 flex items-center gap-2 border border-white/20 shadow-inner">
-                              <Coins className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-400 drop-shadow-md" />
-                              <span className="text-lg sm:text-2xl font-black text-white">+{lastWinInfo.payout.toFixed(2)}</span>
-                          </motion.div>
-                      )}
-                  </div>
-                </motion.div>
-              )}
-          </AnimatePresence>
-        </div>
-
-        <div className="w-full bg-white relative z-20 px-4 sm:px-8 pt-4 sm:pt-6">
-            <div className="max-w-[1000px] mx-auto">
-                <div className="flex flex-col gap-2 w-full overflow-hidden">
-                    <span className="text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-widest pl-1">История игр</span>
-                    <div ref={historyContainerRef} className="flex gap-1.5 sm:gap-2 w-full overflow-hidden items-end h-10 sm:h-14">
-                        {history.slice(0, maxHistory).map((mult, i) => (
-                            <motion.div key={i} initial={{ height: 0, opacity: 0 }} animate={{ height: mult === 30 ? '100%' : mult === 5 ? '75%' : mult === 3 ? '55%' : '35%', opacity: 1 }} className={cn("w-5 sm:w-7 rounded-t-md sm:rounded-t-lg rounded-b-sm flex items-end justify-center pb-0.5 sm:pb-1 shrink-0 transition-colors", mult === 30 ? "bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.4)]" : mult === 5 ? "bg-pink-500 shadow-[0_0_10px_rgba(236,72,153,0.3)]" : mult === 3 ? "bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.3)]" : "bg-slate-800")}>
-                                <span className="text-[8px] sm:text-[10px] font-black text-white leading-none">{mult}x</span>
-                            </motion.div>
-                        ))}
-                        {history.length === 0 && <span className="text-xs text-slate-400 font-bold ml-2 pb-2">Ожидание...</span>}
+              <AnimatePresence>
+                {gameState === 'finished' && targetMultiplier !== null && (
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.5 }}
+                    className="absolute inset-0 z-60 flex items-center justify-center"
+                  >
+                    <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-4xl bg-slate-900/90 backdrop-blur-md border border-white/10 shadow-2xl flex flex-col items-center justify-center">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Выпало</span>
+                      <span className={cn("text-3xl sm:text-4xl font-black leading-none", WHEEL_SEGMENTS.find(s => s.mult === targetMultiplier)?.color || 'text-white')}>
+                        x{targetMultiplier}
+                      </span>
                     </div>
-                </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
-            <div className="w-full h-[1px] bg-slate-100 max-w-[1000px] mx-auto mt-4 sm:mt-6"></div>
+          </div>
+
+          <div className="bg-white rounded-2xl sm:rounded-4xl border border-slate-100 shadow-xl shadow-slate-200/50 p-4 sm:p-6 w-full">
+            <div className="flex items-center gap-2 mb-3 px-1">
+              <History className="w-4 h-4 text-slate-400" />
+              <h3 className="text-xs font-black uppercase tracking-widest text-slate-800">Последние игры</h3>
+            </div>
+            <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-2">
+              <AnimatePresence>
+                {history.map((h, i) => {
+                  const seg = WHEEL_SEGMENTS.find(s => s.mult === h.multiplier) || WHEEL_SEGMENTS[0];
+                  return (
+                    <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} key={i} className={cn("w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center font-black text-xs sm:text-sm shrink-0 shadow-sm text-slate-900", seg.color)}>
+                      x{h.multiplier}
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
+              {history.length === 0 && <span className="text-[10px] font-bold text-slate-400 py-3 px-2 uppercase tracking-widest">Нет игр</span>}
+            </div>
+          </div>
         </div>
 
-        <div className={cn("w-full bg-white relative z-20 px-4 sm:px-8 pb-6 sm:pb-10 pt-4 sm:pt-6 rounded-b-[2rem] sm:rounded-b-[3rem] transition-opacity duration-300", gameState !== 'betting' && "opacity-50 pointer-events-none")}>
-            <div className="flex flex-col md:flex-row gap-3 sm:gap-6 items-center max-w-[1000px] mx-auto">
-                <div className="relative w-full md:w-1/2">
-                    <span className="absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm sm:text-lg">₽</span>
-                    <input type="text" inputMode="decimal" value={globalBet} disabled={gameState !== 'betting'} onChange={(e) => { const val = e.target.value.replace(',', '.'); if (val === '' || /^\d*\.?\d{0,2}$/.test(val)) setGlobalBet(val); }} onBlur={() => { let val = parseFloat(globalBet.replace(',', '.')); if (isNaN(val) || val < 1) val = 1; else if (val > user.balance) val = Math.max(1, user.balance); setGlobalBet(Number(val.toFixed(2)).toString()); }} className="w-full bg-slate-50 text-slate-900 text-base sm:text-xl font-black rounded-xl py-3 sm:py-4 pl-10 sm:pl-12 pr-4 outline-none border-2 border-slate-100 focus:border-brand-500 transition-all shadow-inner" />
-                </div>
-                
-                <div className="flex w-full md:w-1/2 gap-1.5 sm:gap-2">
-                    <button onClick={handleHalfBet} disabled={gameState !== 'betting'} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-xs sm:text-sm py-3 sm:py-4 rounded-xl transition-colors disabled:opacity-50">/2</button>
-                    <button onClick={handleDoubleBet} disabled={gameState !== 'betting'} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-xs sm:text-sm py-3 sm:py-4 rounded-xl transition-colors disabled:opacity-50">X2</button>
-                    <button onClick={handleMinBet} disabled={gameState !== 'betting'} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-xs sm:text-sm py-3 sm:py-4 rounded-xl transition-colors disabled:opacity-50">MIN</button>
-                    <button onClick={handleMaxBet} disabled={gameState !== 'betting'} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-xs sm:text-sm py-3 sm:py-4 rounded-xl transition-colors disabled:opacity-50">MAX</button>
-                </div>
-            </div>
-        </div>
-      </div>
+        <div className="lg:w-2/3 flex flex-col gap-4 sm:gap-6 order-2">
+           <div className="grid grid-cols-2 gap-4 sm:gap-6">
+             {WHEEL_SEGMENTS.map(seg => {
+               const segmentBets = bets[seg.mult.toString()] || { total: 0, users: [] };
+               return (
+                 <div key={seg.mult} className="bg-white rounded-3xl sm:rounded-4xl border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden flex flex-col transition-all hover:border-slate-200">
+                    <div className={cn("p-4 sm:p-5 flex items-center justify-between text-slate-900", seg.color)}>
+                       <span className="font-black text-xl sm:text-3xl">x{seg.mult}</span>
+                       <div className="text-right">
+                         <span className="text-xs sm:text-sm font-black opacity-80 uppercase tracking-widest block mb-0.5">Банк</span>
+                         <span className="text-lg sm:text-xl font-black leading-none">{segmentBets.total.toFixed(0)} <span className="text-[10px] opacity-70">CAT</span></span>
+                       </div>
+                    </div>
+                    
+                    <div className="p-4 sm:p-5 flex flex-col gap-3 bg-slate-50 border-b border-slate-100">
+                       <div className="flex bg-white rounded-xl sm:rounded-2xl border border-slate-100 p-1.5 focus-within:border-brand-300 transition-colors">
+                         <input 
+                           type="text" inputMode="decimal"
+                           value={betAmounts[seg.mult.toString()]} 
+                           onChange={(e) => updateBetAmount(seg.mult, e.target.value)}
+                           disabled={gameState !== 'betting' || loading}
+                           className="w-full bg-transparent text-center font-black text-slate-900 outline-none text-sm sm:text-base min-w-0"
+                         />
+                       </div>
+                       <div className="grid grid-cols-4 gap-1 sm:gap-1.5">
+                         <button onClick={() => updateBetAmount(seg.mult, 'min')} disabled={gameState !== 'betting' || loading} className="py-1.5 sm:py-2 bg-white border border-slate-200 rounded-lg text-[9px] sm:text-[10px] font-black text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-colors shadow-sm disabled:opacity-50">МИН</button>
+                         <button onClick={() => updateBetAmount(seg.mult, 'half')} disabled={gameState !== 'betting' || loading} className="py-1.5 sm:py-2 bg-white border border-slate-200 rounded-lg text-[9px] sm:text-[10px] font-black text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-colors shadow-sm disabled:opacity-50">/2</button>
+                         <button onClick={() => updateBetAmount(seg.mult, 'double')} disabled={gameState !== 'betting' || loading} className="py-1.5 sm:py-2 bg-white border border-slate-200 rounded-lg text-[9px] sm:text-[10px] font-black text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-colors shadow-sm disabled:opacity-50">X2</button>
+                         <button onClick={() => updateBetAmount(seg.mult, 'max')} disabled={gameState !== 'betting' || loading} className="py-1.5 sm:py-2 bg-white border border-slate-200 rounded-lg text-[9px] sm:text-[10px] font-black text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-colors shadow-sm disabled:opacity-50">МАКС</button>
+                       </div>
+                       <button 
+                         onClick={() => handleBet(seg.mult)} 
+                         disabled={gameState !== 'betting' || loading || parseFloat(betAmounts[seg.mult.toString()]) < 1 || parseFloat(betAmounts[seg.mult.toString()]) > user.balance}
+                         className={cn("w-full py-3 sm:py-4 rounded-xl sm:rounded-2xl font-black text-xs sm:text-sm uppercase tracking-widest transition-all shadow-md active:scale-95 text-slate-900 disabled:opacity-50", seg.color)}
+                       >
+                         {gameState === 'betting' ? 'Поставить' : 'Ожидание...'}
+                       </button>
+                    </div>
 
-      <div className={cn("grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mt-4 sm:mt-6", gameState !== 'betting' && "opacity-50 pointer-events-none")}>
-          <BetCard type="black" mult={2} titleColor="text-slate-800" btnClass="bg-gradient-to-b from-slate-700 to-slate-800 shadow-lg shadow-slate-700/30 text-white font-black uppercase tracking-widest transition-all active:scale-95" />
-          <BetCard type="blue" mult={3} titleColor="text-blue-500" btnClass="bg-gradient-to-b from-blue-500 to-blue-600 shadow-lg shadow-blue-500/30 text-white font-black uppercase tracking-widest transition-all active:scale-95" />
-          <BetCard type="pink" mult={5} titleColor="text-pink-500" btnClass="bg-gradient-to-b from-pink-500 to-pink-600 shadow-lg shadow-pink-500/30 text-white font-black uppercase tracking-widest transition-all active:scale-95" />
-          <BetCard type="orange" mult={30} titleColor="text-orange-500" btnClass="bg-gradient-to-b from-orange-500 to-orange-600 shadow-lg shadow-orange-500/30 text-white font-black uppercase tracking-widest transition-all active:scale-95" />
-      </div>
-
-      <div className="mt-8 w-full max-w-sm mx-auto">
-        <div className="flex items-center justify-between bg-white border border-slate-100 p-4 rounded-[1.5rem] shadow-sm hover:shadow-md transition-all group">
-           <div className="flex items-center gap-3">
-             <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-               <ShieldCheck className="w-5 h-5 text-emerald-500" />
-             </div>
-             <div className="flex flex-col text-left">
-               <span className="text-xs font-black uppercase text-slate-700 tracking-widest leading-none mb-1">Provably Fair</span>
-               <span className="text-[10px] font-bold text-slate-400 leading-none">Честная игра со 100% случайностью</span>
-             </div>
+                    <div className="flex-1 p-3 sm:p-4 bg-white max-h-40 sm:max-h-48 overflow-y-auto custom-scrollbar">
+                      <div className="flex items-center justify-between mb-3 px-1">
+                        <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400">Игрок</span>
+                        <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400">Сумма</span>
+                      </div>
+                      <div className="space-y-2">
+                        <AnimatePresence>
+                          {segmentBets.users.map((u, i) => (
+                            <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} key={i} className="flex items-center justify-between bg-slate-50 p-2 rounded-xl border border-slate-100">
+                              <div className="flex items-center gap-2 overflow-hidden">
+                                <img src={u.avatar || '/assets/avatars/ava1.webp'} className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg object-cover shrink-0" alt="ava" />
+                                <span className="text-xs sm:text-sm font-bold text-slate-700 truncate max-w-16 sm:max-w-24">{u.nickname}</span>
+                              </div>
+                              <span className="text-xs sm:text-sm font-black text-slate-900 shrink-0">{u.amount.toFixed(0)}</span>
+                            </motion.div>
+                          ))}
+                          {segmentBets.users.length === 0 && (
+                            <div className="text-center py-4 text-[10px] font-bold uppercase tracking-widest text-slate-300">
+                              Нет ставок
+                            </div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    </div>
+                 </div>
+               )
+             })}
            </div>
         </div>
+
       </div>
     </div>
   );

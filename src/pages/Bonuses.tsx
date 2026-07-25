@@ -201,9 +201,9 @@ export default function Bonuses({ user }: BonusesProps) {
 
   return (
     <div className="max-w-6xl mx-auto space-y-10 pb-12">
-     <header className="flex flex-col md:flex-row items-center justify-between gap-6 bg-white p-5 lg:p-8 rounded-[2rem] md:rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 max-w-7xl mx-auto mb-6 md:space-y-0">
+     <header className="flex flex-col md:flex-row items-center justify-between gap-6 bg-white p-5 lg:p-8 rounded-4xl md:rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 max-w-7xl mx-auto mb-6 md:space-y-0">
         <div className="flex flex-col md:flex-row items-center gap-4 md:gap-6 text-center md:text-left w-full">
-          <div className="w-14 h-14 md:w-16 md:h-16 bg-gradient-to-br from-brand-400 to-brand-600 rounded-2xl md:rounded-3xl flex items-center justify-center shadow-xl shadow-brand-200 shrink-0">
+          <div className="w-14 h-14 md:w-16 md:h-16 bg-linear-to-br from-brand-400 to-brand-600 rounded-2xl md:rounded-3xl flex items-center justify-center shadow-xl shadow-brand-200 shrink-0">
             <Gift className="w-7 h-7 md:w-8 md:h-8 text-white" />
           </div>
           <div>
@@ -303,7 +303,7 @@ export default function Bonuses({ user }: BonusesProps) {
 
             <div className="pt-2 flex justify-center md:justify-start">
               {timeToNextBonus === null ? (
-                 <div className="h-14 w-[240px] bg-slate-100 rounded-2xl animate-pulse" />
+                 <div className="h-14 w-60 bg-slate-100 rounded-2xl animate-pulse" />
               ) : timeToNextBonus > 0 ? (
                  <button disabled className="w-full md:w-auto bg-slate-100 text-slate-400 font-black py-4 px-8 rounded-2xl flex items-center justify-center gap-3 cursor-not-allowed border border-slate-200 shadow-inner">
                    <Clock className="w-5 h-5 text-slate-400" />
@@ -350,7 +350,7 @@ export default function Bonuses({ user }: BonusesProps) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.1 }}
-            className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-lg shadow-slate-200/40 flex flex-col justify-between group hover:border-brand-200 transition-all relative overflow-visible"
+            className="bg-white p-6 rounded-4xl border border-slate-100 shadow-lg shadow-slate-200/40 flex flex-col justify-between group hover:border-brand-200 transition-all relative overflow-visible"
           >
             <div className="space-y-4 flex-1">
               <div className="flex items-center justify-between">
@@ -410,7 +410,7 @@ export default function Bonuses({ user }: BonusesProps) {
 
       <AnimatePresence>
         {showModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -461,7 +461,7 @@ export default function Bonuses({ user }: BonusesProps) {
               <h2 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight mb-2">Отличный улов!</h2>
               <p className="text-slate-500 font-medium mb-6 text-sm md:text-base">Ваш ежедневный бонус успешно зачислен.</p>
 
-              <div className="w-full bg-brand-50 border border-brand-100 rounded-2xl py-4 md:py-5 px-6 mb-6 flex items-center justify-center gap-3 shadow-inner">
+              <div className="w-full bg-brand-50 border border-brand-100 rounded-4xl py-4 md:py-5 px-6 mb-6 flex items-center justify-center gap-3 shadow-inner">
                  <Coins className="w-6 h-6 md:w-8 md:h-8 text-brand-500" />
                  <span className="text-3xl md:text-4xl font-black text-brand-600">+{claimedAmount} <span className="text-xl md:text-2xl text-brand-400">CAT</span></span>
               </div>

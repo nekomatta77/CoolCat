@@ -74,7 +74,7 @@ export default function DepositModal({ isOpen, onClose, user, initialTab = 'depo
         
         <motion.div 
           initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} 
-          className="relative bg-white rounded-[2rem] w-full max-w-5xl flex flex-col lg:flex-row overflow-hidden shadow-2xl z-10 max-h-[90vh]"
+          className="relative bg-white rounded-4xl w-full max-w-5xl flex flex-col lg:flex-row overflow-hidden shadow-2xl z-10 max-h-[90vh]"
         >
           {/* ЛЕВАЯ ЧАСТЬ: Настройки транзакции */}
           <div className="flex-1 p-6 lg:p-10 flex flex-col overflow-y-auto custom-scrollbar">
@@ -164,7 +164,7 @@ export default function DepositModal({ isOpen, onClose, user, initialTab = 'depo
           </div>
 
           {/* ПРАВАЯ ЧАСТЬ: История и Шаблоны */}
-          <div className="bg-slate-50 border-t lg:border-t-0 lg:border-l border-slate-100 p-6 lg:p-8 w-full lg:w-[350px] flex flex-col gap-8 h-auto lg:h-[700px] overflow-y-auto custom-scrollbar">
+          <div className="bg-slate-50 border-t lg:border-t-0 lg:border-l border-slate-100 p-6 lg:p-8 w-full lg:w-87.5 flex flex-col gap-8 h-auto lg:h-175 overflow-y-auto custom-scrollbar">
             {activeTab === 'withdraw' && (
               <div>
                 <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Мои реквизиты</h3>

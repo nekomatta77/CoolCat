@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { X, ScrollText, ShieldCheck, AlertTriangle, Scale, UserCheck } from 'lucide-react';
+import { X, ScrollText, ShieldCheck, AlertTriangle, Scale, UserCheck, Coins } from 'lucide-react';
 
 interface TermsModalProps {
   isOpen: boolean;
@@ -10,7 +10,7 @@ export default function TermsModal({ isOpen, onClose }: TermsModalProps) {
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 lg:p-8">
+        <div className="fixed inset-0 z-100 flex items-center justify-center p-4 lg:p-8">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -122,6 +122,3 @@ export default function TermsModal({ isOpen, onClose }: TermsModalProps) {
     </AnimatePresence>
   );
 }
-
-// Re-importing missing icons for the component
-import { Coins } from 'lucide-react';

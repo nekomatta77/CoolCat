@@ -73,7 +73,7 @@ export default function Home({ user, onLogin }: HomeProps) {
         </div>
         
         <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.3 }} className="hidden lg:flex items-center gap-6 bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-2xl shadow-slate-200/50 relative overflow-hidden group">
-          <div className="absolute inset-0 bg-gradient-to-br from-brand-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="absolute inset-0 bg-linear-to-br from-brand-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
           
           {user ? (
             <>
@@ -116,7 +116,7 @@ export default function Home({ user, onLogin }: HomeProps) {
 
           return (
             <motion.div key={game.id} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }}>
-              <Link to={game.path} className="group relative bg-white p-4 lg:p-8 rounded-[2rem] lg:rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/50 hover:shadow-2xl transition-all flex flex-col items-center text-center overflow-hidden h-full">
+              <Link to={game.path} className="group relative bg-white p-4 lg:p-8 rounded-4xl lg:rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/50 hover:shadow-2xl transition-all flex flex-col items-center text-center overflow-hidden h-full">
                 <div className="w-24 h-24 lg:w-40 lg:h-40 mb-4 lg:mb-8 flex items-center justify-center relative">
                   <div className="absolute inset-0 bg-slate-100 rounded-full blur-2xl scale-50 group-hover:scale-100 transition-transform duration-500 opacity-60" />
                   <div 
@@ -149,7 +149,7 @@ export default function Home({ user, onLogin }: HomeProps) {
       </div>
 
       <section className="relative bg-slate-900 rounded-[2.5rem] lg:rounded-[4rem] p-6 lg:p-20 overflow-hidden mt-8 lg:mt-12">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-brand-500/20 via-transparent to-transparent" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,var(--tw-gradient-stops))] from-brand-500/20 via-transparent to-transparent" />
         <div className="absolute -bottom-12 -left-12 lg:-bottom-24 lg:-left-24 w-64 h-64 lg:w-96 lg:h-96 bg-brand-600/20 rounded-full blur-[80px] lg:blur-[120px]" />
         
         <div className="relative z-10 flex flex-col lg:flex-row items-center gap-10 lg:gap-16">
