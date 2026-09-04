@@ -1,4 +1,3 @@
-// src/pages/WheelX.tsx
 import { useState, useEffect, useRef } from 'react';
 import { UserProfile } from '../types';
 import { doc, updateDoc, collection, addDoc, onSnapshot, getDoc, getDocs, query, where, increment } from 'firebase/firestore';
@@ -125,7 +124,12 @@ export default function WheelX({ user }: WheelXProps) {
       setBets(formattedBets);
     });
 
-    socket.on('wheelSpin', async ({ result, salt1, salt2, randomNum }) => {
+    socket.on('wheelSpin', async (data: any) => {
+      const result = data?.result || 2;
+      const salt1 = data?.salt1 || '---';
+      const salt2 = data?.salt2 || '---';
+      const randomNum = data?.randomNum || 0;
+
       setGameState('spinning');
       setTargetMultiplier(result);
       
@@ -430,10 +434,10 @@ export default function WheelX({ user }: WheelXProps) {
             <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-2">
               <AnimatePresence>
                 {history.map((h, i) => {
-                  const seg = WHEEL_SEGMENTS.find(s => s.mult === h.multiplier) || WHEEL_SEGMENTS[0];
+                  const seg = WHEEL_SEGMENTS.find(s => s.mult === h) || WHEEL_SEGMENTS[0];
                   return (
                     <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} key={i} className={cn("w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center font-black text-xs sm:text-sm shrink-0 shadow-sm text-slate-900", seg.color)}>
-                      x{h.multiplier}
+                      x{h}
                     </motion.div>
                   );
                 })}
